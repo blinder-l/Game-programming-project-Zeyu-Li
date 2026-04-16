@@ -1,0 +1,672 @@
+**This game is inspired by game Balatro**
+**This is the first design document created by chatgpt, its content contains all the discussions I had with it.**
+
+1. High Concept
+
+Fourfold Accord is a poker-based roguelike where the player builds a run around four suit factions, each with its own identity and progression path. Instead of suits being only part of hand evaluation, suits act as strategic factions that grow stronger as they are used throughout a run.
+
+The game keeps the satisfying loop of:
+
+drawing cards,
+forming poker hands,
+scoring against a target,
+collecting passive modifiers and consumables,
+
+but adds two core twists:
+
+Suit Identity
+Hearts, Spades, Diamonds, and Clubs each have a persistent gameplay role within a run.
+Suit Mastery
+Repeated use of a suit increases that suit’s mastery level, upgrading its passive effect and gradually shaping the player’s build.
+
+The goal is to create a game that feels familiar at the level of poker-hand deckbuilding, but distinct in its internal logic, progression, and thematic presentation.
+
+2. Design Goals
+Primary Goals
+Build a playable prototype with a full run loop
+Preserve the satisfying “score-chasing card combo” feel
+Differentiate the project through suit-based build identity
+Keep the implementation scope manageable for a solo student project
+Secondary Goals
+Make build direction readable and intentional
+Encourage strategic adaptation, not blind copying of one dominant pattern
+Support later expansion with more modifiers, consumables, and boss mechanics
+3. Core Design Pillars
+3.1 Familiar Poker Core
+
+The player forms traditional poker hands from a changing hand of cards:
+
+High Card
+Pair
+Two Pair
+Three of a Kind
+Straight
+Flush
+Full House
+Four of a Kind
+Straight Flush
+3.2 Suit-Based Build Identity
+
+Each suit is more than a visual property. Each suit represents a different strategic role:
+
+Hearts = stability / chips
+Spades = burst / multiplier
+Diamonds = economy / resources
+Clubs = technique / retrigger / utility
+3.3 Growth Through Play
+
+Build direction is shaped by what the player repeatedly plays during the run. The system should feel like:
+
+“this run is becoming a Hearts run”
+“my Clubs route is online”
+“my Spades engine is stronger now”
+
+rather than only:
+
+“I found one lucky passive card”
+3.4 Controlled Scope
+
+The prototype should focus on:
+
+the main loop,
+scoring,
+suit mastery,
+a small set of passive modifiers,
+a small set of consumables,
+one boss rule layer.
+
+Not full production-level content volume.
+
+4. Thematic Framing
+
+The game is framed as a conflict between four allied sigils/factions and a powerful boss presence. Suits are presented as faction-aligned forces rather than standard card suit flavor only.
+
+Naming System
+Game title: Fourfold Accord
+Suit system: Sigils
+Joker-like passive cards: Champions
+Tarot-like consumables: Stratagems
+Planet-like hand upgrades: Doctrines
+Spectral-like high-risk cards: Forbidden Oaths
+Vouchers / persistent shop upgrades: Edicts
+Shop: Quartermaster
+Boss: Overseer
+
+This supports a more original presentation and world logic.
+
+5. Core Gameplay Loop
+Per Run
+Start run
+Enter an encounter structure
+Beat score targets across multiple rounds
+Gain gold and rewards
+Visit Quartermaster
+Buy Champions, consumables, or upgrades
+Continue until defeat or run completion
+Per Encounter
+Draw to hand limit
+Select cards to play
+Form poker hand
+Score hand
+Apply suit effects
+Apply Champion effects
+Replace played/discarded cards
+Continue until target is met or actions run out
+6. Round Structure
+
+A run is divided into cycles.
+Each cycle contains:
+
+Skirmish
+Battle
+Overseer Fight
+
+This structure mirrors escalating pressure:
+
+first round: easier scoring
+second round: stronger requirement
+third round: boss rule / major restriction
+
+The prototype does not need a huge number of cycles.
+A good prototype target is 3 cycles total.
+
+7. Basic Match Rules
+Starting Hand Size
+
+8 cards
+
+Actions Per Encounter
+Hands: 4
+Discards: 3
+Hand Play Rules
+Player may play 1 to 5 cards
+The selected set is evaluated as the scoring hand
+Played cards are removed
+New cards are drawn to restore hand size
+Discard Rules
+Player may discard selected cards
+Draw the same number of replacement cards
+Hand content changes dynamically throughout the encounter
+Win / Loss
+Reach the target score before running out of Hands → win
+Run out of Hands before reaching target → lose
+8. Core Scoring Structure
+
+The prototype scoring should be intentionally simpler than a full commercial game.
+
+Step 1: Determine Poker Hand Type
+
+Evaluate the played cards and identify the best valid hand type.
+
+Step 2: Apply Base Hand Score
+
+Each hand type has:
+
+base chips
+base multiplier
+
+Example prototype table:
+
+Hand Type	Base Chips	Base Mult
+High Card	10	1.0
+Pair	20	1.2
+Two Pair	40	1.5
+Three of a Kind	60	2.0
+Straight	100	2.0
+Flush	120	2.5
+Full House	160	3.0
+Four of a Kind	220	4.0
+Straight Flush	300	5.0
+Step 3: Add Played Card Value
+
+Optional prototype rule:
+
+scoring cards add small chip bonuses based on rank
+Step 4: Apply Suit Effects
+
+Suit identity effects modify the current scoring context.
+
+Step 5: Apply Champion Effects
+
+Champions resolve from left to right.
+
+Step 6: Final Score
+
+Final score = Chips × Mult
+
+9. Suit Identity System
+
+This is the main differentiating mechanic.
+
+Key Principle
+
+Suit effects should not heavily reward stacking one suit by raw quantity, or the game may overly encourage Flush-only play.
+
+Instead, suit effects should reward:
+
+suit presence,
+role-based contribution,
+controlled synergy.
+Suit Roles
+Hearts — Stability
+
+Role: reliable chip generation
+
+Prototype effect:
+
+If at least 1 scoring Heart is present, gain a flat chip bonus
+
+Example:
+
+Heart effect: +10 chips
+Upgrades improve the flat value
+
+Design intent:
+
+Hearts support many hand types
+Not dependent on playing all-Hearts hands
+Spades — Burst
+
+Role: multiplier spike
+
+Prototype effect:
+
+The highest-rank scoring Spade grants extra multiplier
+
+Example:
+
+Highest scoring Spade grants +0.5 mult
+
+Design intent:
+
+Spades act like a “carry” suit
+Encourages precision, not stacking all Spades
+Diamonds — Economy
+
+Role: gold and shop value
+
+Prototype effect:
+
+If 1–2 scoring Diamonds are present, gain +1 gold after scoring
+
+Design intent:
+
+Diamonds encourage mixed hands
+Prevents “more Diamonds always better”
+Clubs — Technique
+
+Role: utility / retrigger
+
+Prototype effect:
+
+If at least 1 scoring Club is present, retrigger one scoring card’s base value once
+
+Design intent:
+
+Clubs reward setup and finesse
+Best as utility support, not necessarily full-suit focus
+10. Suit Mastery System
+Purpose
+
+Repeated use of a suit increases its power across the run.
+
+This is the prototype’s main progression twist.
+
+Rule
+
+A suit gains Mastery XP if it participates in a scoring hand.
+
+Important balancing rule:
+
+A suit gains XP once per hand played, not once per card of that suit
+This prevents the system from overly rewarding Flush spam
+
+Example:
+
+If a played hand includes Hearts, Hearts gain +1 XP
+Even if the hand contains 4 Hearts, Hearts still only gain +1 XP that hand
+Mastery Levels
+
+Prototype target:
+
+Level 0
+Level 1
+Level 2
+Level 3
+
+Example thresholds:
+
+Level 1: 3 XP
+Level 2: 6 XP
+Level 3: 10 XP
+Example Level Progression
+Hearts
+Lv0: +10 chips if a Heart is present
+Lv1: +15 chips
+Lv2: +20 chips
+Lv3: +20 chips and +0.5 mult if 2+ Hearts are present
+Spades
+Lv0: highest scoring Spade gives +0.5 mult
+Lv1: +0.8 mult
+Lv2: +1.0 mult
+Lv3: +1.0 mult and +10 chips
+Diamonds
+Lv0: 1–2 Diamonds → +1 gold
+Lv1: +2 gold
+Lv2: +2 gold and shop refresh discount
+Lv3: +3 gold
+Clubs
+Lv0: retrigger 1 scoring card’s base value
+Lv1: retrigger stronger target selection
+Lv2: retrigger + small flat chips
+Lv3: retrigger plus +0.5 mult
+11. Champions (Passive Modifier Cards)
+
+Champions are the prototype’s equivalent of Joker-like passive build cards.
+
+Slot Limit
+
+5 slots
+
+Resolution Rule
+
+Champions resolve from left to right
+
+This keeps the system understandable and visually readable.
+
+Champion Design Goals
+Small number in prototype: 6 to 10
+Focus on synergy with Suit Mastery and core poker hands
+Avoid huge complexity in first prototype
+Example Champions
+Crimson Banner
+
+Hearts mastery effects are 50% stronger
+
+Black Omen
+
+If Spades are at Level 2+, gain an additional +0.5 mult when a Spade contributes
+
+Gilded Ledger
+
+Diamonds require 1 less XP to level up
+
+Thorn Echo
+
+Clubs retrigger one additional base-value effect, once per hand
+
+Oathbound Twin
+
+If exactly 2 suits are represented in the played hand, gain +20 chips
+
+Veteran Marshal
+
+First hand played in each encounter gains +30 chips
+
+Accord Keeper
+
+If all four suits have gained at least 1 XP this cycle, gain +1 permanent hand action next encounter
+
+12. Consumable Card Types
+
+The prototype does not need all categories fully implemented.
+A small set is enough.
+
+12.1 Stratagems
+
+One-time tactical cards
+
+Examples:
+
+Change a selected card’s suit
+Copy a selected card
+Destroy a selected card
+Upgrade one suit’s mastery by +1 XP
+Temporarily increase hand size next encounter
+12.2 Doctrines
+
+Upgrade a poker-hand archetype
+
+Examples:
+
+Pair gains +10 chips
+Straight gains +0.5 mult
+Full House gains +20 chips
+
+These act as longer-term scoring upgrades.
+
+12.3 Forbidden Oaths
+
+High-risk, high-reward effects
+
+Examples:
+
+Gain a powerful Champion but lose max discard
+Destroy 2 random cards, gain massive gold
+Set one suit to Lv3 for the next encounter, but reduce another suit to Lv0
+
+Prototype can include only 1–2 of these if time allows.
+
+13. Card Growth / “Card History” System
+
+This should be kept small in prototype scope.
+
+Important Design Clarification
+
+This is not account-level permanent progression.
+It is run-level card history.
+
+Each playing card is an instance with its own state.
+
+Why This Matters
+
+It distinguishes the system from generic passive modifiers:
+
+cards in deck have identity
+cards can develop value through usage
+player may care about preserving or modifying a specific card
+Playing Card Fields
+
+Each card instance stores:
+
+suit
+rank
+unique ID
+times played
+times scored
+times discarded
+trait status (optional)
+mastery-linked history flag
+Prototype Version Recommendation
+
+Keep this very small:
+
+cards do not level multiple times
+a card may gain one historical trait at most
+Example Trait Triggers
+Veteran
+
+Trigger:
+
+card has been part of scoring hands 3 times
+
+Effect:
+
++8 chips when scored
+Flow
+
+Trigger:
+
+card contributed to the same suit-aligned scoring line repeatedly
+
+Effect:
+
+gains a small bonus if its suit mastery is Level 2+
+Stubborn
+
+Trigger:
+
+card has been discarded 3 times but not destroyed
+
+Effect:
+
+first time it scores each encounter, +10 chips
+Scope Warning
+
+If time becomes tight, this system can be reduced or cut without breaking the prototype, because Suit Mastery already provides strong identity.
+
+14. Quartermaster (Shop) System
+Purpose
+
+Let the player shape the run after each encounter.
+
+Prototype Shop Inventory
+
+Show 3 choices:
+
+Champion
+Stratagem
+Doctrine
+Shop Actions
+Buy
+Reroll
+Leave
+Resources
+Gold earned through encounters
+Diamonds path can improve economy
+15. Overseer Fights
+
+The prototype should include a few boss-style rule changes.
+
+These should be limited in number but clearly distinct.
+
+Example Overseers
+The Taxer
+
+All gold gain is halved this encounter
+
+The Shroud
+
+Spades mastery effects are disabled this encounter
+
+The Split Crown
+
+Hands with only one suit lose 20% final score
+
+This last one is especially good because it reinforces your anti-Flush design philosophy.
+
+16. Anti-Flush Bias Design
+
+This is an important balancing principle.
+
+Since suits are important, the design must avoid making Flush the obvious dominant strategy.
+
+Core Anti-Flush Rules
+Suit XP is gained per hand presence, not per suit card count
+Suit effects are role-based, not mostly linear-per-card bonuses
+Some suit effects reward mixed presence better than all-one-suit stacking
+Bosses and Champions can reward diversity
+Diamonds specifically should not reward 4–5 of the same suit excessively
+
+This keeps:
+
+Flush viable
+but not mandatory
+17. UI Layout
+Top Bar
+Cycle / encounter
+current score / target score
+hands remaining
+discards remaining
+gold
+Left Panel
+Champion slots
+Suit Mastery display for all four suits
+Center
+played cards
+hand type
+chips / mult / final score animations
+Right Panel
+consumables
+selected card details
+optional card history display
+Bottom
+current hand cards
+Play Hand button
+Discard button
+Visual Priorities
+readable numbers
+clear card selection
+left-to-right Champion activation highlights
+visible suit progression
+visual distinction for historically upgraded cards
+18. Technical Architecture
+Core Classes
+GameManager
+
+Controls run state, encounter transitions, victory/defeat
+
+RoundManager
+
+Tracks target score, hands, discards, encounter flow
+
+DeckManager
+
+Manages draw pile, discard pile, shuffling
+
+HandManager
+
+Controls hand contents, selection, play/discard operations
+
+PokerHandEvaluator
+
+Evaluates the played hand type
+
+ScoreManager
+
+Builds the score context and resolves scoring
+
+SuitMasteryManager
+
+Tracks XP and level progression for all suits
+
+ChampionManager
+
+Stores equipped Champions and resolves effects left to right
+
+ShopManager
+
+Builds Quartermaster offerings and purchase logic
+
+Data Classes
+PlayingCard
+
+Fields:
+
+id
+rank
+suit
+timesPlayed
+timesScored
+timesDiscarded
+trait
+ScoreContext
+
+Fields:
+
+playedCards
+handType
+chips
+mult
+finalScore
+suitPresence
+currentSuitLevels
+goldReward
+isFirstHandOfEncounter
+ChampionBase
+
+Virtual hooks like:
+
+OnBeforeScore
+OnAfterHandEvaluated
+OnAfterScore
+OnEncounterStart
+ConsumableBase
+Use(GameContext context)
+19. Minimum Viable Prototype
+Must Have
+draw / discard / refill loop
+poker hand evaluation
+score target progression
+4 suit identities
+suit mastery progression
+5–8 Champions
+simple shop
+1–2 Overseer rule variations
+basic UI and animations
+Nice to Have
+playing card history traits
+2–4 Stratagems
+2–4 Doctrines
+simple sound effects
+card detail panel
+Not Required for Prototype
+huge card pools
+dozens of unique passives
+account progression
+elaborate lore
+full production balancing
+polished VFX pipeline
+20. Prototype Success Criteria
+
+The prototype is successful if:
+
+the player can complete a full run loop
+suit identities are clearly felt during play
+repeated suit use shapes the run
+Champions create meaningful build choices
+Flush is strong but not dominant
+the game feels like its own system, not just a direct clone
+21. One-Sentence Pitch
+
+Fourfold Accord is a poker roguelike where suits are not just symbols, but evolving faction paths that grow stronger as you commit to them throughout a run.
