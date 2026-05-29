@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PrototypeBootstrap : MonoBehaviour
@@ -14,16 +13,13 @@ public class PrototypeBootstrap : MonoBehaviour
 
         deckManager.Shuffle();
         Debug.Log("Deck shuffled");
-        Debug.Log($"Top card after shuffle: {deckManager.DrawPile[0].GetDisplayName()}");
 
-        List<PlayingCard> drawnCards = deckManager.DrawCards(5);
-        Debug.Log($"Drew {drawnCards.Count} cards");
+        HandManager handManager = new HandManager();
+        handManager.FillHand(deckManager);
 
-        for (int i = 0; i < drawnCards.Count; i++)
-        {
-            Debug.Log($"Drawn card {i + 1}: {drawnCards[i].GetDisplayName()}");
-        }
-
-        Debug.Log($"Deck count after draw: {deckManager.DrawPileCount}");
+        Debug.Log($"Hand size limit: {handManager.HandSizeLimit}");
+        Debug.Log($"Current hand count: {handManager.CurrentHandCount}");
+        Debug.Log($"Deck count after filling hand: {deckManager.DrawPileCount}");
+        Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
     }
 }
