@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PrototypeBootstrap : MonoBehaviour
@@ -8,13 +9,21 @@ public class PrototypeBootstrap : MonoBehaviour
         deckManager.CreateStandardDeck();
 
         Debug.Log("Prototype started");
-        Debug.Log($"Deck count: {deckManager.DrawPileCount}");
+        Debug.Log($"Deck count before shuffle: {deckManager.DrawPileCount}");
+        Debug.Log($"Top card before shuffle: {deckManager.DrawPile[0].GetDisplayName()}");
 
-        int previewCount = Mathf.Min(5, deckManager.DrawPileCount);
+        deckManager.Shuffle();
+        Debug.Log("Deck shuffled");
+        Debug.Log($"Top card after shuffle: {deckManager.DrawPile[0].GetDisplayName()}");
 
-        for (int i = 0; i < previewCount; i++)
+        List<PlayingCard> drawnCards = deckManager.DrawCards(5);
+        Debug.Log($"Drew {drawnCards.Count} cards");
+
+        for (int i = 0; i < drawnCards.Count; i++)
         {
-            Debug.Log($"Card {i + 1}: {deckManager.DrawPile[i].GetDisplayName()}");
+            Debug.Log($"Drawn card {i + 1}: {drawnCards[i].GetDisplayName()}");
         }
+
+        Debug.Log($"Deck count after draw: {deckManager.DrawPileCount}");
     }
 }

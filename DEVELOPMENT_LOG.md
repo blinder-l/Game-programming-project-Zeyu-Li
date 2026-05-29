@@ -21,6 +21,8 @@ Implemented the standard 52-card deck generation in `DeckManager`, ensuring all 
  ## Step 4
 Added `PrototypeBootstrap` as a minimal debug entry point to initialize the deck at startup and print basic validation information in the Unity Console for incremental testing.
 
+## Step 5
+Implemented shuffle and draw logic in `DeckManager`, supporting single-card and multi-card drawing from the draw pile, adding basic safety handling when the deck has insufficient cards, and verifying shuffle behavior and draw pile count changes through debug output.
 
 
 
