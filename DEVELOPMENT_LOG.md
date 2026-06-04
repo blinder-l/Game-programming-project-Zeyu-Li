@@ -35,3 +35,6 @@ Implemented a minimal selection, play, and discard debug flow, supporting card s
 ## Step 1
 Established the foundational data structures for poker hand evaluation by adding the `PokerHandType` enum, the `PokerHandResult` data class, and the `PokerHandEvaluator` skeleton, with a minimal implementation that consistently returns `High Card` as the first working evaluation path.
 
+ ## Step 2
+Implemented rank-count-based poker hand detection in `PokerHandEvaluator`, supporting `Pair`, `Two Pair`, `Three of a Kind`, `Full House`, and `Four of a Kind`, while keeping `High Card` as the fallback result, and verified the correctness of each rank-pattern case through hard-coded test hands in the Console.
+
