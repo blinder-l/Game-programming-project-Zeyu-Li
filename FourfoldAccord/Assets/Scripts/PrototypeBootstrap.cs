@@ -26,6 +26,10 @@ public class PrototypeBootstrap : MonoBehaviour
         handManager.ToggleCardSelection(1);
         Debug.Log($"Selected for play:\n{handManager.GetHandDebugText()}");
 
+        PokerHandEvaluator pokerHandEvaluator = new PokerHandEvaluator();
+        PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(handManager.GetSelectedCards());
+        Debug.Log($"Detected hand: {pokerHandResult.handType}");
+
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         Debug.Log($"Played {playedCards.Count} cards");
         Debug.Log($"Hand after play refill:\n{handManager.GetHandDebugText()}");

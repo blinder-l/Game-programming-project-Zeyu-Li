@@ -1,20 +1,20 @@
-\# Development Log
+# Development Log
 
+### Stage 1
 
-
-\## Step 1
+## Step 1
 
 Implemented Suit and Rank enums as the foundation of the card system.
 
 
 
-\## Step 2
+## Step 2
 
 Implemented the PlayingCard data model with core card fields and debug display output.
 
 
 
-###### \## Step 3
+## Step 3
 
 Implemented the standard 52-card deck generation in `DeckManager`, ensuring all four suits and thirteen ranks are correctly combined, and established the base deck structure for future shuffle and draw logic.
 
@@ -30,5 +30,8 @@ Implemented the `HandManager` hand container, supporting storage of the current 
 ## Step 7
 Implemented a minimal selection, play, and discard debug flow, supporting card selection toggling, retrieval of selected cards, play/discard actions, refilling the hand to the maximum size, updating basic history counters, and verifying the full loop through Console output.
 
+### Stage 2
 
+## Step 1
+Established the foundational data structures for poker hand evaluation by adding the `PokerHandType` enum, the `PokerHandResult` data class, and the `PokerHandEvaluator` skeleton, with a minimal implementation that consistently returns `High Card` as the first working evaluation path.
 
