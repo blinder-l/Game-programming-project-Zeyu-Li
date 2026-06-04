@@ -37,6 +37,7 @@ public class PrototypeBootstrap : MonoBehaviour
         RunRankBasedHandTests(pokerHandEvaluator);
         RunStraightAndFlushHandTests(pokerHandEvaluator);
         RunScoringTests(pokerHandEvaluator, scoreManager);
+        RunRoundStateTests();
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         Debug.Log($"Played {playedCards.Count} cards");
@@ -146,5 +147,27 @@ public class PrototypeBootstrap : MonoBehaviour
         PokerHandResult pairScoreResult = pokerHandEvaluator.Evaluate(pairScoreTestCards);
         ScoreContext pairScoreContext = scoreManager.CalculateScore(pairScoreResult);
         Debug.Log($"Test Pair Score: {pairScoreContext.handType} | Chips: {pairScoreContext.chips} | Mult: {pairScoreContext.mult} | Final Score: {pairScoreContext.finalScore}");
+    }
+
+    private void RunRoundStateTests()
+    {
+        RoundManager passTestRound = new RoundManager();
+        Debug.Log($"Round pass test start: {passTestRound.GetDebugStatus()}");
+        passTestRound.ApplyPlayedHandScore(120);
+        Debug.Log($"Round pass test after 120: {passTestRound.GetDebugStatus()}");
+        passTestRound.ApplyPlayedHandScore(180);
+        Debug.Log($"Round pass test after 180: {passTestRound.GetDebugStatus()}");
+
+        RoundManager failTestRound = new RoundManager();
+        Debug.Log($"Round fail test start: {failTestRound.GetDebugStatus()}");
+        failTestRound.ApplyPlayedHandScore(10);
+        failTestRound.ApplyPlayedHandScore(10);
+        failTestRound.ApplyPlayedHandScore(10);
+        failTestRound.ApplyPlayedHandScore(10);
+        Debug.Log($"Round fail test after 4 low hands: {failTestRound.GetDebugStatus()}");
+
+        RoundManager discardTestRound = new RoundManager();
+        discardTestRound.UseDiscard();
+        Debug.Log($"Round discard test after 1 discard: {discardTestRound.GetDebugStatus()}");
     }
 }
