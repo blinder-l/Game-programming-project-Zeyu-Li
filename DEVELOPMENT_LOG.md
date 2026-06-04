@@ -41,3 +41,6 @@ Implemented rank-count-based poker hand detection in `PokerHandEvaluator`, suppo
 ## Step 3
 Extended `PokerHandEvaluator` to detect `Straight`, `Flush`, and `Straight Flush`, adding the helper methods `IsStraight()` and `IsFlush()` and establishing the full hand priority order: `StraightFlush > FourOfAKind > FullHouse > Flush > Straight > ThreeOfAKind > TwoPair > Pair > HighCard`. In this version, `Ace` is only treated as the highest rank, and the `A-2-3-4-5` low straight is not implemented yet. `PrototypeBootstrap` was also updated with Console tests for `Straight`, `Flush`, and `Straight Flush` to verify the new hand detection logic.
 
+## Step 4
+Added the base scoring system by introducing `ScoreContext` to store the current play’s `playedCards`, `handType`, `chips`, `mult`, and `finalScore`, and adding `ScoreManager` to return base `chips` and `mult` from the detected hand type and calculate `finalScore = chips × mult`. This version only implements base hand scoring and does not yet include individual card rank bonuses, suit effects, or Joker modifiers. `PrototypeBootstrap` was also updated to pass `PokerHandResult` into `ScoreManager` and print the current hand type, `Chips`, `Mult`, and `Final Score` to the Console, with an additional `Pair` scoring test to verify that the base scoring output is correct.
+

@@ -29,8 +29,14 @@ public class PrototypeBootstrap : MonoBehaviour
         PokerHandEvaluator pokerHandEvaluator = new PokerHandEvaluator();
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(handManager.GetSelectedCards());
         Debug.Log($"Detected hand: {pokerHandResult.handType}");
+
+        ScoreManager scoreManager = new ScoreManager();
+        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult);
+        Debug.Log($"Score result: {scoreContext.handType} | Chips: {scoreContext.chips} | Mult: {scoreContext.mult} | Final Score: {scoreContext.finalScore}");
+
         RunRankBasedHandTests(pokerHandEvaluator);
         RunStraightAndFlushHandTests(pokerHandEvaluator);
+        RunScoringTests(pokerHandEvaluator, scoreManager);
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         Debug.Log($"Played {playedCards.Count} cards");
@@ -127,5 +133,18 @@ public class PrototypeBootstrap : MonoBehaviour
             new PlayingCard(132, Suit.Spades, Rank.King)
         };
         Debug.Log($"Test Straight Flush: {pokerHandEvaluator.Evaluate(straightFlushTestCards).handType}");
+    }
+
+    private void RunScoringTests(PokerHandEvaluator pokerHandEvaluator, ScoreManager scoreManager)
+    {
+        List<PlayingCard> pairScoreTestCards = new List<PlayingCard>
+        {
+            new PlayingCard(133, Suit.Hearts, Rank.Ace),
+            new PlayingCard(134, Suit.Spades, Rank.Ace)
+        };
+
+        PokerHandResult pairScoreResult = pokerHandEvaluator.Evaluate(pairScoreTestCards);
+        ScoreContext pairScoreContext = scoreManager.CalculateScore(pairScoreResult);
+        Debug.Log($"Test Pair Score: {pairScoreContext.handType} | Chips: {pairScoreContext.chips} | Mult: {pairScoreContext.mult} | Final Score: {pairScoreContext.finalScore}");
     }
 }
