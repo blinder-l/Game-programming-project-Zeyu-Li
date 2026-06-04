@@ -65,6 +65,16 @@ public class DeckManager
         return drawnCards;
     }
 
+    public void AddToDiscardPile(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        discardPile.Add(card);
+    }
+
     // Builds a readable list of all cards currently in the draw pile for console debugging.
     public string GetDrawPileDebugText()
     {

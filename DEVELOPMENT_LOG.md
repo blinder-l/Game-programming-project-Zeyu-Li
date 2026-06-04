@@ -27,5 +27,8 @@ Implemented shuffle and draw logic in `DeckManager`, supporting single-card and 
 ## Step 6
 Implemented the `HandManager` hand container, supporting storage of the current hand and refilling up to the maximum hand size of 8 cards, establishing the foundation for future selection, play, and discard interactions, and verifying the initial hand contents and remaining draw pile count through debug output.
 
+## Step 7
+Implemented a minimal selection, play, and discard debug flow, supporting card selection toggling, retrieval of selected cards, play/discard actions, refilling the hand to the maximum size, updating basic history counters, and verifying the full loop through Console output.
+
 
 

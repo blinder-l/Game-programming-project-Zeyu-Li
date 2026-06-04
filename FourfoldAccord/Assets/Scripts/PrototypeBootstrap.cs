@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PrototypeBootstrap : MonoBehaviour
@@ -17,9 +18,29 @@ public class PrototypeBootstrap : MonoBehaviour
         HandManager handManager = new HandManager();
         handManager.FillHand(deckManager);
 
-        Debug.Log($"Hand size limit: {handManager.HandSizeLimit}");
-        Debug.Log($"Current hand count: {handManager.CurrentHandCount}");
+        Debug.Log($"Initial hand count: {handManager.CurrentHandCount}");
         Debug.Log($"Deck count after filling hand: {deckManager.DrawPileCount}");
-        Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+        Debug.Log($"Initial hand:\n{handManager.GetHandDebugText()}");
+
+        handManager.ToggleCardSelection(0);
+        handManager.ToggleCardSelection(1);
+        Debug.Log($"Selected for play:\n{handManager.GetHandDebugText()}");
+
+        List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
+        Debug.Log($"Played {playedCards.Count} cards");
+        Debug.Log($"Hand after play refill:\n{handManager.GetHandDebugText()}");
+        Debug.Log($"Deck count after play refill: {deckManager.DrawPileCount}");
+        Debug.Log($"Discard pile count after play: {deckManager.DiscardPileCount}");
+
+        handManager.ToggleCardSelection(0);
+        handManager.ToggleCardSelection(1);
+        handManager.ToggleCardSelection(2);
+        Debug.Log($"Selected for discard:\n{handManager.GetHandDebugText()}");
+
+        List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
+        Debug.Log($"Discarded {discardedCards.Count} cards");
+        Debug.Log($"Hand after discard refill:\n{handManager.GetHandDebugText()}");
+        Debug.Log($"Deck count after discard refill: {deckManager.DrawPileCount}");
+        Debug.Log($"Discard pile count after discard: {deckManager.DiscardPileCount}");
     }
 }
