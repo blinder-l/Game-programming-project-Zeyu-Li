@@ -38,3 +38,6 @@ Established the foundational data structures for poker hand evaluation by adding
  ## Step 2
 Implemented rank-count-based poker hand detection in `PokerHandEvaluator`, supporting `Pair`, `Two Pair`, `Three of a Kind`, `Full House`, and `Four of a Kind`, while keeping `High Card` as the fallback result, and verified the correctness of each rank-pattern case through hard-coded test hands in the Console.
 
+## Step 3
+Extended `PokerHandEvaluator` to detect `Straight`, `Flush`, and `Straight Flush`, adding the helper methods `IsStraight()` and `IsFlush()` and establishing the full hand priority order: `StraightFlush > FourOfAKind > FullHouse > Flush > Straight > ThreeOfAKind > TwoPair > Pair > HighCard`. In this version, `Ace` is only treated as the highest rank, and the `A-2-3-4-5` low straight is not implemented yet. `PrototypeBootstrap` was also updated with Console tests for `Straight`, `Flush`, and `Straight Flush` to verify the new hand detection logic.
+

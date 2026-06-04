@@ -30,6 +30,7 @@ public class PrototypeBootstrap : MonoBehaviour
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(handManager.GetSelectedCards());
         Debug.Log($"Detected hand: {pokerHandResult.handType}");
         RunRankBasedHandTests(pokerHandEvaluator);
+        RunStraightAndFlushHandTests(pokerHandEvaluator);
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         Debug.Log($"Played {playedCards.Count} cards");
@@ -93,5 +94,38 @@ public class PrototypeBootstrap : MonoBehaviour
             new PlayingCard(117, Suit.Diamonds, Rank.Nine)
         };
         Debug.Log($"Test Four of a Kind: {pokerHandEvaluator.Evaluate(fourOfAKindTestCards).handType}");
+    }
+
+    private void RunStraightAndFlushHandTests(PokerHandEvaluator pokerHandEvaluator)
+    {
+        List<PlayingCard> straightTestCards = new List<PlayingCard>
+        {
+            new PlayingCard(118, Suit.Hearts, Rank.Four),
+            new PlayingCard(119, Suit.Spades, Rank.Five),
+            new PlayingCard(120, Suit.Clubs, Rank.Six),
+            new PlayingCard(121, Suit.Diamonds, Rank.Seven),
+            new PlayingCard(122, Suit.Hearts, Rank.Eight)
+        };
+        Debug.Log($"Test Straight: {pokerHandEvaluator.Evaluate(straightTestCards).handType}");
+
+        List<PlayingCard> flushTestCards = new List<PlayingCard>
+        {
+            new PlayingCard(123, Suit.Clubs, Rank.Two),
+            new PlayingCard(124, Suit.Clubs, Rank.Five),
+            new PlayingCard(125, Suit.Clubs, Rank.Seven),
+            new PlayingCard(126, Suit.Clubs, Rank.Jack),
+            new PlayingCard(127, Suit.Clubs, Rank.King)
+        };
+        Debug.Log($"Test Flush: {pokerHandEvaluator.Evaluate(flushTestCards).handType}");
+
+        List<PlayingCard> straightFlushTestCards = new List<PlayingCard>
+        {
+            new PlayingCard(128, Suit.Spades, Rank.Nine),
+            new PlayingCard(129, Suit.Spades, Rank.Ten),
+            new PlayingCard(130, Suit.Spades, Rank.Jack),
+            new PlayingCard(131, Suit.Spades, Rank.Queen),
+            new PlayingCard(132, Suit.Spades, Rank.King)
+        };
+        Debug.Log($"Test Straight Flush: {pokerHandEvaluator.Evaluate(straightFlushTestCards).handType}");
     }
 }

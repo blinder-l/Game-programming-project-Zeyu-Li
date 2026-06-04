@@ -14,6 +14,13 @@ public class PokerHandEvaluator
         List<List<PlayingCard>> rankGroups = cardsByRank.Values
             .OrderByDescending(group => group.Count)
             .ToList();
+        bool isFlush = IsFlush(playedCards);
+        bool isStraight = IsStraight(playedCards);
+
+        if (isFlush && isStraight)
+        {
+            return new PokerHandResult(PokerHandType.StraightFlush, new List<PlayingCard>(playedCards));
+        }
 
         List<PlayingCard> fourOfAKind = rankGroups.FirstOrDefault(group => group.Count == 4);
         if (fourOfAKind != null)
@@ -30,6 +37,16 @@ public class PokerHandEvaluator
             fullHouseCards.AddRange(threeOfAKind);
             fullHouseCards.AddRange(pair);
             return new PokerHandResult(PokerHandType.FullHouse, fullHouseCards);
+        }
+
+        if (isFlush)
+        {
+            return new PokerHandResult(PokerHandType.Flush, new List<PlayingCard>(playedCards));
+        }
+
+        if (isStraight)
+        {
+            return new PokerHandResult(PokerHandType.Straight, new List<PlayingCard>(playedCards));
         }
 
         if (threeOfAKind != null)
@@ -74,5 +91,46 @@ public class PokerHandEvaluator
         }
 
         return cardsByRank;
+    }
+
+    private bool IsFlush(List<PlayingCard> cards)
+    {
+        if (cards.Count != 5)
+        {
+            return false;
+        }
+
+        Suit firstSuit = cards[0].suit;
+
+        for (int i = 1; i < cards.Count; i++)
+        {
+            if (cards[i].suit != firstSuit)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool IsStraight(List<PlayingCard> cards)
+    {
+        if (cards.Count != 5)
+        {
+            return false;
+        }
+
+        List<int> rankValues = cards
+            .Select(card => (int)card.rank)
+            .Distinct()
+            .OrderBy(value => value)
+            .ToList();
+
+        if (rankValues.Count != 5)
+        {
+            return false;
+        }
+
+        return rankValues[4] - rankValues[0] == 4;
     }
 }
