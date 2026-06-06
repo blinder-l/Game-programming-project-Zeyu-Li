@@ -8,6 +8,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private PokerHandEvaluator pokerHandEvaluator;
     private ScoreManager scoreManager;
     private RoundManager roundManager;
+    private SuitMasteryManager suitMasteryManager;
 
     private void Start()
     {
@@ -21,6 +22,7 @@ public class PrototypeBootstrap : MonoBehaviour
         pokerHandEvaluator = new PokerHandEvaluator();
         scoreManager = new ScoreManager();
         roundManager = new RoundManager();
+        suitMasteryManager = new SuitMasteryManager();
 
         Debug.Log("Prototype started");
         Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards");
@@ -78,6 +80,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
+        List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
 
         Debug.Log($"Played {playedCards.Count} cards");
         Debug.Log($"Hand Type: {scoreContext.handType}");
@@ -86,6 +89,8 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
         Debug.Log($"Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
         Debug.Log($"Suit Effects: {scoreContext.GetSuitEffectDebugText()}");
+        Debug.Log($"Suit Mastery XP Gained:\n{suitMasteryManager.GetXpGainDebugText(gainedXpSuits)}");
+        Debug.Log($"Suit Mastery Status:\n{suitMasteryManager.GetMasteryDebugText()}");
         LogCurrentState();
         LogRoundEndIfNeeded();
     }
