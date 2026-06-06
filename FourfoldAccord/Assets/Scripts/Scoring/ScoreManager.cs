@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 public class ScoreManager
 {
+    private readonly SuitEffectManager suitEffectManager = new SuitEffectManager();
+
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult)
     {
         if (pokerHandResult == null)
@@ -19,7 +21,7 @@ public class ScoreManager
         float mult = GetBaseMult(pokerHandResult.handType);
         int finalScore = (int)Math.Round(chips * mult);
 
-        return new ScoreContext(
+        ScoreContext scoreContext = new ScoreContext(
             new List<PlayingCard>(scoringCards),
             pokerHandResult.handType,
             baseChips,
@@ -31,6 +33,9 @@ public class ScoreManager
             suitCounts,
             0,
             new List<string>());
+
+        suitEffectManager.ApplyBaseSuitEffects(scoreContext);
+        return scoreContext;
     }
 
     private int GetBaseChips(PokerHandType handType)
