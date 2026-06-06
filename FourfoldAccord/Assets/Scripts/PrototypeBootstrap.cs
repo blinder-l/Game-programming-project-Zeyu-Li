@@ -82,16 +82,7 @@ public class PrototypeBootstrap : MonoBehaviour
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
 
-        Debug.Log($"Played {playedCards.Count} cards");
-        Debug.Log($"Hand Type: {scoreContext.handType}");
-        Debug.Log($"Base Chips: {scoreContext.baseChips} | Rank Chips: {scoreContext.rankChips} | Chips: {scoreContext.chips}");
-        Debug.Log($"Mult: {scoreContext.mult} | Final Score: {scoreContext.finalScore} | Gold Reward: {scoreContext.goldReward}");
-        Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
-        Debug.Log($"Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
-        Debug.Log($"Suit Effects: {scoreContext.GetSuitEffectDebugText()}");
-        Debug.Log($"Suit Mastery XP Gained:\n{suitMasteryManager.GetXpGainDebugText(gainedXpSuits)}");
-        Debug.Log($"Suit Mastery Status:\n{suitMasteryManager.GetMasteryDebugText()}");
-        LogCurrentState();
+        LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
         LogRoundEndIfNeeded();
     }
 
@@ -121,8 +112,41 @@ public class PrototypeBootstrap : MonoBehaviour
     private void LogCurrentState()
     {
         Debug.Log($"Round: {roundManager.GetDebugStatus()}");
+        Debug.Log($"Suit Mastery:\n{suitMasteryManager.GetMasteryDebugText()}");
         Debug.Log($"Deck count: {deckManager.DrawPileCount} | Discard pile count: {deckManager.DiscardPileCount}");
         Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+    }
+
+    private void LogPlayedHandResolution(List<PlayingCard> playedCards, ScoreContext scoreContext, List<Suit> gainedXpSuits)
+    {
+        Debug.Log("=== Played Hand Resolution ===");
+        Debug.Log($"Selected Cards:\n{GetCardListDebugText(playedCards)}");
+        Debug.Log($"Hand Type: {scoreContext.handType}");
+        Debug.Log($"Score Breakdown:\nBase Chips: {scoreContext.baseChips}\nRank Chips: {scoreContext.rankChips}\nTotal Chips: {scoreContext.chips}\nMult: {scoreContext.mult}\nFinal Score: {scoreContext.finalScore}\nGold Reward: {scoreContext.goldReward}");
+        Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
+        Debug.Log($"Scoring Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
+        Debug.Log($"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}");
+        Debug.Log($"Suit Mastery XP Gained:\n{suitMasteryManager.GetXpGainDebugText(gainedXpSuits)}");
+        Debug.Log($"Suit Mastery Status:\n{suitMasteryManager.GetMasteryDebugText()}");
+        Debug.Log($"Round Status: {roundManager.GetDebugStatus()}");
+        Debug.Log($"Next Hand:\n{handManager.GetHandDebugText()}");
+    }
+
+    private string GetCardListDebugText(List<PlayingCard> cards)
+    {
+        if (cards.Count == 0)
+        {
+            return "No cards";
+        }
+
+        List<string> cardNames = new List<string>();
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            cardNames.Add(cards[i].GetDisplayName());
+        }
+
+        return string.Join("\n", cardNames);
     }
 
     private void LogRoundEndIfNeeded()
