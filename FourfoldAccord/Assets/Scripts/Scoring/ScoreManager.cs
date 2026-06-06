@@ -7,6 +7,11 @@ public class ScoreManager
 
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult)
     {
+        return CalculateScore(pokerHandResult, null);
+    }
+
+    public ScoreContext CalculateScore(PokerHandResult pokerHandResult, SuitMasteryManager suitMasteryManager)
+    {
         if (pokerHandResult == null)
         {
             pokerHandResult = new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard>());
@@ -34,7 +39,7 @@ public class ScoreManager
             0,
             new List<string>());
 
-        suitEffectManager.ApplyBaseSuitEffects(scoreContext);
+        suitEffectManager.ApplySuitEffects(scoreContext, suitMasteryManager);
         return scoreContext;
     }
 

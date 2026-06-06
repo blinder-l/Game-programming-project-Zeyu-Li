@@ -76,7 +76,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(selectedCards);
-        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult);
+        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager);
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
