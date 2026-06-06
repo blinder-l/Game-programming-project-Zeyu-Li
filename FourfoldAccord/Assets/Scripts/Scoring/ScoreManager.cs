@@ -10,16 +10,27 @@ public class ScoreManager
             pokerHandResult = new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard>());
         }
 
-        int chips = GetBaseChips(pokerHandResult.handType);
+        List<PlayingCard> scoringCards = pokerHandResult.scoringCards ?? new List<PlayingCard>();
+        Dictionary<PlayingCard, int> cardChipValues = GetCardChipValues(scoringCards);
+        Dictionary<Suit, int> suitCounts = GetSuitCounts(scoringCards);
+        int baseChips = GetBaseChips(pokerHandResult.handType);
+        int rankChips = GetRankChips(cardChipValues);
+        int chips = baseChips + rankChips;
         float mult = GetBaseMult(pokerHandResult.handType);
         int finalScore = (int)Math.Round(chips * mult);
 
         return new ScoreContext(
-            new List<PlayingCard>(pokerHandResult.scoringCards),
+            new List<PlayingCard>(scoringCards),
             pokerHandResult.handType,
+            baseChips,
+            rankChips,
             chips,
             mult,
-            finalScore);
+            finalScore,
+            cardChipValues,
+            suitCounts,
+            0,
+            new List<string>());
     }
 
     private int GetBaseChips(PokerHandType handType)
@@ -70,5 +81,73 @@ public class ScoreManager
             default:
                 return 1.0f;
         }
+    }
+
+    private Dictionary<PlayingCard, int> GetCardChipValues(List<PlayingCard> cards)
+    {
+        Dictionary<PlayingCard, int> cardChipValues = new Dictionary<PlayingCard, int>();
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            cardChipValues[cards[i]] = GetRankChipValue(cards[i].rank);
+        }
+
+        return cardChipValues;
+    }
+
+    private int GetRankChips(Dictionary<PlayingCard, int> cardChipValues)
+    {
+        int rankChips = 0;
+
+        foreach (KeyValuePair<PlayingCard, int> cardChipValue in cardChipValues)
+        {
+            rankChips += cardChipValue.Value;
+        }
+
+        return rankChips;
+    }
+
+    private int GetRankChipValue(Rank rank)
+    {
+        switch (rank)
+        {
+            case Rank.Two:
+                return 2;
+            case Rank.Three:
+                return 3;
+            case Rank.Four:
+                return 4;
+            case Rank.Five:
+                return 5;
+            case Rank.Six:
+                return 6;
+            case Rank.Seven:
+                return 7;
+            case Rank.Eight:
+                return 8;
+            case Rank.Nine:
+                return 9;
+            case Rank.Ace:
+                return 11;
+            default:
+                return 10;
+        }
+    }
+
+    private Dictionary<Suit, int> GetSuitCounts(List<PlayingCard> cards)
+    {
+        Dictionary<Suit, int> suitCounts = new Dictionary<Suit, int>();
+
+        foreach (Suit suit in Enum.GetValues(typeof(Suit)))
+        {
+            suitCounts[suit] = 0;
+        }
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            suitCounts[cards[i].suit]++;
+        }
+
+        return suitCounts;
     }
 }

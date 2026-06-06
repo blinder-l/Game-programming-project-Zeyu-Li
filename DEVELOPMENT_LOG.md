@@ -50,3 +50,8 @@ Added the basic Blind / Round state management and win-loss checks by introducin
 ## Step 6
 Extended `PrototypeBootstrap` into a minimal playable Console-based debug loop with runtime keyboard controls: number keys `1-8` toggle selection for the corresponding hand cards, `P` plays the selected cards, and `D` discards them. Playing a hand now triggers poker hand evaluation and base scoring, calculates `Chips × Mult`, adds the result to the current Blind score, and reduces the remaining `Hands`; discarding reduces `Discards` and refills the hand. This version allows a full minimal playable Blind loop to be tested in Unity through the Console, outputs `Blind passed.` when the score target is reached, outputs `Blind failed.` when `Hands` are exhausted without success, and stops processing further input after the round ends.
 
+### Stage 3
+
+## Step 1
+Extended the base scoring context required for Stage 3 by adding scoring cards, per-card base chip contribution, suit counts, gold reward, and suit effect logs to `ScoreContext`, and introduced the minimal rank chip calculation rules in `ScoreManager` (Two–Nine = 2–9, Ten/Jack/Queen/King = 10, Ace = 11). At the same time, the `High Card` scoring-card selection logic in `PokerHandEvaluator` was adjusted: instead of treating all played cards as scoring cards, it now uses only the highest-valued card as the scoring card for `High Card`, making the behavior more consistent with the intended hand evaluation rule. This version still does not apply suit effects themselves, but it prepares the data pipeline needed to integrate Suit Identity and Suit Mastery into the scoring flow, with rank chips and suit presence verified through Console output in `PrototypeBootstrap`.
+

@@ -13,6 +13,7 @@ public class PokerHandEvaluator
         Dictionary<Rank, List<PlayingCard>> cardsByRank = GroupCardsByRank(playedCards);
         List<List<PlayingCard>> rankGroups = cardsByRank.Values
             .OrderByDescending(group => group.Count)
+            .ThenByDescending(group => group[0].rank)
             .ToList();
         bool isFlush = IsFlush(playedCards);
         bool isStraight = IsStraight(playedCards);
@@ -71,7 +72,11 @@ public class PokerHandEvaluator
             return new PokerHandResult(PokerHandType.Pair, new List<PlayingCard>(pairs[0]));
         }
 
-        return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard>(playedCards));
+        PlayingCard highestCard = playedCards
+            .OrderByDescending(card => card.rank)
+            .First();
+
+        return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard> { highestCard });
     }
 
     private Dictionary<Rank, List<PlayingCard>> GroupCardsByRank(List<PlayingCard> cards)

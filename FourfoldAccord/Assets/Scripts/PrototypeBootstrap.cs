@@ -81,7 +81,11 @@ public class PrototypeBootstrap : MonoBehaviour
 
         Debug.Log($"Played {playedCards.Count} cards");
         Debug.Log($"Hand Type: {scoreContext.handType}");
-        Debug.Log($"Chips: {scoreContext.chips} | Mult: {scoreContext.mult} | Final Score: {scoreContext.finalScore}");
+        Debug.Log($"Base Chips: {scoreContext.baseChips} | Rank Chips: {scoreContext.rankChips} | Chips: {scoreContext.chips}");
+        Debug.Log($"Mult: {scoreContext.mult} | Final Score: {scoreContext.finalScore} | Gold Reward: {scoreContext.goldReward}");
+        Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
+        Debug.Log($"Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
+        Debug.Log($"Suit Effects: {scoreContext.GetSuitEffectDebugText()}");
         LogCurrentState();
         LogRoundEndIfNeeded();
     }
