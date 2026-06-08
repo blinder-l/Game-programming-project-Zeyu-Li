@@ -27,7 +27,7 @@ public class PrototypeBootstrap : MonoBehaviour
         jokerManager = new JokerManager();
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards");
+        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, F1-F4 equip suit retrigger Jokers");
         LogCurrentState();
     }
 
@@ -39,6 +39,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         HandleCardSelectionInput();
+        HandleJokerDebugInput();
 
         if (Input.GetKeyDown(KeyCode.P))
         {
@@ -65,6 +66,43 @@ public class PrototypeBootstrap : MonoBehaviour
                 LogCurrentState();
             }
         }
+    }
+
+    private void HandleJokerDebugInput()
+    {
+        if (Input.GetKeyDown(KeyCode.F1))
+        {
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Hearts));
+        }
+
+        if (Input.GetKeyDown(KeyCode.F2))
+        {
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Diamonds));
+        }
+
+        if (Input.GetKeyDown(KeyCode.F3))
+        {
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Clubs));
+        }
+
+        if (Input.GetKeyDown(KeyCode.F4))
+        {
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Spades));
+        }
+    }
+
+    private void TryEquipDebugJoker(JokerBase joker)
+    {
+        if (jokerManager.TryEquipJoker(joker))
+        {
+            Debug.Log($"Equipped Joker: {joker.Name}");
+        }
+        else
+        {
+            Debug.Log($"Could not equip Joker: {joker.Name}");
+        }
+
+        LogCurrentState();
     }
 
     private void TryPlaySelectedCards()
