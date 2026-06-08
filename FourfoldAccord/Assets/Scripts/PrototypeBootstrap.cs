@@ -73,6 +73,21 @@ public class PrototypeBootstrap : MonoBehaviour
         StartCurrentBlind();
     }
 
+    private void ApplyBlindClearGoldRewards()
+    {
+        int interest = Mathf.Min(currentGold / 5, 5);
+        int remainingDiscardsGold = roundManager.discardsRemaining;
+        int blindClearGoldTotal = interest + remainingDiscardsGold;
+
+        currentGold += blindClearGoldTotal;
+
+        Debug.Log("=== Blind Clear Gold Rewards ===");
+        Debug.Log($"Interest: +{interest}");
+        Debug.Log($"Remaining Discards Gold: +{remainingDiscardsGold}");
+        Debug.Log($"End of Blind Gold Total: +{blindClearGoldTotal}");
+        Debug.Log($"Current Gold: {currentGold}");
+    }
+
     private void EnterShop()
     {
         isInShop = true;
@@ -304,8 +319,9 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (roundManager.HasPassedBlind)
         {
-            jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log("Blind passed.");
+            ApplyBlindClearGoldRewards();
+            jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
             EnterShop();
         }
