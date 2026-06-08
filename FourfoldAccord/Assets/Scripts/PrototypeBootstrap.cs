@@ -27,7 +27,7 @@ public class PrototypeBootstrap : MonoBehaviour
         jokerManager = new JokerManager();
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, F1-F4 equip suit retrigger Jokers");
+        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         LogCurrentState();
     }
 
@@ -88,6 +88,16 @@ public class PrototypeBootstrap : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F4))
         {
             TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Spades));
+        }
+
+        if (Input.GetKeyDown(KeyCode.F5))
+        {
+            TryEquipDebugJoker(new HighRiskMultiplierJoker());
+        }
+
+        if (Input.GetKeyDown(KeyCode.F6))
+        {
+            TryEquipDebugJoker(new StoredDiscardMultiplierJoker());
         }
     }
 
@@ -195,7 +205,9 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (roundManager.HasPassedBlind)
         {
+            jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log("Blind passed.");
+            Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
         }
         else if (roundManager.HasFailedBlind)
         {
