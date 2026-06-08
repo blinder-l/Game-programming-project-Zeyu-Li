@@ -92,3 +92,6 @@ Added Blind clear Gold rewards to complete the basic Stage 4 economy loop. In ad
 
 ## Step 8
 Improved the minimal shop interaction loop so the player can stay in the same shop after buying a Joker, purchase multiple Jokers if Gold and slots allow, reroll the shop for 2 Gold, and only advance to the next Blind by pressing `N`. The shop now displays current Gold, Joker slot usage, current shop options, purchase results, reroll results, and the leave-shop prompt. This remains a Stage 4 Console-only Joker shop and does not add Bosses, UI, other shop item types, or later-stage systems.
+
+## Step 9
+Added two Console hand-sorting controls for the Blind state to make the current hand easier to inspect during play. Pressing `S` sorts the current hand by suit, grouping cards as Hearts, Spades, Diamonds, and Clubs, while pressing `T` sorts the current hand by rank from high to low. These sorting actions only change the display/order of cards in the current hand and do not play, discard, draw, score, or otherwise mutate gameplay resources. Existing selected-card markers remain attached to their cards after sorting, allowing the player to reorganize the hand visually without losing selection state.

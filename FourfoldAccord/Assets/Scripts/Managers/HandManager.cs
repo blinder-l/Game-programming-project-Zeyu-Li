@@ -56,6 +56,36 @@ public class HandManager
         return RemoveSelectedCards(deckManager, false);
     }
 
+    public void SortHandBySuit()
+    {
+        currentHand.Sort((firstCard, secondCard) =>
+        {
+            int suitComparison = GetSuitSortValue(firstCard.suit).CompareTo(GetSuitSortValue(secondCard.suit));
+
+            if (suitComparison != 0)
+            {
+                return suitComparison;
+            }
+
+            return secondCard.rank.CompareTo(firstCard.rank);
+        });
+    }
+
+    public void SortHandByRank()
+    {
+        currentHand.Sort((firstCard, secondCard) =>
+        {
+            int rankComparison = secondCard.rank.CompareTo(firstCard.rank);
+
+            if (rankComparison != 0)
+            {
+                return rankComparison;
+            }
+
+            return GetSuitSortValue(firstCard.suit).CompareTo(GetSuitSortValue(secondCard.suit));
+        });
+    }
+
     private List<PlayingCard> RemoveSelectedCards(DeckManager deckManager, bool wasPlayed)
     {
         List<PlayingCard> removedCards = new List<PlayingCard>();
@@ -101,5 +131,20 @@ public class HandManager
         }
 
         return builder.ToString();
+    }
+
+    private int GetSuitSortValue(Suit suit)
+    {
+        switch (suit)
+        {
+            case Suit.Hearts:
+                return 0;
+            case Suit.Spades:
+                return 1;
+            case Suit.Diamonds:
+                return 2;
+            default:
+                return 3;
+        }
     }
 }

@@ -28,7 +28,7 @@ public class PrototypeBootstrap : MonoBehaviour
         currentGold = StartingGold;
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
+        Debug.Log("Controls: 1-8 select cards, S sort by suit, T sort by rank, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         StartCurrentBlind();
     }
 
@@ -46,6 +46,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         HandleCardSelectionInput();
+        HandleHandSortInput();
         HandleJokerDebugInput();
         HandleRoundInput();
     }
@@ -213,6 +214,23 @@ public class PrototypeBootstrap : MonoBehaviour
                 Debug.Log($"Toggled card {i + 1}");
                 LogCurrentState();
             }
+        }
+    }
+
+    private void HandleHandSortInput()
+    {
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            handManager.SortHandBySuit();
+            Debug.Log("Sorted current hand by suit.");
+            Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            handManager.SortHandByRank();
+            Debug.Log("Sorted current hand by rank.");
+            Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
         }
     }
 
