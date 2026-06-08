@@ -9,6 +9,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private ScoreManager scoreManager;
     private RoundManager roundManager;
     private SuitMasteryManager suitMasteryManager;
+    private JokerManager jokerManager;
 
     private void Start()
     {
@@ -23,6 +24,7 @@ public class PrototypeBootstrap : MonoBehaviour
         scoreManager = new ScoreManager();
         roundManager = new RoundManager();
         suitMasteryManager = new SuitMasteryManager();
+        jokerManager = new JokerManager();
 
         Debug.Log("Prototype started");
         Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards");
@@ -76,7 +78,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(selectedCards);
-        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager);
+        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager);
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
@@ -112,6 +114,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private void LogCurrentState()
     {
         Debug.Log($"Round: {roundManager.GetDebugStatus()}");
+        Debug.Log($"Jokers:\n{jokerManager.GetJokerListDebugText()}");
         Debug.Log($"Suit Mastery:\n{suitMasteryManager.GetMasteryDebugText()}");
         Debug.Log($"Deck count: {deckManager.DrawPileCount} | Discard pile count: {deckManager.DiscardPileCount}");
         Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
@@ -126,6 +129,7 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
         Debug.Log($"Scoring Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
         Debug.Log($"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}");
+        Debug.Log($"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}");
         Debug.Log($"Suit Mastery XP Gained:\n{suitMasteryManager.GetXpGainDebugText(gainedXpSuits)}");
         Debug.Log($"Suit Mastery Status:\n{suitMasteryManager.GetMasteryDebugText()}");
         Debug.Log($"Round Status: {roundManager.GetDebugStatus()}");

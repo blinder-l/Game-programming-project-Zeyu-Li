@@ -7,10 +7,15 @@ public class ScoreManager
 
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult)
     {
-        return CalculateScore(pokerHandResult, null);
+        return CalculateScore(pokerHandResult, null, null);
     }
 
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult, SuitMasteryManager suitMasteryManager)
+    {
+        return CalculateScore(pokerHandResult, suitMasteryManager, null);
+    }
+
+    public ScoreContext CalculateScore(PokerHandResult pokerHandResult, SuitMasteryManager suitMasteryManager, JokerManager jokerManager)
     {
         if (pokerHandResult == null)
         {
@@ -24,7 +29,6 @@ public class ScoreManager
         int rankChips = GetRankChips(cardChipValues);
         int chips = baseChips + rankChips;
         float mult = GetBaseMult(pokerHandResult.handType);
-        int finalScore = (int)Math.Round(chips * mult);
 
         ScoreContext scoreContext = new ScoreContext(
             new List<PlayingCard>(scoringCards),
@@ -33,13 +37,17 @@ public class ScoreManager
             rankChips,
             chips,
             mult,
-            finalScore,
+            0,
             cardChipValues,
             suitCounts,
             0,
+            new List<string>(),
             new List<string>());
 
         suitEffectManager.ApplySuitEffects(scoreContext, suitMasteryManager);
+        jokerManager?.ApplyScoreJokers(scoreContext);
+        scoreContext.RecalculateFinalScore();
+
         return scoreContext;
     }
 

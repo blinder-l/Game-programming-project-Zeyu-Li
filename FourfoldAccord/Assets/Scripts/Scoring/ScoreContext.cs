@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,6 +15,7 @@ public class ScoreContext
     public Dictionary<Suit, int> suitCounts;
     public int goldReward;
     public List<string> triggeredSuitEffectLog;
+    public List<string> triggeredJokerEffectLog;
 
     public ScoreContext(
         List<PlayingCard> playedCards,
@@ -26,7 +28,8 @@ public class ScoreContext
         Dictionary<PlayingCard, int> cardChipValues,
         Dictionary<Suit, int> suitCounts,
         int goldReward,
-        List<string> triggeredSuitEffectLog)
+        List<string> triggeredSuitEffectLog,
+        List<string> triggeredJokerEffectLog)
     {
         this.playedCards = playedCards;
         this.handType = handType;
@@ -39,6 +42,7 @@ public class ScoreContext
         this.suitCounts = suitCounts;
         this.goldReward = goldReward;
         this.triggeredSuitEffectLog = triggeredSuitEffectLog;
+        this.triggeredJokerEffectLog = triggeredJokerEffectLog;
     }
 
     public string GetCardChipDebugText()
@@ -83,5 +87,20 @@ public class ScoreContext
         }
 
         return string.Join("\n", triggeredSuitEffectLog);
+    }
+
+    public string GetJokerEffectDebugText()
+    {
+        if (triggeredJokerEffectLog.Count == 0)
+        {
+            return "No Joker effects triggered";
+        }
+
+        return string.Join("\n", triggeredJokerEffectLog);
+    }
+
+    public void RecalculateFinalScore()
+    {
+        finalScore = (int)Math.Round(chips * mult);
     }
 }

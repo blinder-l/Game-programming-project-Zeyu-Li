@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -20,7 +19,6 @@ public class SuitEffectManager
         ApplySpadesEffect(scoreContext, suitMasteryManager);
         ApplyDiamondsEffect(scoreContext, suitMasteryManager);
         ApplyClubsEffect(scoreContext, suitMasteryManager);
-        RecalculateFinalScore(scoreContext);
     }
 
     private void ApplyHeartsEffect(ScoreContext scoreContext, SuitMasteryManager suitMasteryManager)
@@ -139,11 +137,6 @@ public class SuitEffectManager
         }
 
         return cardsOfSuit;
-    }
-
-    private void RecalculateFinalScore(ScoreContext scoreContext)
-    {
-        scoreContext.finalScore = (int)Math.Round(scoreContext.chips * scoreContext.mult);
     }
 
     private int GetSuitLevel(SuitMasteryManager suitMasteryManager, Suit suit)

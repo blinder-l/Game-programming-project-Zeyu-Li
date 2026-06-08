@@ -67,5 +67,7 @@ Integrated `Suit Mastery` levels into the four base suit effects so that suit le
 ## Step 5
 Refined and standardized the Console state display and hand resolution logs for Stage 3 by enforcing a fixed output order after each played hand: `Selected Cards`, `Hand Type`, `Score Breakdown`, `Card Chips`, `Scoring Suit Presence`, `Suit Effects`, `Suit Mastery XP Gained`, `Suit Mastery Status`, `Round Status`, and `Next Hand`. `LogCurrentState()` was also updated so that the regular state output now includes the current mastery information for all four suits (Level / XP for Hearts, Diamonds, Clubs, and Spades). This step did not introduce any new gameplay systems, and instead focused on improving the readability, debuggability, and presentability of the existing Suit Identity and Suit Mastery systems for development and coursework review.
 
-## Step 6
+ ### Stage 4
 
+## Step 1
+Established the foundational Joker framework and connected it to the existing scoring flow as an empty evaluation chain. In the current version, a `JokerBase` abstract class and a `JokerManager` were added, supporting up to five Joker slots, left-to-right Joker resolution order, Joker removal handling, and a hook for Blind-passed notifications. `ScoreContext` was extended with `jokerEffectLog`, and `ScoreManager` gained a Joker-aware scoring overload so that Jokers can be integrated into the scoring pipeline without breaking the existing structure. No concrete Jokers are implemented in this step, so hand resolution only outputs debug information indicating that no Joker effects were triggered. The main purpose of this step is to establish the Joker resolution skeleton while ensuring that `finalScore` is still computed only once after all intermediate effects have been applied.
