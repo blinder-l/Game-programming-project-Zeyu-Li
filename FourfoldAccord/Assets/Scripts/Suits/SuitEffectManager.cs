@@ -31,6 +31,13 @@ public class SuitEffectManager
         }
 
         int level = GetSuitLevel(suitMasteryManager, Suit.Hearts);
+
+        if (level < 1)
+        {
+            scoreContext.triggeredSuitEffectLog.Add("Hearts Lv0: no suit effect unlocked");
+            return;
+        }
+
         int chipBonus = GetHeartsChipBonus(level);
 
         scoreContext.chips += chipBonus;
@@ -52,11 +59,18 @@ public class SuitEffectManager
             return;
         }
 
+        int level = GetSuitLevel(suitMasteryManager, Suit.Spades);
+
+        if (level < 1)
+        {
+            scoreContext.triggeredSuitEffectLog.Add("Spades Lv0: no suit effect unlocked");
+            return;
+        }
+
         PlayingCard highestSpade = scoringSpades
             .OrderByDescending(card => card.rank)
             .First();
 
-        int level = GetSuitLevel(suitMasteryManager, Suit.Spades);
         float multBonus = GetSpadesMultBonus(level);
 
         scoreContext.mult += multBonus;
@@ -73,12 +87,24 @@ public class SuitEffectManager
     {
         int diamondCount = GetSuitCount(scoreContext, Suit.Diamonds);
 
-        if (diamondCount < 1 || diamondCount > 2)
+        if (diamondCount < 1)
         {
             return;
         }
 
         int level = GetSuitLevel(suitMasteryManager, Suit.Diamonds);
+
+        if (level < 1)
+        {
+            scoreContext.triggeredSuitEffectLog.Add("Diamonds Lv0: no suit effect unlocked");
+            return;
+        }
+
+        if (diamondCount > 2)
+        {
+            return;
+        }
+
         int goldBonus = GetDiamondsGoldBonus(level);
 
         scoreContext.goldReward += goldBonus;
@@ -97,6 +123,12 @@ public class SuitEffectManager
             .First();
 
         int level = GetSuitLevel(suitMasteryManager, Suit.Clubs);
+
+        if (level < 1)
+        {
+            scoreContext.triggeredSuitEffectLog.Add("Clubs Lv0: no suit effect unlocked");
+            return;
+        }
 
         scoreContext.chips += highestChipCard.Value;
         scoreContext.triggeredSuitEffectLog.Add($"Clubs Lv{level} triggered: retriggered {highestChipCard.Key.GetDisplayName()} for +{highestChipCard.Value} chips");
@@ -151,12 +183,12 @@ public class SuitEffectManager
 
     private int GetHeartsChipBonus(int level)
     {
-        if (level >= 2)
+        if (level >= 3)
         {
             return 20;
         }
 
-        if (level >= 1)
+        if (level >= 2)
         {
             return 15;
         }
@@ -166,12 +198,12 @@ public class SuitEffectManager
 
     private float GetSpadesMultBonus(int level)
     {
-        if (level >= 2)
+        if (level >= 3)
         {
             return 1.0f;
         }
 
-        if (level >= 1)
+        if (level >= 2)
         {
             return 0.8f;
         }
@@ -186,7 +218,7 @@ public class SuitEffectManager
             return 3;
         }
 
-        if (level >= 1)
+        if (level >= 2)
         {
             return 2;
         }
