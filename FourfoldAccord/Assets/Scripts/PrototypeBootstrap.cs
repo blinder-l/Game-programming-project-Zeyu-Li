@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class PrototypeBootstrap : MonoBehaviour
 {
+    private const int StartingGold = 10;
+
     private DeckManager deckManager;
     private HandManager handManager;
     private PokerHandEvaluator pokerHandEvaluator;
@@ -13,6 +15,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private SuitMasteryManager suitMasteryManager;
     private JokerManager jokerManager;
     private bool isInShop;
+    private int currentGold;
 
     private void Start()
     {
@@ -22,6 +25,7 @@ public class PrototypeBootstrap : MonoBehaviour
         shopManager = new ShopManager();
         suitMasteryManager = new SuitMasteryManager();
         jokerManager = new JokerManager();
+        currentGold = StartingGold;
 
         Debug.Log("Prototype started");
         Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, N skip shop, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
@@ -76,6 +80,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         Debug.Log("=== Shop ===");
         Debug.Log("Shop controls: 1-3 buy a Joker, N skip shop");
+        Debug.Log($"Gold: {currentGold}");
         Debug.Log($"Shop Options:\n{shopManager.GetShopDebugText()}");
         Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
     }
@@ -111,14 +116,21 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        if (currentGold < joker.Cost)
+        {
+            Debug.Log($"Not enough Gold to buy {joker.Name}. Cost: {joker.Cost}, Gold: {currentGold}");
+            return;
+        }
+
         if (!jokerManager.TryEquipJoker(joker))
         {
             Debug.Log($"Could not buy Joker: {joker.Name}");
             return;
         }
 
+        currentGold -= joker.Cost;
         shopManager.RemoveOption(optionIndex);
-        Debug.Log($"Bought Joker: {joker.Name}");
+        Debug.Log($"Bought Joker: {joker.Name} for {joker.Cost} Gold. Gold remaining: {currentGold}");
         Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
         StartNextBlind();
     }
@@ -214,6 +226,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
+        currentGold += scoreContext.goldReward;
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
@@ -247,6 +260,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         Debug.Log($"Run: {runManager.GetDebugStatus()}");
         Debug.Log($"Round: {roundManager.GetDebugStatus()}");
+        Debug.Log($"Gold: {currentGold}");
         Debug.Log($"Jokers:\n{jokerManager.GetJokerListDebugText()}");
         Debug.Log($"Suit Mastery:\n{suitMasteryManager.GetMasteryDebugText()}");
         Debug.Log($"Deck count: {deckManager.DrawPileCount} | Discard pile count: {deckManager.DiscardPileCount}");
@@ -258,7 +272,7 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log("=== Played Hand Resolution ===");
         Debug.Log($"Selected Cards:\n{GetCardListDebugText(playedCards)}");
         Debug.Log($"Hand Type: {scoreContext.handType}");
-        Debug.Log($"Score Breakdown:\nBase Chips: {scoreContext.baseChips}\nRank Chips: {scoreContext.rankChips}\nTotal Chips: {scoreContext.chips}\nMult: {scoreContext.mult}\nFinal Score: {scoreContext.finalScore}\nGold Reward: {scoreContext.goldReward}");
+        Debug.Log($"Score Breakdown:\nBase Chips: {scoreContext.baseChips}\nRank Chips: {scoreContext.rankChips}\nTotal Chips: {scoreContext.chips}\nMult: {scoreContext.mult}\nFinal Score: {scoreContext.finalScore}\nGold Reward: {scoreContext.goldReward}\nCurrent Gold: {currentGold}");
         Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
         Debug.Log($"Scoring Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
         Debug.Log($"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}");
