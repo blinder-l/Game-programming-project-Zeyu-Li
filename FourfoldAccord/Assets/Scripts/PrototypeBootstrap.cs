@@ -8,33 +8,28 @@ public class PrototypeBootstrap : MonoBehaviour
     private PokerHandEvaluator pokerHandEvaluator;
     private ScoreManager scoreManager;
     private RoundManager roundManager;
+    private RunManager runManager;
     private SuitMasteryManager suitMasteryManager;
     private JokerManager jokerManager;
 
     private void Start()
     {
-        deckManager = new DeckManager();
-        deckManager.CreateStandardDeck();
-        deckManager.Shuffle();
-
-        handManager = new HandManager();
-        handManager.FillHand(deckManager);
-
         pokerHandEvaluator = new PokerHandEvaluator();
         scoreManager = new ScoreManager();
-        roundManager = new RoundManager();
+        runManager = new RunManager();
         suitMasteryManager = new SuitMasteryManager();
         jokerManager = new JokerManager();
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
-        LogCurrentState();
+        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, N start next Blind, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
+        StartCurrentBlind();
     }
 
     private void Update()
     {
         if (IsRoundOver())
         {
+            HandleRoundOverInput();
             return;
         }
 
@@ -50,6 +45,36 @@ public class PrototypeBootstrap : MonoBehaviour
         {
             TryDiscardSelectedCards();
         }
+    }
+
+    private void HandleRoundOverInput()
+    {
+        if (roundManager.HasPassedBlind && Input.GetKeyDown(KeyCode.N))
+        {
+            StartNextBlind();
+        }
+    }
+
+    private void StartCurrentBlind()
+    {
+        deckManager = new DeckManager();
+        deckManager.CreateStandardDeck();
+        deckManager.Shuffle();
+
+        handManager = new HandManager();
+        handManager.FillHand(deckManager);
+
+        roundManager = new RoundManager(runManager.GetCurrentTargetScore());
+
+        Debug.Log($"Starting {runManager.GetDebugStatus()}");
+        LogCurrentState();
+    }
+
+    private void StartNextBlind()
+    {
+        runManager.AdvanceToNextBlind();
+        Debug.Log($"Advancing to Blind {runManager.CurrentBlindNumber}");
+        StartCurrentBlind();
     }
 
     private void HandleCardSelectionInput()
@@ -161,6 +186,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void LogCurrentState()
     {
+        Debug.Log($"Run: {runManager.GetDebugStatus()}");
         Debug.Log($"Round: {roundManager.GetDebugStatus()}");
         Debug.Log($"Jokers:\n{jokerManager.GetJokerListDebugText()}");
         Debug.Log($"Suit Mastery:\n{suitMasteryManager.GetMasteryDebugText()}");
@@ -207,6 +233,7 @@ public class PrototypeBootstrap : MonoBehaviour
         {
             jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log("Blind passed.");
+            Debug.Log("Press N to start the next Blind.");
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
         }
         else if (roundManager.HasFailedBlind)
