@@ -9,50 +9,41 @@ public class PrototypeBootstrap : MonoBehaviour
     private ScoreManager scoreManager;
     private RoundManager roundManager;
     private RunManager runManager;
+    private ShopManager shopManager;
     private SuitMasteryManager suitMasteryManager;
     private JokerManager jokerManager;
+    private bool isInShop;
 
     private void Start()
     {
         pokerHandEvaluator = new PokerHandEvaluator();
         scoreManager = new ScoreManager();
         runManager = new RunManager();
+        shopManager = new ShopManager();
         suitMasteryManager = new SuitMasteryManager();
         jokerManager = new JokerManager();
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, N start next Blind, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
+        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, N skip shop, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         StartCurrentBlind();
     }
 
     private void Update()
     {
+        if (isInShop)
+        {
+            HandleShopInput();
+            return;
+        }
+
         if (IsRoundOver())
         {
-            HandleRoundOverInput();
             return;
         }
 
         HandleCardSelectionInput();
         HandleJokerDebugInput();
-
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            TryPlaySelectedCards();
-        }
-
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            TryDiscardSelectedCards();
-        }
-    }
-
-    private void HandleRoundOverInput()
-    {
-        if (roundManager.HasPassedBlind && Input.GetKeyDown(KeyCode.N))
-        {
-            StartNextBlind();
-        }
+        HandleRoundInput();
     }
 
     private void StartCurrentBlind()
@@ -65,6 +56,7 @@ public class PrototypeBootstrap : MonoBehaviour
         handManager.FillHand(deckManager);
 
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
+        isInShop = false;
 
         Debug.Log($"Starting {runManager.GetDebugStatus()}");
         LogCurrentState();
@@ -75,6 +67,73 @@ public class PrototypeBootstrap : MonoBehaviour
         runManager.AdvanceToNextBlind();
         Debug.Log($"Advancing to Blind {runManager.CurrentBlindNumber}");
         StartCurrentBlind();
+    }
+
+    private void EnterShop()
+    {
+        isInShop = true;
+        shopManager.GenerateShopOptions();
+
+        Debug.Log("=== Shop ===");
+        Debug.Log("Shop controls: 1-3 buy a Joker, N skip shop");
+        Debug.Log($"Shop Options:\n{shopManager.GetShopDebugText()}");
+        Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
+    }
+
+    private void HandleShopInput()
+    {
+        for (int i = 0; i < shopManager.ShopOptions.Count; i++)
+        {
+            KeyCode alphaKey = (KeyCode)((int)KeyCode.Alpha1 + i);
+            KeyCode keypadKey = (KeyCode)((int)KeyCode.Keypad1 + i);
+
+            if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
+            {
+                TryBuyShopOption(i);
+                return;
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            Debug.Log("Skipped shop.");
+            StartNextBlind();
+        }
+    }
+
+    private void TryBuyShopOption(int optionIndex)
+    {
+        JokerBase joker = shopManager.GetOption(optionIndex);
+
+        if (joker == null)
+        {
+            Debug.Log("Invalid shop option.");
+            return;
+        }
+
+        if (!jokerManager.TryEquipJoker(joker))
+        {
+            Debug.Log($"Could not buy Joker: {joker.Name}");
+            return;
+        }
+
+        shopManager.RemoveOption(optionIndex);
+        Debug.Log($"Bought Joker: {joker.Name}");
+        Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
+        StartNextBlind();
+    }
+
+    private void HandleRoundInput()
+    {
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            TryPlaySelectedCards();
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            TryDiscardSelectedCards();
+        }
     }
 
     private void HandleCardSelectionInput()
@@ -233,8 +292,8 @@ public class PrototypeBootstrap : MonoBehaviour
         {
             jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log("Blind passed.");
-            Debug.Log("Press N to start the next Blind.");
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
+            EnterShop();
         }
         else if (roundManager.HasFailedBlind)
         {
