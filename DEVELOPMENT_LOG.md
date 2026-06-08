@@ -89,3 +89,6 @@ Integrated Gold into the minimal shop purchase loop, making Diamonds-generated `
 
 ## Step 7
 Added Blind clear Gold rewards to complete the basic Stage 4 economy loop. In addition to the existing immediate `goldReward` gained after each scored hand, the prototype now awards interest based on current Gold and Gold from remaining discards when a Blind is passed. Interest is calculated as `min(currentGold / 5, 5)`, remaining discard Gold is equal to `roundManager.discardsRemaining`, and both are added to `currentGold` before entering the shop. Console logs clearly show Interest, Remaining Discards Gold, End of Blind Gold Total, and Current Gold.
+
+## Step 8
+Improved the minimal shop interaction loop so the player can stay in the same shop after buying a Joker, purchase multiple Jokers if Gold and slots allow, reroll the shop for 2 Gold, and only advance to the next Blind by pressing `N`. The shop now displays current Gold, Joker slot usage, current shop options, purchase results, reroll results, and the leave-shop prompt. This remains a Stage 4 Console-only Joker shop and does not add Bosses, UI, other shop item types, or later-stage systems.

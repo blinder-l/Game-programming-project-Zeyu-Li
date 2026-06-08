@@ -28,7 +28,7 @@ public class PrototypeBootstrap : MonoBehaviour
         currentGold = StartingGold;
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, N skip shop, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
+        Debug.Log("Controls: 1-8 select cards, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         StartCurrentBlind();
     }
 
@@ -94,10 +94,7 @@ public class PrototypeBootstrap : MonoBehaviour
         shopManager.GenerateShopOptions();
 
         Debug.Log("=== Shop ===");
-        Debug.Log("Shop controls: 1-3 buy a Joker, N skip shop");
-        Debug.Log($"Gold: {currentGold}");
-        Debug.Log($"Shop Options:\n{shopManager.GetShopDebugText()}");
-        Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
+        LogShopState();
     }
 
     private void HandleShopInput()
@@ -114,11 +111,26 @@ public class PrototypeBootstrap : MonoBehaviour
             }
         }
 
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            TryRerollShop();
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.N))
         {
-            Debug.Log("Skipped shop.");
+            Debug.Log("Leaving shop.");
             StartNextBlind();
         }
+    }
+
+    private void LogShopState()
+    {
+        Debug.Log("Shop controls: 1-3 buy a Joker, R reroll shop (Cost: 2 Gold), N leave shop");
+        Debug.Log($"Gold: {currentGold}");
+        Debug.Log($"Joker Slots: {jokerManager.EquippedJokers.Count}/{jokerManager.MaxJokerSlots}");
+        Debug.Log($"Shop Options:\n{shopManager.GetShopDebugText()}");
+        Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
     }
 
     private void TryBuyShopOption(int optionIndex)
@@ -128,26 +140,51 @@ public class PrototypeBootstrap : MonoBehaviour
         if (joker == null)
         {
             Debug.Log("Invalid shop option.");
+            LogShopState();
+            return;
+        }
+
+        if (jokerManager.EquippedJokers.Count >= jokerManager.MaxJokerSlots)
+        {
+            Debug.Log($"Could not buy {joker.Name}: Joker slots are full.");
+            LogShopState();
             return;
         }
 
         if (currentGold < joker.Cost)
         {
             Debug.Log($"Not enough Gold to buy {joker.Name}. Cost: {joker.Cost}, Gold: {currentGold}");
+            LogShopState();
             return;
         }
 
         if (!jokerManager.TryEquipJoker(joker))
         {
             Debug.Log($"Could not buy Joker: {joker.Name}");
+            LogShopState();
             return;
         }
 
         currentGold -= joker.Cost;
         shopManager.RemoveOption(optionIndex);
         Debug.Log($"Bought Joker: {joker.Name} for {joker.Cost} Gold. Gold remaining: {currentGold}");
-        Debug.Log($"Current Jokers:\n{jokerManager.GetJokerListDebugText()}");
-        StartNextBlind();
+        LogShopState();
+    }
+
+    private void TryRerollShop()
+    {
+        if (currentGold < ShopManager.RerollCost)
+        {
+            Debug.Log($"Not enough Gold to reroll shop. Cost: {ShopManager.RerollCost}, Gold: {currentGold}");
+            LogShopState();
+            return;
+        }
+
+        currentGold -= ShopManager.RerollCost;
+        shopManager.GenerateShopOptions();
+
+        Debug.Log($"Rerolled shop for {ShopManager.RerollCost} Gold. Gold remaining: {currentGold}");
+        LogShopState();
     }
 
     private void HandleRoundInput()

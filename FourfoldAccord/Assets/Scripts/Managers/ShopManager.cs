@@ -4,6 +4,8 @@ using System.Text;
 
 public class ShopManager
 {
+    public const int RerollCost = 2;
+
     private const int ShopOptionCount = 3;
 
     private readonly List<JokerBase> shopOptions = new List<JokerBase>();
