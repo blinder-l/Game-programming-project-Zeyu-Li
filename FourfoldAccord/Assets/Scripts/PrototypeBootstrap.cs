@@ -5,6 +5,8 @@ public class PrototypeBootstrap : MonoBehaviour
 {
     private const int StartingGold = 10;
 
+    [SerializeField] private GameUIController gameUIController;
+
     private DeckManager deckManager;
     private HandManager handManager;
     private PokerHandEvaluator pokerHandEvaluator;
@@ -62,6 +64,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
         isInShop = false;
+        gameUIController?.SetState(GameUIState.PlayingBlind);
 
         Debug.Log($"Starting {runManager.GetDebugStatus()}");
         LogCurrentState();
@@ -93,6 +96,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         isInShop = true;
         shopManager.GenerateShopOptions();
+        gameUIController?.SetState(GameUIState.Shop);
 
         Debug.Log("=== Shop ===");
         LogShopState();
@@ -382,6 +386,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
         else if (roundManager.HasFailedBlind)
         {
+            gameUIController?.SetState(GameUIState.RunFailed);
             Debug.Log("Blind failed.");
         }
     }

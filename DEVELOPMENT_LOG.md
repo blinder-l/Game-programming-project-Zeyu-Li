@@ -100,3 +100,6 @@ Added two Console hand-sorting controls for the Blind state to make the current 
 
 ## Step 1
 Added Ante and Blind display helpers to `RunManager` as the first UI-support step for Stage 5. The run now exposes read-only methods for the current Ante number, Blind position within the Ante, Blind display name, Boss Blind check, and fixed Blind reward. Each Ante contains three Blinds in order: Small Blind, Big Blind, and Boss Blind. Boss Blinds do not yet have special gameplay rules, but they now display correctly and provide a larger fixed CashOut reward for future UI binding.
+
+## Step 2
+Added the first UI state controller layer for Stage 5. A new `GameUIState` enum defines `PlayingBlind`, `CashOut`, `Shop`, and `RunFailed`, while `GameUIController` manages the active state of the main UI roots including PlayStateRoot, CashOutPanel, ShopPanel, DeckStatsPanel, CurrentHandStatsPanel, CardTooltipPanel, and ActionButtonsContainer. `PrototypeBootstrap` now optionally notifies the UI controller when entering PlayingBlind, Shop, or RunFailed states, while remaining null-safe so the existing Console flow still works before all UI references are assigned.
