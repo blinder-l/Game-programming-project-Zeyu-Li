@@ -8570,7 +8570,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 50, y: 49.99994}
+  m_AnchoredPosition: {x: 50, y: 0}
   m_SizeDelta: {x: -460, y: 140}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1418300623
@@ -9313,6 +9313,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a8b8d6dbf0f4d94b8db0d7661b28f0e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameUIController: {fileID: 0}
 --- !u!1 &1586233781
 GameObject:
   m_ObjectHideFlags: 0
@@ -12801,10 +12802,10 @@ MonoBehaviour:
 
     9: 0
 
-    8:
-    0
+    8: 0
 
-    7: 0
+    7:
+    0
 
     6: 0
 
@@ -13544,15 +13545,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Current hand cards:
 
-    
 
-    A: 0 | K: 0 | Q: 0 | J: 0 | 10: 0 | 9:
-    0 | 8: 0 | 7: 0 | 6: 0 | 5: 0 | 4: 0 | 3: 0 | 2: 0
 
-    
+    A: 0 | K: 0 | Q: 0 | J: 0 | 10: 0 | 9: 0 |
+    8: 0 | 7: 0 | 6: 0 | 5: 0 | 4: 0 | 3: 0 | 2: 0
 
-    Spades: 0 | Hearts:
-    0 | Clubs: 0 | Diamonds: 0'
+
+
+    Spades: 0 | Hearts: 0 |
+    Clubs: 0 | Diamonds: 0'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
