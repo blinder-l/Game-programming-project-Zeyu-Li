@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameUIController : MonoBehaviour
@@ -9,6 +10,8 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject currentHandStatsPanel;
     [SerializeField] private GameObject cardTooltipPanel;
     [SerializeField] private GameObject actionButtonsContainer;
+    [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
+    [SerializeField] private HandCardView[] handCardViews;
 
     public GameUIState CurrentState { get; private set; }
 
@@ -33,6 +36,33 @@ public class GameUIController : MonoBehaviour
         if (enteringRunFailed)
         {
             Debug.Log("Run failed.");
+        }
+    }
+
+    public void RefreshHand(IReadOnlyList<PlayingCard> currentHand)
+    {
+        if (handCardViews == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < handCardViews.Length; i++)
+        {
+            HandCardView cardView = handCardViews[i];
+
+            if (cardView == null)
+            {
+                continue;
+            }
+
+            if (currentHand != null && i < currentHand.Count)
+            {
+                cardView.SetCard(currentHand[i], cardSpriteDatabase);
+            }
+            else
+            {
+                cardView.Clear();
+            }
         }
     }
 

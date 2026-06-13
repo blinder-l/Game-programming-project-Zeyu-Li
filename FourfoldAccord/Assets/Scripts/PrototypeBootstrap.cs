@@ -65,6 +65,7 @@ public class PrototypeBootstrap : MonoBehaviour
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
         isInShop = false;
         gameUIController?.SetState(GameUIState.PlayingBlind);
+        RefreshGameUI();
 
         Debug.Log($"Starting {runManager.GetDebugStatus()}");
         LogCurrentState();
@@ -215,6 +216,7 @@ public class PrototypeBootstrap : MonoBehaviour
             if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
             {
                 handManager.ToggleCardSelection(i);
+                RefreshGameUI();
                 Debug.Log($"Toggled card {i + 1}");
                 LogCurrentState();
             }
@@ -226,6 +228,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.S))
         {
             handManager.SortHandBySuit();
+            RefreshGameUI();
             Debug.Log("Sorted current hand by suit.");
             Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
         }
@@ -233,6 +236,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.T))
         {
             handManager.SortHandByRank();
+            RefreshGameUI();
             Debug.Log("Sorted current hand by rank.");
             Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
         }
@@ -302,6 +306,7 @@ public class PrototypeBootstrap : MonoBehaviour
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         currentGold += scoreContext.goldReward;
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
+        RefreshGameUI();
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
         LogRoundEndIfNeeded();
@@ -325,6 +330,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         roundManager.UseDiscard();
         List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
+        RefreshGameUI();
 
         Debug.Log($"Discarded {discardedCards.Count} cards");
         LogCurrentState();
@@ -372,6 +378,11 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         return string.Join("\n", cardNames);
+    }
+
+    private void RefreshGameUI()
+    {
+        gameUIController?.RefreshHand(handManager?.CurrentHand);
     }
 
     private void LogRoundEndIfNeeded()
