@@ -29,9 +29,22 @@ public class PrototypeBootstrap : MonoBehaviour
         jokerManager = new JokerManager();
         currentGold = StartingGold;
 
+        if (gameUIController != null)
+        {
+            gameUIController.HandCardClicked += HandleHandCardClicked;
+        }
+
         Debug.Log("Prototype started");
         Debug.Log("Controls: 1-8 select cards, S sort by suit, T sort by rank, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         StartCurrentBlind();
+    }
+
+    private void OnDestroy()
+    {
+        if (gameUIController != null)
+        {
+            gameUIController.HandCardClicked -= HandleHandCardClicked;
+        }
     }
 
     private void Update()
@@ -221,6 +234,19 @@ public class PrototypeBootstrap : MonoBehaviour
                 LogCurrentState();
             }
         }
+    }
+
+    private void HandleHandCardClicked(int handIndex)
+    {
+        if (isInShop || IsRoundOver())
+        {
+            return;
+        }
+
+        handManager.ToggleCardSelection(handIndex);
+        RefreshGameUI();
+        Debug.Log($"Clicked hand card {handIndex + 1}");
+        LogCurrentState();
     }
 
     private void HandleHandSortInput()

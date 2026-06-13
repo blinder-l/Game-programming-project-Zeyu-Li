@@ -3,11 +3,14 @@ using System.Text;
 
 public class HandManager
 {
+    private const int MaxSelectedCards = 5;
+
     private readonly List<PlayingCard> currentHand = new List<PlayingCard>();
 
     public IReadOnlyList<PlayingCard> CurrentHand => currentHand;
     public int HandSizeLimit { get; } = 8;
     public int CurrentHandCount => currentHand.Count;
+    public int MaxSelectedCardCount => MaxSelectedCards;
 
     public void FillHand(DeckManager deckManager)
     {
@@ -28,6 +31,11 @@ public class HandManager
             return;
         }
 
+        if (!currentHand[handIndex].isSelected && GetSelectedCardCount() >= MaxSelectedCards)
+        {
+            return;
+        }
+
         currentHand[handIndex].isSelected = !currentHand[handIndex].isSelected;
     }
 
@@ -44,6 +52,21 @@ public class HandManager
         }
 
         return selectedCards;
+    }
+
+    public int GetSelectedCardCount()
+    {
+        int selectedCount = 0;
+
+        for (int i = 0; i < currentHand.Count; i++)
+        {
+            if (currentHand[i].isSelected)
+            {
+                selectedCount++;
+            }
+        }
+
+        return selectedCount;
     }
 
     public List<PlayingCard> PlaySelectedCards(DeckManager deckManager)

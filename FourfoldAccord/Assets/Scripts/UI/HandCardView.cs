@@ -1,20 +1,25 @@
+using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class HandCardView : MonoBehaviour
+public class HandCardView : MonoBehaviour, IPointerClickHandler
 {
     [SerializeField] private Image cardImage;
     [SerializeField] private TMP_Text cardNameText;
     [SerializeField] private GameObject selectedIndicator;
     [SerializeField] private float selectedYOffset = 24f;
 
+    private int handIndex = -1;
+    private Action<int> clickedHandler;
     private RectTransform rectTransform;
     private Vector2 baseAnchoredPosition;
     private Vector3 baseScale;
     private bool hasCachedBaseTransform;
+    private bool hasCard;
 
-    public void SetCard(PlayingCard card, CardSpriteDatabase spriteDatabase)
+    public void SetCard(int index, PlayingCard card, CardSpriteDatabase spriteDatabase, Action<int> onClicked)
     {
         CacheBaseTransformIfNeeded();
 
@@ -24,6 +29,9 @@ public class HandCardView : MonoBehaviour
             return;
         }
 
+        handIndex = index;
+        clickedHandler = onClicked;
+        hasCard = true;
         gameObject.SetActive(true);
 
         Sprite cardSprite = spriteDatabase != null ? spriteDatabase.GetSprite(card) : null;
@@ -46,8 +54,21 @@ public class HandCardView : MonoBehaviour
     public void Clear()
     {
         CacheBaseTransformIfNeeded();
+        handIndex = -1;
+        clickedHandler = null;
+        hasCard = false;
         SetSelectedVisual(false);
         gameObject.SetActive(false);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!hasCard || eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
+        clickedHandler?.Invoke(handIndex);
     }
 
     private void SetSelectedVisual(bool isSelected)

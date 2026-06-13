@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private HandCardView[] handCardViews;
+
+    public event Action<int> HandCardClicked;
 
     public GameUIState CurrentState { get; private set; }
 
@@ -57,13 +60,23 @@ public class GameUIController : MonoBehaviour
 
             if (currentHand != null && i < currentHand.Count)
             {
-                cardView.SetCard(currentHand[i], cardSpriteDatabase);
+                cardView.SetCard(i, currentHand[i], cardSpriteDatabase, HandleHandCardClicked);
             }
             else
             {
                 cardView.Clear();
             }
         }
+    }
+
+    private void HandleHandCardClicked(int handIndex)
+    {
+        if (CurrentState != GameUIState.PlayingBlind)
+        {
+            return;
+        }
+
+        HandCardClicked?.Invoke(handIndex);
     }
 
     private void SetActiveIfAssigned(GameObject target, bool isActive)
