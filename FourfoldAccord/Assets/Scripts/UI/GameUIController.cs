@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,16 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private Button discardButton;
     [SerializeField] private Button sortBySuitButton;
     [SerializeField] private Button sortByRankButton;
+    [SerializeField] private TMP_Text blindNameText;
+    [SerializeField] private TMP_Text targetScoreText;
+    [SerializeField] private TMP_Text currentScoreText;
+    [SerializeField] private TMP_Text handTypeText;
+    [SerializeField] private TMP_Text handsText;
+    [SerializeField] private TMP_Text discardsText;
+    [SerializeField] private TMP_Text goldText;
+    [SerializeField] private TMP_Text anteNumberText;
+    [SerializeField] private HandCardView[] playedCardViews;
+    [SerializeField] private TMP_Text resolutionInfoText;
 
     public event Action<int> HandCardClicked;
     public event Action PlayButtonClicked;
@@ -64,6 +75,7 @@ public class GameUIController : MonoBehaviour
 
         if (enteringRunFailed)
         {
+            SetText(blindNameText, "Run Failed");
             Debug.Log("Run failed.");
         }
     }
@@ -93,6 +105,72 @@ public class GameUIController : MonoBehaviour
                 cardView.Clear();
             }
         }
+    }
+
+    public void RefreshBlindStatus(
+        string blindName,
+        int targetScore,
+        int currentScore,
+        string latestHandType,
+        int handsRemaining,
+        int discardsRemaining,
+        int currentGold,
+        int anteNumber)
+    {
+        SetText(blindNameText, blindName);
+        SetText(targetScoreText, $"Target: {targetScore}");
+        SetText(currentScoreText, $"Score: {currentScore}");
+        SetText(handTypeText, $"Hand: {latestHandType}");
+        SetText(handsText, $"Hands: {handsRemaining}");
+        SetText(discardsText, $"Discards: {discardsRemaining}");
+        SetText(goldText, $"Gold: ${currentGold}");
+        SetText(anteNumberText, $"Ante: {anteNumber}");
+    }
+
+    public void RefreshPlayedCards(IReadOnlyList<PlayingCard> playedCards)
+    {
+        if (playedCardViews == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < playedCardViews.Length; i++)
+        {
+            HandCardView cardView = playedCardViews[i];
+
+            if (cardView == null)
+            {
+                continue;
+            }
+
+            if (playedCards != null && i < playedCards.Count)
+            {
+                cardView.SetCard(i, playedCards[i], cardSpriteDatabase, null);
+            }
+            else
+            {
+                cardView.Clear();
+            }
+        }
+    }
+
+    public void RefreshResolutionInfo(ScoreContext scoreContext)
+    {
+        if (scoreContext == null)
+        {
+            SetText(resolutionInfoText, "No hand played yet.");
+            return;
+        }
+
+        string resolutionText =
+            $"Hand Type: {scoreContext.handType}\n" +
+            $"Chips: {scoreContext.chips}  Mult: {scoreContext.mult}\n" +
+            $"Final Score: {scoreContext.finalScore}\n" +
+            $"Gold Reward: +{scoreContext.goldReward}\n\n" +
+            $"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}\n\n" +
+            $"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}";
+
+        SetText(resolutionInfoText, resolutionText);
     }
 
     private void HandleHandCardClicked(int handIndex)
@@ -163,6 +241,16 @@ public class GameUIController : MonoBehaviour
         }
 
         button.interactable = isInteractable;
+    }
+
+    private void SetText(TMP_Text targetText, string value)
+    {
+        if (targetText == null)
+        {
+            return;
+        }
+
+        targetText.text = value;
     }
 
     private void AddButtonListener(Button button, UnityEngine.Events.UnityAction action)

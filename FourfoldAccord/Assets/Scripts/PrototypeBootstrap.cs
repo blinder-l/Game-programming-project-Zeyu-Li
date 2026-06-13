@@ -18,6 +18,9 @@ public class PrototypeBootstrap : MonoBehaviour
     private JokerManager jokerManager;
     private bool isInShop;
     private int currentGold;
+    private string latestHandTypeText = "None";
+    private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
+    private ScoreContext latestScoreContext;
 
     private void Start()
     {
@@ -85,6 +88,9 @@ public class PrototypeBootstrap : MonoBehaviour
 
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
         isInShop = false;
+        latestHandTypeText = "None";
+        latestPlayedCards.Clear();
+        latestScoreContext = null;
         gameUIController?.SetState(GameUIState.PlayingBlind);
         RefreshGameUI();
 
@@ -385,11 +391,14 @@ public class PrototypeBootstrap : MonoBehaviour
 
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(selectedCards);
         ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager);
+        latestHandTypeText = scoreContext.handType.ToString();
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         currentGold += scoreContext.goldReward;
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
+        latestPlayedCards = playedCards;
+        latestScoreContext = scoreContext;
         RefreshGameUI();
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
@@ -466,7 +475,29 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void RefreshGameUI()
     {
-        gameUIController?.RefreshHand(handManager?.CurrentHand);
+        if (gameUIController == null)
+        {
+            return;
+        }
+
+        gameUIController.RefreshHand(handManager?.CurrentHand);
+        gameUIController.RefreshPlayedCards(latestPlayedCards);
+        gameUIController.RefreshResolutionInfo(latestScoreContext);
+
+        if (runManager == null || roundManager == null)
+        {
+            return;
+        }
+
+        gameUIController.RefreshBlindStatus(
+            runManager.GetBlindDisplayName(),
+            roundManager.targetScore,
+            roundManager.currentScore,
+            latestHandTypeText,
+            roundManager.handsRemaining,
+            roundManager.discardsRemaining,
+            currentGold,
+            runManager.GetAnteNumber());
     }
 
     private void LogRoundEndIfNeeded()
