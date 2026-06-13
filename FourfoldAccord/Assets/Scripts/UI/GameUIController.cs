@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GameUIController : MonoBehaviour
 {
@@ -13,10 +14,34 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private HandCardView[] handCardViews;
+    [SerializeField] private Button playButton;
+    [SerializeField] private Button discardButton;
+    [SerializeField] private Button sortBySuitButton;
+    [SerializeField] private Button sortByRankButton;
 
     public event Action<int> HandCardClicked;
+    public event Action PlayButtonClicked;
+    public event Action DiscardButtonClicked;
+    public event Action SortBySuitButtonClicked;
+    public event Action SortByRankButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
+
+    private void OnEnable()
+    {
+        AddButtonListener(playButton, HandlePlayButtonClicked);
+        AddButtonListener(discardButton, HandleDiscardButtonClicked);
+        AddButtonListener(sortBySuitButton, HandleSortBySuitButtonClicked);
+        AddButtonListener(sortByRankButton, HandleSortByRankButtonClicked);
+    }
+
+    private void OnDisable()
+    {
+        RemoveButtonListener(playButton, HandlePlayButtonClicked);
+        RemoveButtonListener(discardButton, HandleDiscardButtonClicked);
+        RemoveButtonListener(sortBySuitButton, HandleSortBySuitButtonClicked);
+        RemoveButtonListener(sortByRankButton, HandleSortByRankButtonClicked);
+    }
 
     private void Awake()
     {
@@ -35,6 +60,7 @@ public class GameUIController : MonoBehaviour
         SetActiveIfAssigned(currentHandStatsPanel, false);
         SetActiveIfAssigned(cardTooltipPanel, false);
         SetActiveIfAssigned(actionButtonsContainer, newState == GameUIState.PlayingBlind);
+        SetActionButtonsInteractable(newState == GameUIState.PlayingBlind);
 
         if (enteringRunFailed)
         {
@@ -79,6 +105,46 @@ public class GameUIController : MonoBehaviour
         HandCardClicked?.Invoke(handIndex);
     }
 
+    private void HandlePlayButtonClicked()
+    {
+        if (CurrentState == GameUIState.PlayingBlind)
+        {
+            PlayButtonClicked?.Invoke();
+        }
+    }
+
+    private void HandleDiscardButtonClicked()
+    {
+        if (CurrentState == GameUIState.PlayingBlind)
+        {
+            DiscardButtonClicked?.Invoke();
+        }
+    }
+
+    private void HandleSortBySuitButtonClicked()
+    {
+        if (CurrentState == GameUIState.PlayingBlind)
+        {
+            SortBySuitButtonClicked?.Invoke();
+        }
+    }
+
+    private void HandleSortByRankButtonClicked()
+    {
+        if (CurrentState == GameUIState.PlayingBlind)
+        {
+            SortByRankButtonClicked?.Invoke();
+        }
+    }
+
+    private void SetActionButtonsInteractable(bool isInteractable)
+    {
+        SetButtonInteractable(playButton, isInteractable);
+        SetButtonInteractable(discardButton, isInteractable);
+        SetButtonInteractable(sortBySuitButton, isInteractable);
+        SetButtonInteractable(sortByRankButton, isInteractable);
+    }
+
     private void SetActiveIfAssigned(GameObject target, bool isActive)
     {
         if (target == null)
@@ -87,5 +153,35 @@ public class GameUIController : MonoBehaviour
         }
 
         target.SetActive(isActive);
+    }
+
+    private void SetButtonInteractable(Button button, bool isInteractable)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.interactable = isInteractable;
+    }
+
+    private void AddButtonListener(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.AddListener(action);
+    }
+
+    private void RemoveButtonListener(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(action);
     }
 }

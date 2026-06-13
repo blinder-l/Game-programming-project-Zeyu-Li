@@ -32,6 +32,10 @@ public class PrototypeBootstrap : MonoBehaviour
         if (gameUIController != null)
         {
             gameUIController.HandCardClicked += HandleHandCardClicked;
+            gameUIController.PlayButtonClicked += HandlePlayButtonClicked;
+            gameUIController.DiscardButtonClicked += HandleDiscardButtonClicked;
+            gameUIController.SortBySuitButtonClicked += HandleSortBySuitButtonClicked;
+            gameUIController.SortByRankButtonClicked += HandleSortByRankButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -44,6 +48,10 @@ public class PrototypeBootstrap : MonoBehaviour
         if (gameUIController != null)
         {
             gameUIController.HandCardClicked -= HandleHandCardClicked;
+            gameUIController.PlayButtonClicked -= HandlePlayButtonClicked;
+            gameUIController.DiscardButtonClicked -= HandleDiscardButtonClicked;
+            gameUIController.SortBySuitButtonClicked -= HandleSortBySuitButtonClicked;
+            gameUIController.SortByRankButtonClicked -= HandleSortByRankButtonClicked;
         }
     }
 
@@ -219,6 +227,26 @@ public class PrototypeBootstrap : MonoBehaviour
         }
     }
 
+    private void HandlePlayButtonClicked()
+    {
+        if (isInShop || IsRoundOver())
+        {
+            return;
+        }
+
+        TryPlaySelectedCards();
+    }
+
+    private void HandleDiscardButtonClicked()
+    {
+        if (isInShop || IsRoundOver())
+        {
+            return;
+        }
+
+        TryDiscardSelectedCards();
+    }
+
     private void HandleCardSelectionInput()
     {
         for (int i = 0; i < handManager.CurrentHandCount; i++)
@@ -253,19 +281,49 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.S))
         {
-            handManager.SortHandBySuit();
-            RefreshGameUI();
-            Debug.Log("Sorted current hand by suit.");
-            Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+            SortHandBySuitAndRefresh();
         }
 
         if (Input.GetKeyDown(KeyCode.T))
         {
-            handManager.SortHandByRank();
-            RefreshGameUI();
-            Debug.Log("Sorted current hand by rank.");
-            Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+            SortHandByRankAndRefresh();
         }
+    }
+
+    private void HandleSortBySuitButtonClicked()
+    {
+        if (isInShop || IsRoundOver())
+        {
+            return;
+        }
+
+        SortHandBySuitAndRefresh();
+    }
+
+    private void HandleSortByRankButtonClicked()
+    {
+        if (isInShop || IsRoundOver())
+        {
+            return;
+        }
+
+        SortHandByRankAndRefresh();
+    }
+
+    private void SortHandBySuitAndRefresh()
+    {
+        handManager.SortHandBySuit();
+        RefreshGameUI();
+        Debug.Log("Sorted current hand by suit.");
+        Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
+    }
+
+    private void SortHandByRankAndRefresh()
+    {
+        handManager.SortHandByRank();
+        RefreshGameUI();
+        Debug.Log("Sorted current hand by rank.");
+        Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
     }
 
     private void HandleJokerDebugInput()
