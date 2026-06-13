@@ -95,3 +95,8 @@ Improved the minimal shop interaction loop so the player can stay in the same sh
 
 ## Step 9
 Added two Console hand-sorting controls for the Blind state to make the current hand easier to inspect during play. Pressing `S` sorts the current hand by suit, grouping cards as Hearts, Spades, Diamonds, and Clubs, while pressing `T` sorts the current hand by rank from high to low. These sorting actions only change the display/order of cards in the current hand and do not play, discard, draw, score, or otherwise mutate gameplay resources. Existing selected-card markers remain attached to their cards after sorting, allowing the player to reorganize the hand visually without losing selection state.
+
+### Stage 5
+
+## Step 1
+Added Ante and Blind display helpers to `RunManager` as the first UI-support step for Stage 5. The run now exposes read-only methods for the current Ante number, Blind position within the Ante, Blind display name, Boss Blind check, and fixed Blind reward. Each Ante contains three Blinds in order: Small Blind, Big Blind, and Boss Blind. Boss Blinds do not yet have special gameplay rules, but they now display correctly and provide a larger fixed CashOut reward for future UI binding.
