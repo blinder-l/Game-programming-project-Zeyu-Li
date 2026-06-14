@@ -25,10 +25,15 @@ public class PlayButtonClickProxy : MonoBehaviour
             image.raycastTarget = true;
         }
 
-        button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(OnPlayButtonClicked);
+        if (FindObjectOfType<GameUIController>() != null)
+        {
+            Debug.Log("PlayButtonClickProxy skipped binding because GameUIController owns PlayButton.");
+            return;
+        }
 
-        Debug.Log("PlayButtonClickProxy bound directly on PlayButton.");
+        button.onClick.RemoveListener(OnPlayButtonClicked);
+        button.onClick.AddListener(OnPlayButtonClicked);
+        Debug.Log("PlayButtonClickProxy bound directly on PlayButton as fallback.");
     }
 
     private void OnPlayButtonClicked()

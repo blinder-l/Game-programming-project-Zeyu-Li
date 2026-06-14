@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler
 {
+    [SerializeField] private RectTransform visualRoot;
     [SerializeField] private float hoverScale = 1.08f;
     [SerializeField] private float clickPulseScale = 1.16f;
     [SerializeField] private float hoverSmoothSpeed = 12f;
@@ -11,7 +12,7 @@ public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointe
     [SerializeField] private float clickShakeDuration = 0.1f;
     [SerializeField] private float clickShakeStrength = 3f;
 
-    private RectTransform rectTransform;
+    private RectTransform rootRectTransform;
     private Button button;
     private Vector2 baseAnchoredPosition;
     private Vector2 shakeOffset;
@@ -45,7 +46,7 @@ public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointe
 
     private void Update()
     {
-        if (rectTransform == null)
+        if (visualRoot == null)
         {
             return;
         }
@@ -58,11 +59,11 @@ public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointe
 
         UpdateShakeOffset();
         float desiredScale = GetDesiredScale();
-        rectTransform.localScale = Vector3.Lerp(
-            rectTransform.localScale,
+        visualRoot.localScale = Vector3.Lerp(
+            visualRoot.localScale,
             Vector3.one * desiredScale,
             Time.unscaledDeltaTime * hoverSmoothSpeed);
-        rectTransform.anchoredPosition = baseAnchoredPosition + shakeOffset;
+        visualRoot.anchoredPosition = baseAnchoredPosition + shakeOffset;
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -97,12 +98,12 @@ public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointe
     {
         ResolveReferences();
 
-        if (rectTransform == null)
+        if (visualRoot == null)
         {
             return;
         }
 
-        baseAnchoredPosition = rectTransform.anchoredPosition - shakeOffset;
+        baseAnchoredPosition = visualRoot.anchoredPosition - shakeOffset;
     }
 
     public void ResetVisualImmediate()
@@ -114,26 +115,92 @@ public class ButtonVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointe
         clickShakeTimer = 0f;
         shakeOffset = Vector2.zero;
 
-        if (rectTransform == null)
+        if (visualRoot == null)
         {
             return;
         }
 
-        rectTransform.localScale = Vector3.one;
-        rectTransform.anchoredPosition = baseAnchoredPosition;
+        visualRoot.localScale = Vector3.one;
+        visualRoot.anchoredPosition = baseAnchoredPosition;
     }
 
     private void ResolveReferences()
     {
-        if (rectTransform == null)
+        if (rootRectTransform == null)
         {
-            rectTransform = transform as RectTransform;
+            rootRectTransform = transform as RectTransform;
         }
 
         if (button == null)
         {
             button = GetComponent<Button>();
         }
+
+        EnsureVisualRoot();
+    }
+
+    private void EnsureVisualRoot()
+    {
+        if (visualRoot != null)
+        {
+            return;
+        }
+
+        Transform existingVisual = transform.Find("ButtonVisual");
+
+        if (existingVisual != null)
+        {
+            visualRoot = existingVisual as RectTransform;
+            return;
+        }
+
+        GameObject visualObject = new GameObject("ButtonVisual", typeof(RectTransform));
+        visualObject.transform.SetParent(transform, false);
+        visualRoot = visualObject.GetComponent<RectTransform>();
+        visualRoot.anchorMin = Vector2.zero;
+        visualRoot.anchorMax = Vector2.one;
+        visualRoot.offsetMin = Vector2.zero;
+        visualRoot.offsetMax = Vector2.zero;
+        visualRoot.SetAsFirstSibling();
+        MoveExistingVisualChildren(visualRoot);
+        CopyRootImageToVisual(visualObject);
+    }
+
+    private void MoveExistingVisualChildren(RectTransform destination)
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            Transform child = transform.GetChild(i);
+
+            if (child == destination)
+            {
+                continue;
+            }
+
+            child.SetParent(destination, true);
+        }
+    }
+
+    private void CopyRootImageToVisual(GameObject visualObject)
+    {
+        Image rootImage = GetComponent<Image>();
+
+        if (rootImage == null)
+        {
+            return;
+        }
+
+        Image visualImage = visualObject.AddComponent<Image>();
+        visualImage.sprite = rootImage.sprite;
+        visualImage.type = rootImage.type;
+        visualImage.preserveAspect = rootImage.preserveAspect;
+        visualImage.color = rootImage.color;
+        visualImage.material = rootImage.material;
+        visualImage.raycastTarget = false;
+
+        rootImage.sprite = null;
+        rootImage.color = new Color(1f, 1f, 1f, 0.01f);
+        rootImage.raycastTarget = true;
     }
 
     private bool IsInteractable()

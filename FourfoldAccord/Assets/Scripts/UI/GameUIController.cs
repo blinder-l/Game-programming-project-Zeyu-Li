@@ -1043,7 +1043,7 @@ public class GameUIController : MonoBehaviour
 
     private Button BindPlayButton()
     {
-        GameObject buttonObject = GameObject.Find(PlayButtonPath);
+        GameObject buttonObject = FindPlayButtonObject();
 
         if (buttonObject == null)
         {
@@ -1144,7 +1144,7 @@ public class GameUIController : MonoBehaviour
         Canvas canvas = FindFirstObjectByType<Canvas>();
         GraphicRaycaster graphicRaycaster = canvas != null ? canvas.GetComponent<GraphicRaycaster>() : null;
         EventSystem eventSystem = EventSystem.current;
-        GameObject buttonObject = GameObject.Find(PlayButtonPath);
+        GameObject buttonObject = FindPlayButtonObject();
 
         Debug.Log($"Canvas GraphicRaycaster: {(graphicRaycaster != null ? "present" : "missing")}");
         Debug.Log($"EventSystem: {(eventSystem != null ? "present" : "missing")}");
@@ -1170,6 +1170,51 @@ public class GameUIController : MonoBehaviour
         }
 
         LogPotentialPlayButtonRaycastBlockers(buttonObject, canvas);
+    }
+
+    private GameObject FindPlayButtonObject()
+    {
+        GameObject buttonObject = GameObject.Find(PlayButtonPath);
+
+        if (buttonObject != null)
+        {
+            return buttonObject;
+        }
+
+        GameObject actionContainer = GameObject.Find("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer");
+
+        if (actionContainer == null)
+        {
+            return null;
+        }
+
+        Transform matchingChild = FindChildByTrimmedName(actionContainer.transform, "PlayButton");
+
+        if (matchingChild == null)
+        {
+            return null;
+        }
+
+        Debug.LogWarning($"Found PlayButton by trimmed name. Current object name is '{matchingChild.name}'. Consider renaming it to 'PlayButton'.");
+        return matchingChild.gameObject;
+    }
+
+    private Transform FindChildByTrimmedName(Transform parent, string trimmedName)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name.Trim() == trimmedName)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     private void LogPotentialPlayButtonRaycastBlockers(GameObject buttonObject, Canvas canvas)
