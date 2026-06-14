@@ -16,8 +16,10 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject currentHandStatsPanel;
     [SerializeField] private GameObject cardTooltipPanel;
     [SerializeField] private GameObject actionButtonsContainer;
+    [SerializeField] private Transform jokerSlotsContainer;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
+    [SerializeField] private JokerSlotView[] jokerSlotViews;
     [SerializeField] private HandCardView[] handCardViews;
     [SerializeField] private Button playButton;
     [SerializeField] private Button discardButton;
@@ -64,6 +66,7 @@ public class GameUIController : MonoBehaviour
         BindLeftStatusUI();
         BindPlayedCardsUI();
         BindResolutionInfoUI();
+        BindJokerBarUI();
         BindHandCards();
         DisableKnownBackgroundRaycasts();
         BindActionButtons();
@@ -122,6 +125,34 @@ public class GameUIController : MonoBehaviour
                 cardView.Clear();
             }
         }
+    }
+
+    public void RefreshJokerBar(IReadOnlyList<JokerBase> equippedJokers)
+    {
+        EnsureJokerSlotsBound();
+
+        if (jokerSlotViews == null)
+        {
+            Debug.LogError("Cannot refresh Joker bar: Joker slots are not bound");
+            return;
+        }
+
+        int equippedCount = equippedJokers != null ? equippedJokers.Count : 0;
+
+        for (int i = 0; i < jokerSlotViews.Length; i++)
+        {
+            JokerSlotView slotView = jokerSlotViews[i];
+
+            if (slotView == null)
+            {
+                continue;
+            }
+
+            JokerBase joker = equippedJokers != null && i < equippedJokers.Count ? equippedJokers[i] : null;
+            slotView.SetJoker(joker);
+        }
+
+        Debug.Log($"Joker bar updated: {equippedCount} equipped jokers");
     }
 
     public void RefreshBlindStatus(
@@ -323,6 +354,67 @@ public class GameUIController : MonoBehaviour
         goldText = BindText("LeftBlindPanel/GoldText", "GoldText");
         anteNumberText = BindText("LeftBlindPanel/AnteNumberText", "AnteNumberText");
         Debug.Log("Bound left status UI");
+    }
+
+    private void BindJokerBarUI()
+    {
+        GameObject containerObject = GameObject.Find("Canvas/TopJokerBar/JokerSlotsContainer");
+
+        if (containerObject == null)
+        {
+            Debug.LogError("Failed to find TopJokerBar/JokerSlotsContainer");
+            return;
+        }
+
+        jokerSlotsContainer = containerObject.transform;
+        jokerSlotViews = new JokerSlotView[5];
+
+        for (int i = 0; i < jokerSlotViews.Length; i++)
+        {
+            string slotName = $"JokerSlot{i + 1}";
+            Transform slotTransform = jokerSlotsContainer.Find(slotName);
+
+            if (slotTransform == null)
+            {
+                Debug.LogError($"Failed to bind {slotName}");
+                continue;
+            }
+
+            JokerSlotView slotView = slotTransform.GetComponent<JokerSlotView>();
+
+            if (slotView == null)
+            {
+                slotView = slotTransform.gameObject.AddComponent<JokerSlotView>();
+            }
+
+            slotView.SetJoker(null);
+            jokerSlotViews[i] = slotView;
+            Debug.Log($"Bound {slotName}");
+        }
+    }
+
+    private void EnsureJokerSlotsBound()
+    {
+        if (jokerSlotViews != null && jokerSlotViews.Length == 5)
+        {
+            bool hasAllSlots = true;
+
+            for (int i = 0; i < jokerSlotViews.Length; i++)
+            {
+                if (jokerSlotViews[i] == null)
+                {
+                    hasAllSlots = false;
+                    break;
+                }
+            }
+
+            if (hasAllSlots)
+            {
+                return;
+            }
+        }
+
+        BindJokerBarUI();
     }
 
     private TMP_Text BindText(string relativePath, string label)

@@ -228,6 +228,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         currentGold -= joker.Cost;
         shopManager.RemoveOption(optionIndex);
+        RefreshJokerBarUI();
         Debug.Log($"Bought Joker: {joker.Name} for {joker.Cost} Gold. Gold remaining: {currentGold}");
         LogShopState();
     }
@@ -415,17 +416,17 @@ public class PrototypeBootstrap : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.F2))
         {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Diamonds));
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Spades));
         }
 
         if (Input.GetKeyDown(KeyCode.F3))
         {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Clubs));
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Diamonds));
         }
 
         if (Input.GetKeyDown(KeyCode.F4))
         {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Spades));
+            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Clubs));
         }
 
         if (Input.GetKeyDown(KeyCode.F5))
@@ -443,11 +444,13 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (jokerManager.TryEquipJoker(joker))
         {
-            Debug.Log($"Equipped Joker: {joker.Name}");
+            Debug.Log($"Debug equipped Joker: {joker.Name}");
+            RefreshJokerBarUI();
         }
         else
         {
             Debug.Log($"Could not equip Joker: {joker.Name}");
+            RefreshJokerBarUI();
         }
 
         LogCurrentState();
@@ -619,6 +622,7 @@ public class PrototypeBootstrap : MonoBehaviour
         PruneSelectedCards();
         SyncSelectedCardFlags();
         Debug.Log($"RefreshHandUI: hand count = {GetCurrentHandCountForLog()}, selected count = {selectedCards.Count}");
+        RefreshJokerBarUI();
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
         gameUIController.RefreshResolutionInfo(latestScoreContext);
@@ -785,6 +789,23 @@ public class PrototypeBootstrap : MonoBehaviour
     private int GetCurrentHandCountForLog()
     {
         return handManager != null ? handManager.CurrentHandCount : 0;
+    }
+
+    private void RefreshJokerBarUI()
+    {
+        if (gameUIController == null)
+        {
+            return;
+        }
+
+        if (jokerManager == null)
+        {
+            Debug.LogError("Failed to bind JokerManager");
+            Debug.LogError("Cannot refresh Joker bar: JokerManager is null");
+            return;
+        }
+
+        gameUIController.RefreshJokerBar(jokerManager.EquippedJokers);
     }
 
     private void RefreshHandTypePreview()
