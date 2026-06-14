@@ -257,6 +257,7 @@ public class GameUIController : MonoBehaviour
         int targetScore,
         int currentScore,
         string latestHandType,
+        string handTypeRank,
         int handsRemaining,
         int discardsRemaining,
         int currentGold,
@@ -266,7 +267,7 @@ public class GameUIController : MonoBehaviour
         SetText(targetScoreText, targetScore.ToString());
         SetText(currentScoreText, currentScore.ToString());
         SetText(handTypeText, latestHandType);
-        SetText(handTypeRankText, "-");
+        SetText(handTypeRankText, handTypeRank);
         SetText(handsText, handsRemaining.ToString());
         SetText(discardsText, discardsRemaining.ToString());
         SetText(goldText, currentGold.ToString());
@@ -276,8 +277,13 @@ public class GameUIController : MonoBehaviour
 
     public void RefreshHandTypeText(string handTypeTextValue)
     {
+        RefreshHandTypeText(handTypeTextValue, "-");
+    }
+
+    public void RefreshHandTypeText(string handTypeTextValue, string handTypeRankValue)
+    {
         SetText(handTypeText, handTypeTextValue);
-        SetText(handTypeRankText, "-");
+        SetText(handTypeRankText, handTypeRankValue);
     }
 
     public void RefreshPlayedCards(IReadOnlyList<PlayingCard> playedCards)

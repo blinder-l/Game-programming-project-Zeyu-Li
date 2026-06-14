@@ -24,6 +24,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private int lastCashOutTotal;
     private bool hasClaimedCashOut;
     private string latestHandTypeText = "None";
+    private string latestHandTypeRankText = "-";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
     private ScoreContext latestScoreContext;
     private readonly List<PlayingCard> selectedCards = new List<PlayingCard>();
@@ -157,6 +158,7 @@ public class PrototypeBootstrap : MonoBehaviour
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
         isInShop = false;
         latestHandTypeText = "None";
+        latestHandTypeRankText = "-";
         latestPlayedCards.Clear();
         latestScoreContext = null;
         ResetCashOutForNewBlind();
@@ -631,6 +633,7 @@ public class PrototypeBootstrap : MonoBehaviour
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay);
         ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager, handTypeLevelManager);
         latestHandTypeText = scoreContext.handType.ToString();
+        latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
 
@@ -682,6 +685,7 @@ public class PrototypeBootstrap : MonoBehaviour
         List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
         ClearSelectedCards();
         latestHandTypeText = "None";
+        latestHandTypeRankText = "-";
         RefreshGameUI();
 
         Debug.Log($"Discarded {discardedCards.Count} cards");
@@ -758,6 +762,7 @@ public class PrototypeBootstrap : MonoBehaviour
             roundManager.targetScore,
             roundManager.currentScore,
             latestHandTypeText,
+            latestHandTypeRankText,
             roundManager.handsRemaining,
             roundManager.discardsRemaining,
             currentGold,
@@ -1124,19 +1129,32 @@ public class PrototypeBootstrap : MonoBehaviour
         if (cardsToPreview.Count == 0)
         {
             latestHandTypeText = "None";
+            latestHandTypeRankText = "-";
         }
         else if (pokerHandEvaluator == null)
         {
             latestHandTypeText = "None";
+            latestHandTypeRankText = "-";
         }
         else
         {
             PokerHandResult previewResult = pokerHandEvaluator.Evaluate(cardsToPreview);
             latestHandTypeText = previewResult.handType.ToString();
+            latestHandTypeRankText = GetHandTypeRankText(previewResult.handType);
         }
 
-        gameUIController?.RefreshHandTypeText(latestHandTypeText);
-        Debug.Log($"Hand type preview updated: {latestHandTypeText}");
+        gameUIController?.RefreshHandTypeText(latestHandTypeText, latestHandTypeRankText);
+        Debug.Log($"Hand type preview updated: {latestHandTypeText} {latestHandTypeRankText}");
+    }
+
+    private string GetHandTypeRankText(PokerHandType handType)
+    {
+        if (handTypeLevelManager == null)
+        {
+            return "-";
+        }
+
+        return $"Lv {handTypeLevelManager.GetLevel(handType)}";
     }
 
     private void LogRoundEndIfNeeded()
