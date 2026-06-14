@@ -54,6 +54,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.SortByRankButtonClicked += HandleSortByRankButtonClicked;
             gameUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
             gameUIController.ShopJokerOfferClicked += HandleShopJokerOfferClicked;
+            gameUIController.ShopConsumableOfferClicked += HandleShopConsumableOfferClicked;
             gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
         }
@@ -94,6 +95,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.SortByRankButtonClicked -= HandleSortByRankButtonClicked;
             gameUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
             gameUIController.ShopJokerOfferClicked -= HandleShopJokerOfferClicked;
+            gameUIController.ShopConsumableOfferClicked -= HandleShopConsumableOfferClicked;
             gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
         }
@@ -183,7 +185,7 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log("Entering Shop state.");
         shopManager.GenerateOffers();
         gameUIController?.SetState(GameUIState.Shop);
-        gameUIController?.ShowShop(shopManager.CurrentOffers);
+        gameUIController?.ShowShop(shopManager.CurrentOffers, shopManager.CurrentConsumableOffers);
 
         Debug.Log("=== Shop ===");
         Debug.Log("Shop UI updated.");
@@ -255,6 +257,7 @@ public class PrototypeBootstrap : MonoBehaviour
             RefreshJokerBarUI();
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
         }
 
         Debug.Log(message);
@@ -275,6 +278,7 @@ public class PrototypeBootstrap : MonoBehaviour
             currentGold = newGold;
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
         }
 
         Debug.Log(message);
@@ -369,6 +373,11 @@ public class PrototypeBootstrap : MonoBehaviour
         TryBuyShopOption(offerIndex);
     }
 
+    private void HandleShopConsumableOfferClicked(int offerIndex)
+    {
+        TryBuyPlanetOffer(offerIndex);
+    }
+
     private void HandleShopRerollButtonClicked()
     {
         TryRerollShop();
@@ -377,6 +386,31 @@ public class PrototypeBootstrap : MonoBehaviour
     private void HandleShopNextBlindButtonClicked()
     {
         LeaveShopAndStartNextBlind();
+    }
+
+    private void TryBuyPlanetOffer(int offerIndex)
+    {
+        if (!CanUseShop())
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        if (shopManager.TryPurchasePlanetOffer(offerIndex, currentGold, handTypeLevelManager, out string message, out int newGold))
+        {
+            currentGold = newGold;
+            Debug.Log(message);
+            RefreshHandTypePreview();
+            RefreshGameUI();
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+        }
+        else
+        {
+            Debug.Log(message);
+        }
+
+        Debug.Log("Shop UI updated.");
+        LogShopState();
     }
 
     private void LeaveShopAndStartNextBlind()

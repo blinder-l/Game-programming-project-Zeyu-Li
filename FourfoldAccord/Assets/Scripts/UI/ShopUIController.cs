@@ -15,10 +15,12 @@ public class ShopUIController : MonoBehaviour
     private ShopOfferView consumableOfferView1;
     private ShopOfferView consumableOfferView2;
     private CardTooltipController tooltipController;
+    private PlanetSpriteDatabase planetSpriteDatabase;
     private Func<bool> canUseShopInput;
     private Func<string, string> getBlockedMessage;
 
     public event Action<int> JokerOfferClicked;
+    public event Action<int> ConsumableOfferClicked;
     public event Action RerollButtonClicked;
     public event Action NextBlindButtonClicked;
 
@@ -31,6 +33,7 @@ public class ShopUIController : MonoBehaviour
         }
 
         BindShopPanel(canvasRoot);
+        ResolvePlanetSpriteDatabase();
         BindActionButtons(canvasRoot);
         BindJokerOffers(canvasRoot);
         BindPlaceholders(canvasRoot);
@@ -38,6 +41,11 @@ public class ShopUIController : MonoBehaviour
     }
 
     public void ShowShop(IReadOnlyList<ShopOffer> offers)
+    {
+        ShowShop(offers, null);
+    }
+
+    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<PlanetShopOffer> consumableOffers)
     {
         if (shopPanel == null)
         {
@@ -47,6 +55,7 @@ public class ShopUIController : MonoBehaviour
 
         shopPanel.SetActive(true);
         RefreshOffers(offers);
+        RefreshConsumableOffers(consumableOffers);
         RefreshRerollText();
         Debug.Log("Shop UI updated.");
     }
@@ -87,6 +96,35 @@ public class ShopUIController : MonoBehaviour
         }
 
         Debug.Log("Shop UI updated.");
+    }
+
+    public void RefreshConsumableOffers(IReadOnlyList<PlanetShopOffer> consumableOffers)
+    {
+        ResolvePlanetSpriteDatabase();
+        ShopOfferView[] consumableViews = GetConsumableOfferViews();
+
+        for (int i = 0; i < consumableViews.Length; i++)
+        {
+            ShopOfferView offerView = consumableViews[i];
+
+            if (offerView == null)
+            {
+                continue;
+            }
+
+            offerView.SetTooltipController(tooltipController);
+
+            if (consumableOffers != null && i < consumableOffers.Count)
+            {
+                offerView.BindPlanet(consumableOffers[i], i, HandleConsumableOfferClicked, planetSpriteDatabase);
+            }
+            else
+            {
+                offerView.SetEmpty();
+            }
+        }
+
+        Debug.Log("Shop consumable UI updated.");
     }
 
     public void SetTooltipController(CardTooltipController controller)
@@ -169,20 +207,8 @@ public class ShopUIController : MonoBehaviour
             "Future upgrade card. Coming soon.",
             "Voucher\nComing Soon",
             HandleVoucherClicked);
-        consumableOfferView1 = BindPlaceholder(
-            canvasRoot,
-            "ShopConsumableOffer1",
-            "Consumable",
-            "Tarot / Planet consumable cards are not implemented yet.",
-            "Consumable\nComing Soon",
-            HandleConsumableClicked);
-        consumableOfferView2 = BindPlaceholder(
-            canvasRoot,
-            "ShopConsumableOffer2",
-            "Consumable",
-            "Tarot / Planet consumable cards are not implemented yet.",
-            "Consumable\nComing Soon",
-            HandleConsumableClicked);
+        consumableOfferView1 = BindConsumableOffer(canvasRoot, "ShopConsumableOffer1");
+        consumableOfferView2 = BindConsumableOffer(canvasRoot, "ShopConsumableOffer2");
     }
 
     private ShopOfferView BindPlaceholder(
@@ -210,6 +236,29 @@ public class ShopUIController : MonoBehaviour
 
         offerView.SetTooltipController(tooltipController);
         offerView.SetPlaceholder(displayName, effectText, viewText, onClicked);
+        Debug.Log($"Bound {objectName}");
+        return offerView;
+    }
+
+    private ShopOfferView BindConsumableOffer(Transform canvasRoot, string objectName)
+    {
+        GameObject offerObject = FindObjectIncludingInactive(canvasRoot, objectName);
+
+        if (offerObject == null)
+        {
+            Debug.LogError($"Failed to bind {objectName}");
+            return null;
+        }
+
+        ShopOfferView offerView = offerObject.GetComponent<ShopOfferView>();
+
+        if (offerView == null)
+        {
+            offerView = offerObject.AddComponent<ShopOfferView>();
+        }
+
+        offerView.SetTooltipController(tooltipController);
+        offerView.SetEmpty();
         Debug.Log($"Bound {objectName}");
         return offerView;
     }
@@ -303,14 +352,36 @@ public class ShopUIController : MonoBehaviour
         Debug.Log("Voucher system not implemented yet.");
     }
 
-    private void HandleConsumableClicked()
+    private void HandleConsumableOfferClicked(int index)
     {
+        Debug.Log($"UI ShopConsumableOffer clicked: index {index}");
+
         if (!CanUseShopInput("purchase"))
         {
             return;
         }
 
-        Debug.Log("Consumable system not implemented yet.");
+        ConsumableOfferClicked?.Invoke(index);
+    }
+
+    private ShopOfferView[] GetConsumableOfferViews()
+    {
+        return new[] { consumableOfferView1, consumableOfferView2 };
+    }
+
+    private void ResolvePlanetSpriteDatabase()
+    {
+        if (planetSpriteDatabase != null)
+        {
+            return;
+        }
+
+        planetSpriteDatabase = FindFirstObjectByType<PlanetSpriteDatabase>();
+
+        if (planetSpriteDatabase == null)
+        {
+            planetSpriteDatabase = gameObject.AddComponent<PlanetSpriteDatabase>();
+        }
     }
 
     private bool CanUseShopInput(string action)

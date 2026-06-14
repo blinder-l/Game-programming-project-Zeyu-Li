@@ -52,6 +52,7 @@ public class GameUIController : MonoBehaviour
     public event Action SortByRankButtonClicked;
     public event Action CashOutButtonClicked;
     public event Action<int> ShopJokerOfferClicked;
+    public event Action<int> ShopConsumableOfferClicked;
     public event Action ShopRerollButtonClicked;
     public event Action ShopNextBlindButtonClicked;
 
@@ -239,17 +240,27 @@ public class GameUIController : MonoBehaviour
 
     public void ShowShop(IReadOnlyList<ShopOffer> offers)
     {
+        ShowShop(offers, null);
+    }
+
+    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<PlanetShopOffer> consumableOffers)
+    {
         if (shopUIController == null)
         {
             BindShopController();
         }
 
-        shopUIController?.ShowShop(offers);
+        shopUIController?.ShowShop(offers, consumableOffers);
     }
 
     public void RefreshShopOffers(IReadOnlyList<ShopOffer> offers)
     {
         shopUIController?.RefreshOffers(offers);
+    }
+
+    public void RefreshShopConsumableOffers(IReadOnlyList<PlanetShopOffer> consumableOffers)
+    {
+        shopUIController?.RefreshConsumableOffers(consumableOffers);
     }
 
     public void RefreshBlindStatus(
@@ -1022,6 +1033,8 @@ public class GameUIController : MonoBehaviour
         shopUIController.SetTooltipController(cardTooltipController);
         shopUIController.JokerOfferClicked -= HandleShopJokerOfferClicked;
         shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
+        shopUIController.ConsumableOfferClicked -= HandleShopConsumableOfferClicked;
+        shopUIController.ConsumableOfferClicked += HandleShopConsumableOfferClicked;
         shopUIController.RerollButtonClicked -= HandleShopRerollButtonClicked;
         shopUIController.RerollButtonClicked += HandleShopRerollButtonClicked;
         shopUIController.NextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
@@ -1037,6 +1050,17 @@ public class GameUIController : MonoBehaviour
         }
 
         ShopJokerOfferClicked?.Invoke(index);
+    }
+
+    private void HandleShopConsumableOfferClicked(int index)
+    {
+        if (!CanUseShop)
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        ShopConsumableOfferClicked?.Invoke(index);
     }
 
     private void HandleShopRerollButtonClicked()

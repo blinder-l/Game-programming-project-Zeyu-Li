@@ -7,23 +7,33 @@ public class ShopManager
     public const int RerollCost = 2;
 
     public const int ShopOptionCount = 4;
+    public const int ConsumableOfferCount = 2;
 
     private readonly List<ShopOffer> currentOffers = new List<ShopOffer>();
+    private readonly List<PlanetShopOffer> currentConsumableOffers = new List<PlanetShopOffer>();
     private readonly Random random = new Random();
 
     public IReadOnlyList<ShopOffer> CurrentOffers => currentOffers;
     public IReadOnlyList<ShopOffer> ShopOptions => currentOffers;
+    public IReadOnlyList<PlanetShopOffer> CurrentConsumableOffers => currentConsumableOffers;
 
     public void GenerateOffers()
     {
         currentOffers.Clear();
+        currentConsumableOffers.Clear();
 
         for (int i = 0; i < ShopOptionCount; i++)
         {
             currentOffers.Add(new ShopOffer(CreateRandomJoker()));
         }
 
+        for (int i = 0; i < ConsumableOfferCount; i++)
+        {
+            currentConsumableOffers.Add(new PlanetShopOffer(CreateRandomPlanetCard()));
+        }
+
         UnityEngine.Debug.Log("Generated 4 Joker offers.");
+        UnityEngine.Debug.Log("Generated 2 Planet offers.");
     }
 
     public void GenerateShopOptions()
@@ -121,6 +131,49 @@ public class ShopManager
         return true;
     }
 
+    public bool TryPurchasePlanetOffer(int index, int currentGold, HandTypeLevelManager handTypeLevelManager, out string message, out int newGold)
+    {
+        newGold = currentGold;
+
+        if (index < 0 || index >= currentConsumableOffers.Count)
+        {
+            message = "Cannot purchase Planet: invalid offer index";
+            return false;
+        }
+
+        PlanetShopOffer offer = currentConsumableOffers[index];
+
+        if (offer == null || offer.PlanetCard == null)
+        {
+            message = "Cannot purchase Planet: invalid offer index";
+            return false;
+        }
+
+        if (offer.IsSold)
+        {
+            message = "Cannot purchase Planet: offer already sold";
+            return false;
+        }
+
+        if (handTypeLevelManager == null)
+        {
+            message = "Cannot purchase Planet: HandTypeLevelManager is null";
+            return false;
+        }
+
+        if (currentGold < offer.PlanetCard.cost)
+        {
+            message = $"Cannot purchase Planet: not enough gold. Cost {offer.PlanetCard.cost}, current gold {currentGold}";
+            return false;
+        }
+
+        handTypeLevelManager.Upgrade(offer.PlanetCard.targetHandType);
+        newGold = currentGold - offer.PlanetCard.cost;
+        offer.MarkSold();
+        message = $"Purchased Planet: {offer.PlanetCard.Name}, upgraded {offer.PlanetCard.targetHandType} to Lv {handTypeLevelManager.GetLevel(offer.PlanetCard.targetHandType)}, remaining gold {newGold}";
+        return true;
+    }
+
     public string GetShopDebugText()
     {
         if (currentOffers.Count == 0)
@@ -136,6 +189,19 @@ public class ShopManager
             string status = offer.IsSold ? "Sold" : "Available";
             JokerBase joker = offer.Joker;
             builder.AppendLine($"{i + 1}. {joker.Name} (Cost: {joker.Cost}) - {status} - {joker.Description}");
+        }
+
+        if (currentConsumableOffers.Count > 0)
+        {
+            builder.AppendLine("Consumables:");
+
+            for (int i = 0; i < currentConsumableOffers.Count; i++)
+            {
+                PlanetShopOffer offer = currentConsumableOffers[i];
+                string status = offer.IsSold ? "Sold" : "Available";
+                PlanetCard planetCard = offer.PlanetCard;
+                builder.AppendLine($"{i + 1}. {planetCard.Name} (Cost: {planetCard.cost}) - {status} - {planetCard.Description}");
+            }
         }
 
         return builder.ToString();
@@ -161,6 +227,13 @@ public class ShopManager
                 return new StoredDiscardMultiplierJoker();
         }
     }
+
+    private PlanetCard CreateRandomPlanetCard()
+    {
+        Array planetTypes = Enum.GetValues(typeof(PlanetCardType));
+        PlanetCardType planetType = (PlanetCardType)planetTypes.GetValue(random.Next(planetTypes.Length));
+        return new PlanetCard(planetType);
+    }
 }
 
 public class ShopOffer
@@ -171,6 +244,22 @@ public class ShopOffer
     public ShopOffer(JokerBase joker)
     {
         Joker = joker;
+    }
+
+    public void MarkSold()
+    {
+        IsSold = true;
+    }
+}
+
+public class PlanetShopOffer
+{
+    public PlanetCard PlanetCard { get; }
+    public bool IsSold { get; private set; }
+
+    public PlanetShopOffer(PlanetCard planetCard)
+    {
+        PlanetCard = planetCard;
     }
 
     public void MarkSold()

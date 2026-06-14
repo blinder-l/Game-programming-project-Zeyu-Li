@@ -10,6 +10,7 @@ public class ShopOfferView : MonoBehaviour
     [SerializeField] private CardTooltipTrigger tooltipTrigger;
     [SerializeField] private RectTransform cardVisualRoot;
     [SerializeField] private CardVisualFeedback visualFeedback;
+    [SerializeField] private Image cardVisualImage;
 
     private int offerIndex;
     private Action<int> clickedHandler;
@@ -45,10 +46,38 @@ public class ShopOfferView : MonoBehaviour
         SetInteractable(true);
     }
 
+    public void BindPlanet(PlanetShopOffer offer, int index, Action<int> onClicked, PlanetSpriteDatabase spriteDatabase)
+    {
+        ResolveReferences();
+        offerIndex = index;
+        clickedHandler = onClicked;
+
+        if (offer == null || offer.PlanetCard == null)
+        {
+            SetEmpty();
+            return;
+        }
+
+        if (offer.IsSold)
+        {
+            SetSold();
+            return;
+        }
+
+        PlanetCard planetCard = offer.PlanetCard;
+        SetText($"{planetCard.Name}\n${planetCard.cost}\n{planetCard.targetHandType}");
+        SetSprite(spriteDatabase != null ? spriteDatabase.GetSprite(planetCard) : null);
+        UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}");
+        visualFeedback?.SetHasVisualContent(true);
+        Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {planetCard.Name}");
+        SetInteractable(true);
+    }
+
     public void SetEmpty()
     {
         ResolveReferences();
         SetText("Empty");
+        SetSprite(null);
         UpdateTooltip("Empty", "No offer available.");
         visualFeedback?.SetHasVisualContent(false);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Empty");
@@ -59,6 +88,7 @@ public class ShopOfferView : MonoBehaviour
     {
         ResolveReferences();
         SetText("Sold");
+        SetSprite(null);
         UpdateTooltip("Sold", "This offer has already been purchased.");
         visualFeedback?.SetHasVisualContent(false);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Sold");
@@ -69,6 +99,7 @@ public class ShopOfferView : MonoBehaviour
     {
         ResolveReferences();
         SetText(viewText);
+        SetSprite(null);
         UpdateTooltip(displayName, effectText);
         clickedHandler = _ => onClicked?.Invoke();
         visualFeedback?.SetHasVisualContent(true);
@@ -84,6 +115,7 @@ public class ShopOfferView : MonoBehaviour
     private void ResolveReferences()
     {
         EnsureCardVisualRoot();
+        EnsureCardVisualImage();
 
         if (offerText == null)
         {
@@ -183,6 +215,26 @@ public class ShopOfferView : MonoBehaviour
         }
     }
 
+    private void EnsureCardVisualImage()
+    {
+        if (cardVisualRoot == null)
+        {
+            return;
+        }
+
+        if (cardVisualImage == null)
+        {
+            cardVisualImage = cardVisualRoot.GetComponent<Image>();
+        }
+
+        if (cardVisualImage == null)
+        {
+            cardVisualImage = cardVisualRoot.gameObject.AddComponent<Image>();
+        }
+
+        cardVisualImage.raycastTarget = false;
+    }
+
     private void MoveImageIntoCardVisualIfNeeded()
     {
         if (offerImage == null || cardVisualRoot == null || offerImage.gameObject == gameObject)
@@ -220,6 +272,27 @@ public class ShopOfferView : MonoBehaviour
         if (offerText != null)
         {
             offerText.text = value;
+        }
+    }
+
+    private void SetSprite(Sprite sprite)
+    {
+        bool hasSeparateOfferImage = offerImage != null && offerImage != cardVisualImage;
+
+        if (cardVisualImage != null)
+        {
+            cardVisualImage.sprite = sprite;
+            cardVisualImage.enabled = sprite != null;
+            cardVisualImage.color = hasSeparateOfferImage ? new Color(1f, 1f, 1f, 0.01f) : Color.white;
+            cardVisualImage.raycastTarget = false;
+        }
+
+        if (hasSeparateOfferImage)
+        {
+            offerImage.sprite = sprite;
+            offerImage.enabled = sprite != null;
+            offerImage.color = Color.white;
+            offerImage.raycastTarget = false;
         }
     }
 
