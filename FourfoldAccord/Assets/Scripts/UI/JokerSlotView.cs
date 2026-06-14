@@ -6,6 +6,8 @@ public class JokerSlotView : MonoBehaviour
 {
     [SerializeField] private TMP_Text jokerNameText;
     [SerializeField] private CardTooltipTrigger tooltipTrigger;
+    [SerializeField] private RectTransform cardVisualRoot;
+    [SerializeField] private CardVisualFeedback visualFeedback;
 
     private void Awake()
     {
@@ -25,6 +27,7 @@ public class JokerSlotView : MonoBehaviour
         string tooltipName = joker != null ? joker.Name : "Empty Joker Slot";
         string tooltipEffect = joker != null ? joker.Description : "No Joker equipped.";
         tooltipTrigger?.SetTooltip(tooltipName, tooltipEffect);
+        visualFeedback?.SetHasVisualContent(joker != null);
         Debug.Log($"JokerSlot tooltip updated: {tooltipName}");
     }
 
@@ -36,6 +39,8 @@ public class JokerSlotView : MonoBehaviour
 
     private void ResolveReferences()
     {
+        EnsureCardVisualRoot();
+
         if (jokerNameText == null)
         {
             jokerNameText = GetComponentInChildren<TMP_Text>(true);
@@ -49,6 +54,7 @@ public class JokerSlotView : MonoBehaviour
         if (jokerNameText != null)
         {
             jokerNameText.raycastTarget = false;
+            MoveTextIntoCardVisual(jokerNameText);
         }
 
         Image slotImage = GetComponent<Image>();
@@ -74,6 +80,64 @@ public class JokerSlotView : MonoBehaviour
             tooltipTrigger = gameObject.AddComponent<CardTooltipTrigger>();
             Debug.Log($"Bound tooltip trigger: {gameObject.name}");
         }
+
+        if (visualFeedback == null)
+        {
+            visualFeedback = GetComponent<CardVisualFeedback>();
+        }
+
+        if (visualFeedback == null)
+        {
+            visualFeedback = gameObject.AddComponent<CardVisualFeedback>();
+        }
+
+        visualFeedback.SetVisualRoot(cardVisualRoot);
+    }
+
+    private void EnsureCardVisualRoot()
+    {
+        if (cardVisualRoot != null)
+        {
+            return;
+        }
+
+        Transform visualTransform = transform.Find("CardVisual");
+
+        if (visualTransform == null)
+        {
+            GameObject visualObject = new GameObject("CardVisual", typeof(RectTransform));
+            visualObject.transform.SetParent(transform, false);
+            cardVisualRoot = visualObject.GetComponent<RectTransform>();
+            cardVisualRoot.anchorMin = Vector2.zero;
+            cardVisualRoot.anchorMax = Vector2.one;
+            cardVisualRoot.offsetMin = Vector2.zero;
+            cardVisualRoot.offsetMax = Vector2.zero;
+        }
+        else
+        {
+            cardVisualRoot = visualTransform as RectTransform;
+        }
+    }
+
+    private void MoveTextIntoCardVisual(TMP_Text text)
+    {
+        if (text == null || cardVisualRoot == null || text.transform.parent == cardVisualRoot)
+        {
+            return;
+        }
+
+        text.transform.SetParent(cardVisualRoot, false);
+        RectTransform rectTransform = text.transform as RectTransform;
+
+        if (rectTransform == null)
+        {
+            return;
+        }
+
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
     }
 
     private TMP_Text CreateNameText()

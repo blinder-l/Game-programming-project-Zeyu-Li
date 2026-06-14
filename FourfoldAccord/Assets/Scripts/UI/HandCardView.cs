@@ -10,6 +10,8 @@ public class HandCardView : MonoBehaviour
     [SerializeField] private GameObject selectedIndicator;
     [SerializeField] private Color normalTint = Color.white;
     [SerializeField] private Color selectedTint = new Color(1f, 0.9f, 0.35f, 1f);
+    [SerializeField] private RectTransform cardVisualRoot;
+    [SerializeField] private CardVisualFeedback visualFeedback;
 
     private PlayingCard boundCard;
     private Action<PlayingCard> clickedHandler;
@@ -61,7 +63,7 @@ public class HandCardView : MonoBehaviour
         {
             cardImage.sprite = cardSprite;
             cardImage.enabled = true;
-            cardImage.raycastTarget = true;
+            cardImage.raycastTarget = false;
         }
 
         if (cardNameText != null)
@@ -70,6 +72,7 @@ public class HandCardView : MonoBehaviour
             cardNameText.gameObject.SetActive(cardSprite == null);
         }
 
+        visualFeedback?.SetHasVisualContent(cardSprite != null);
         SetSelectedVisual(card.isSelected);
     }
 
@@ -86,8 +89,16 @@ public class HandCardView : MonoBehaviour
             cardImage.sprite = null;
         }
 
+        visualFeedback?.SetHasVisualContent(false);
+        visualFeedback?.ResetVisualImmediate();
         SetSelectedVisual(false);
         gameObject.SetActive(false);
+    }
+
+    public void RefreshBasePosition()
+    {
+        ResolveReferences();
+        visualFeedback?.RefreshBasePosition();
     }
 
     private void HandleButtonClicked()
@@ -102,19 +113,46 @@ public class HandCardView : MonoBehaviour
 
     private void ResolveReferences()
     {
-        if (cardImage == null)
+        EnsureCardVisualRoot();
+
+        Image visualImage = cardVisualRoot != null ? cardVisualRoot.GetComponent<Image>() : null;
+
+        if (visualImage == null && cardVisualRoot != null)
         {
-            cardImage = GetComponent<Image>();
+            visualImage = cardVisualRoot.gameObject.AddComponent<Image>();
         }
 
-        if (cardImage == null)
+        cardImage = visualImage;
+
+        Image rootImage = GetComponent<Image>();
+
+        if (rootImage == null)
         {
-            cardImage = GetComponentInChildren<Image>(true);
+            rootImage = gameObject.AddComponent<Image>();
         }
 
-        if (cardImage != null)
+        rootImage.sprite = null;
+        rootImage.color = new Color(1f, 1f, 1f, 0.01f);
+        rootImage.raycastTarget = true;
+
+        if (cardImage != null && cardImage != rootImage)
         {
-            cardImage.raycastTarget = true;
+            cardImage.raycastTarget = false;
+        }
+
+        if (visualFeedback == null)
+        {
+            visualFeedback = GetComponent<CardVisualFeedback>();
+        }
+
+        if (visualFeedback == null)
+        {
+            visualFeedback = gameObject.AddComponent<CardVisualFeedback>();
+        }
+
+        if (visualFeedback != null)
+        {
+            visualFeedback.SetVisualRoot(cardVisualRoot);
         }
 
         if (cardNameText != null)
@@ -132,9 +170,34 @@ public class HandCardView : MonoBehaviour
             button = gameObject.AddComponent<Button>();
         }
 
-        if (button != null && button.targetGraphic == null)
+        if (button != null)
         {
-            button.targetGraphic = cardImage;
+            button.targetGraphic = rootImage;
+        }
+    }
+
+    private void EnsureCardVisualRoot()
+    {
+        if (cardVisualRoot != null)
+        {
+            return;
+        }
+
+        Transform visualTransform = transform.Find("CardVisual");
+
+        if (visualTransform == null)
+        {
+            GameObject visualObject = new GameObject("CardVisual", typeof(RectTransform));
+            visualObject.transform.SetParent(transform, false);
+            cardVisualRoot = visualObject.GetComponent<RectTransform>();
+            cardVisualRoot.anchorMin = Vector2.zero;
+            cardVisualRoot.anchorMax = Vector2.one;
+            cardVisualRoot.offsetMin = Vector2.zero;
+            cardVisualRoot.offsetMax = Vector2.zero;
+        }
+        else
+        {
+            cardVisualRoot = visualTransform as RectTransform;
         }
     }
 
@@ -159,5 +222,7 @@ public class HandCardView : MonoBehaviour
         {
             cardImage.color = isSelected ? selectedTint : normalTint;
         }
+
+        visualFeedback?.SetSelected(isSelected);
     }
 }

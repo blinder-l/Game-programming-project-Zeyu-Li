@@ -758,6 +758,11 @@ public class GameUIController : MonoBehaviour
                 cardView = cardTransform.gameObject.AddComponent<HandCardView>();
             }
 
+            if (cardTransform.GetComponent<CardVisualFeedback>() == null)
+            {
+                cardTransform.gameObject.AddComponent<CardVisualFeedback>();
+            }
+
             resolvedViews.Add(cardView);
             Debug.Log($"Bound {cardName}");
         }
