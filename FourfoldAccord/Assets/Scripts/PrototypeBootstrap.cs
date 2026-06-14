@@ -50,6 +50,9 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.SortBySuitButtonClicked += HandleSortBySuitButtonClicked;
             gameUIController.SortByRankButtonClicked += HandleSortByRankButtonClicked;
             gameUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
+            gameUIController.ShopJokerOfferClicked += HandleShopJokerOfferClicked;
+            gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
+            gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -87,6 +90,9 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.SortBySuitButtonClicked -= HandleSortBySuitButtonClicked;
             gameUIController.SortByRankButtonClicked -= HandleSortByRankButtonClicked;
             gameUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
+            gameUIController.ShopJokerOfferClicked -= HandleShopJokerOfferClicked;
+            gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
+            gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
         }
     }
 
@@ -148,10 +154,13 @@ public class PrototypeBootstrap : MonoBehaviour
     private void EnterShop()
     {
         isInShop = true;
-        shopManager.GenerateShopOptions();
+        Debug.Log("Entering Shop state.");
+        shopManager.GenerateOffers();
         gameUIController?.SetState(GameUIState.Shop);
+        gameUIController?.ShowShop(shopManager.CurrentOffers);
 
         Debug.Log("=== Shop ===");
+        Debug.Log("Shop UI updated.");
         LogShopState();
     }
 
@@ -177,14 +186,13 @@ public class PrototypeBootstrap : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.N))
         {
-            Debug.Log("Leaving shop.");
-            StartNextBlind();
+            LeaveShopAndStartNextBlind();
         }
     }
 
     private void LogShopState()
     {
-        Debug.Log("Shop controls: 1-3 buy a Joker, R reroll shop (Cost: 2 Gold), N leave shop");
+        Debug.Log("Shop controls: 1-4 buy a Joker, R reroll shop (Cost: 2 Gold), N leave shop");
         Debug.Log($"Gold: {currentGold}");
         Debug.Log($"Joker Slots: {jokerManager.EquippedJokers.Count}/{jokerManager.MaxJokerSlots}");
         Debug.Log($"Shop Options:\n{shopManager.GetShopDebugText()}");
@@ -193,56 +201,41 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void TryBuyShopOption(int optionIndex)
     {
-        JokerBase joker = shopManager.GetOption(optionIndex);
-
-        if (joker == null)
+        if (!isInShop)
         {
-            Debug.Log("Invalid shop option.");
-            LogShopState();
+            Debug.Log($"Cannot purchase: current state is {gameUIController.CurrentState}");
             return;
         }
 
-        if (jokerManager.EquippedJokers.Count >= jokerManager.MaxJokerSlots)
+        if (shopManager.TryPurchaseOffer(optionIndex, currentGold, jokerManager, out string message, out int newGold))
         {
-            Debug.Log($"Could not buy {joker.Name}: Joker slots are full.");
-            LogShopState();
-            return;
+            currentGold = newGold;
+            RefreshJokerBarUI();
+            RefreshGameUI();
+            gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
         }
 
-        if (currentGold < joker.Cost)
-        {
-            Debug.Log($"Not enough Gold to buy {joker.Name}. Cost: {joker.Cost}, Gold: {currentGold}");
-            LogShopState();
-            return;
-        }
-
-        if (!jokerManager.TryEquipJoker(joker))
-        {
-            Debug.Log($"Could not buy Joker: {joker.Name}");
-            LogShopState();
-            return;
-        }
-
-        currentGold -= joker.Cost;
-        shopManager.RemoveOption(optionIndex);
-        RefreshJokerBarUI();
-        Debug.Log($"Bought Joker: {joker.Name} for {joker.Cost} Gold. Gold remaining: {currentGold}");
+        Debug.Log(message);
+        Debug.Log("Shop UI updated.");
         LogShopState();
     }
 
     private void TryRerollShop()
     {
-        if (currentGold < ShopManager.RerollCost)
+        if (!isInShop)
         {
-            Debug.Log($"Not enough Gold to reroll shop. Cost: {ShopManager.RerollCost}, Gold: {currentGold}");
-            LogShopState();
             return;
         }
 
-        currentGold -= ShopManager.RerollCost;
-        shopManager.GenerateShopOptions();
+        if (shopManager.TryReroll(currentGold, out string message, out int newGold))
+        {
+            currentGold = newGold;
+            RefreshGameUI();
+            gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
+        }
 
-        Debug.Log($"Rerolled shop for {ShopManager.RerollCost} Gold. Gold remaining: {currentGold}");
+        Debug.Log(message);
+        Debug.Log("Shop UI updated.");
         LogShopState();
     }
 
@@ -320,6 +313,33 @@ public class PrototypeBootstrap : MonoBehaviour
         EnterShop();
         RefreshGameUI();
         Debug.Log("Entered Shop state.");
+    }
+
+    private void HandleShopJokerOfferClicked(int offerIndex)
+    {
+        TryBuyShopOption(offerIndex);
+    }
+
+    private void HandleShopRerollButtonClicked()
+    {
+        TryRerollShop();
+    }
+
+    private void HandleShopNextBlindButtonClicked()
+    {
+        LeaveShopAndStartNextBlind();
+    }
+
+    private void LeaveShopAndStartNextBlind()
+    {
+        if (!isInShop)
+        {
+            return;
+        }
+
+        Debug.Log("Leaving Shop state.");
+        StartNextBlind();
+        Debug.Log($"Started next blind: {runManager.GetBlindDisplayName()}, Ante {runManager.GetAnteNumber()}");
     }
 
     private void HandleCardSelectionInput()

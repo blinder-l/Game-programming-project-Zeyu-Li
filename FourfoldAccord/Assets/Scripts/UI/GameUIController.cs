@@ -19,6 +19,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private Transform jokerSlotsContainer;
     [SerializeField] private DeckStatsUIController deckStatsUIController;
     [SerializeField] private CashOutUIController cashOutUIController;
+    [SerializeField] private ShopUIController shopUIController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
@@ -47,6 +48,9 @@ public class GameUIController : MonoBehaviour
     public event Action SortBySuitButtonClicked;
     public event Action SortByRankButtonClicked;
     public event Action CashOutButtonClicked;
+    public event Action<int> ShopJokerOfferClicked;
+    public event Action ShopRerollButtonClicked;
+    public event Action ShopNextBlindButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
@@ -78,6 +82,7 @@ public class GameUIController : MonoBehaviour
         BindActionButtons();
         BindDeckStatsController();
         BindCashOutController();
+        BindShopController();
         EnsurePointerInputSupport();
         LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
@@ -102,6 +107,11 @@ public class GameUIController : MonoBehaviour
         if (newState != GameUIState.CashOut)
         {
             cashOutUIController?.Hide();
+        }
+
+        if (newState != GameUIState.Shop)
+        {
+            shopUIController?.Hide();
         }
 
         if (enteringRunFailed)
@@ -209,6 +219,21 @@ public class GameUIController : MonoBehaviour
     public void SetCashOutButtonInteractable(bool isInteractable)
     {
         cashOutUIController?.SetButtonInteractable(isInteractable);
+    }
+
+    public void ShowShop(IReadOnlyList<ShopOffer> offers)
+    {
+        if (shopUIController == null)
+        {
+            BindShopController();
+        }
+
+        shopUIController?.ShowShop(offers);
+    }
+
+    public void RefreshShopOffers(IReadOnlyList<ShopOffer> offers)
+    {
+        shopUIController?.RefreshOffers(offers);
     }
 
     public void RefreshBlindStatus(
@@ -326,7 +351,7 @@ public class GameUIController : MonoBehaviour
             }
             else
             {
-                Debug.Log($"Play failed: current UI state is {CurrentState}.");
+                Debug.Log($"Cannot play: current state is {CurrentState}");
             }
 
             return;
@@ -886,6 +911,50 @@ public class GameUIController : MonoBehaviour
         cashOutUIController.Initialize(canvas.transform);
         cashOutUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
         cashOutUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
+    }
+
+    private void BindShopController()
+    {
+        if (shopUIController == null)
+        {
+            shopUIController = GetComponent<ShopUIController>();
+        }
+
+        if (shopUIController == null)
+        {
+            shopUIController = gameObject.AddComponent<ShopUIController>();
+        }
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogError("Failed to bind ShopUIController: Canvas not found");
+            return;
+        }
+
+        shopUIController.Initialize(canvas.transform);
+        shopUIController.JokerOfferClicked -= HandleShopJokerOfferClicked;
+        shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
+        shopUIController.RerollButtonClicked -= HandleShopRerollButtonClicked;
+        shopUIController.RerollButtonClicked += HandleShopRerollButtonClicked;
+        shopUIController.NextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
+        shopUIController.NextBlindButtonClicked += HandleShopNextBlindButtonClicked;
+    }
+
+    private void HandleShopJokerOfferClicked(int index)
+    {
+        ShopJokerOfferClicked?.Invoke(index);
+    }
+
+    private void HandleShopRerollButtonClicked()
+    {
+        ShopRerollButtonClicked?.Invoke();
+    }
+
+    private void HandleShopNextBlindButtonClicked()
+    {
+        ShopNextBlindButtonClicked?.Invoke();
     }
 
     private void HandleCashOutButtonClicked()
