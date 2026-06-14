@@ -126,8 +126,9 @@ public class DeckStatsUIController : MonoBehaviour
         SetPanelActive(handSlotsContainer, true);
         SetPanelActive(actionButtonsContainer, false);
         SetActionButtonsInteractable(false);
-        UpdateCurrentHandStats(handManager.CurrentHand);
-        Debug.Log("Deck view mode: CurrentHandStats");
+        List<PlayingCard> availableCards = BuildCurrentAvailableCardsInBlind();
+        UpdateCurrentHandStats(availableCards);
+        Debug.Log("Deck view mode: CurrentAvailableCards");
         Debug.Log("CurrentHandStatsPanel shown");
         Debug.Log("DeckStatsPanel hidden");
         Debug.Log("CenterPlayArea hidden");
@@ -245,7 +246,7 @@ public class DeckStatsUIController : MonoBehaviour
     {
         DeckStats stats = BuildStats(cards);
         StringBuilder builder = new StringBuilder();
-        builder.AppendLine($"Current Hand: {stats.totalCount} cards");
+        builder.AppendLine($"Current available cards in this Blind: {stats.totalCount} cards");
         builder.AppendLine();
         builder.AppendLine("Suits:");
         builder.AppendLine(BuildSuitSummary(stats));
@@ -260,6 +261,32 @@ public class DeckStatsUIController : MonoBehaviour
 
         SetText(currentHandStatsText, builder.ToString());
         Debug.Log($"Current hand stats updated: {stats.totalCount} cards");
+    }
+
+    private List<PlayingCard> BuildCurrentAvailableCardsInBlind()
+    {
+        List<PlayingCard> availableCards = new List<PlayingCard>();
+        int currentHandCount = 0;
+        int drawPileCount = 0;
+
+        if (handManager != null && handManager.CurrentHand != null)
+        {
+            currentHandCount = handManager.CurrentHand.Count;
+            availableCards.AddRange(handManager.CurrentHand);
+        }
+
+        if (deckManager != null)
+        {
+            List<PlayingCard> drawPileSnapshot = deckManager.GetDrawPileSnapshot();
+            drawPileCount = drawPileSnapshot.Count;
+            availableCards.AddRange(drawPileSnapshot);
+        }
+
+        Debug.Log("Available cards source: current hand + draw pile");
+        Debug.Log($"Current hand count: {currentHandCount}");
+        Debug.Log($"Draw pile count: {drawPileCount}");
+        Debug.Log($"Available cards total: {availableCards.Count}");
+        return availableCards;
     }
 
     private DeckStats BuildStats(IEnumerable<PlayingCard> cards)
