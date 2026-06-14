@@ -19,6 +19,9 @@ public class PrototypeBootstrap : MonoBehaviour
     private JokerManager jokerManager;
     private bool isInShop;
     private int currentGold;
+    private int suitGoldThisBlind;
+    private int lastCashOutTotal;
+    private bool hasClaimedCashOut;
     private string latestHandTypeText = "None";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
     private ScoreContext latestScoreContext;
@@ -46,6 +49,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.DiscardButtonClicked += HandleDiscardButtonClicked;
             gameUIController.SortBySuitButtonClicked += HandleSortBySuitButtonClicked;
             gameUIController.SortByRankButtonClicked += HandleSortByRankButtonClicked;
+            gameUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -82,6 +86,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.DiscardButtonClicked -= HandleDiscardButtonClicked;
             gameUIController.SortBySuitButtonClicked -= HandleSortBySuitButtonClicked;
             gameUIController.SortByRankButtonClicked -= HandleSortByRankButtonClicked;
+            gameUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
         }
     }
 
@@ -124,6 +129,7 @@ public class PrototypeBootstrap : MonoBehaviour
         latestHandTypeText = "None";
         latestPlayedCards.Clear();
         latestScoreContext = null;
+        ResetCashOutForNewBlind();
         ClearSelectedCards();
         gameUIController?.SetState(GameUIState.PlayingBlind);
         RefreshGameUI();
@@ -137,21 +143,6 @@ public class PrototypeBootstrap : MonoBehaviour
         runManager.AdvanceToNextBlind();
         Debug.Log($"Advancing to Blind {runManager.CurrentBlindNumber}");
         StartCurrentBlind();
-    }
-
-    private void ApplyBlindClearGoldRewards()
-    {
-        int interest = Mathf.Min(currentGold / 5, 5);
-        int remainingDiscardsGold = roundManager.discardsRemaining;
-        int blindClearGoldTotal = interest + remainingDiscardsGold;
-
-        currentGold += blindClearGoldTotal;
-
-        Debug.Log("=== Blind Clear Gold Rewards ===");
-        Debug.Log($"Interest: +{interest}");
-        Debug.Log($"Remaining Discards Gold: +{remainingDiscardsGold}");
-        Debug.Log($"End of Blind Gold Total: +{blindClearGoldTotal}");
-        Debug.Log($"Current Gold: {currentGold}");
     }
 
     private void EnterShop()
@@ -312,6 +303,23 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         TryDiscardSelectedCards();
+    }
+
+    private void HandleCashOutButtonClicked()
+    {
+        if (hasClaimedCashOut)
+        {
+            Debug.Log("CashOut already claimed; ignoring duplicate click.");
+            return;
+        }
+
+        currentGold += lastCashOutTotal;
+        hasClaimedCashOut = true;
+        gameUIController?.SetCashOutButtonInteractable(false);
+        Debug.Log($"CashOut claimed: +{lastCashOutTotal} gold. Current gold: {currentGold}");
+        EnterShop();
+        RefreshGameUI();
+        Debug.Log("Entered Shop state.");
     }
 
     private void HandleCardSelectionInput()
@@ -565,7 +573,15 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
-        currentGold += scoreContext.goldReward;
+        suitGoldThisBlind += scoreContext.goldReward;
+
+        if (scoreContext.goldReward > 0)
+        {
+            Debug.Log($"Suit gold earned this hand: {scoreContext.goldReward}");
+            Debug.Log($"Suit gold this blind total: {suitGoldThisBlind}");
+            Debug.Log($"Current gold unchanged until CashOut: {currentGold}");
+        }
+
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
         latestPlayedCards = playedCards;
         latestScoreContext = scoreContext;
@@ -880,6 +896,41 @@ public class PrototypeBootstrap : MonoBehaviour
         gameUIController.RefreshJokerBar(jokerManager.EquippedJokers);
     }
 
+    private void ResetCashOutForNewBlind()
+    {
+        suitGoldThisBlind = 0;
+        lastCashOutTotal = 0;
+        hasClaimedCashOut = false;
+        Debug.Log("CashOut reset for new blind.");
+        Debug.Log($"suitGoldThisBlind = {suitGoldThisBlind}");
+        Debug.Log($"hasClaimedCashOut = {hasClaimedCashOut}");
+    }
+
+    private void OpenCashOutPanel()
+    {
+        int fixedBlindReward = runManager.GetFixedBlindReward();
+        int interest = Mathf.Min(currentGold / 5, 5);
+        int discardBonus = roundManager.discardsRemaining;
+        lastCashOutTotal = fixedBlindReward + suitGoldThisBlind + interest + discardBonus;
+
+        Debug.Log("Blind passed. Opening CashOutPanel.");
+        Debug.Log($"Fixed blind reward: {fixedBlindReward}");
+        Debug.Log($"Suit gold this blind: {suitGoldThisBlind}");
+        Debug.Log($"Interest: {interest}");
+        Debug.Log($"Discard bonus: {discardBonus}");
+        Debug.Log($"CashOut total: {lastCashOutTotal}");
+
+        gameUIController?.SetState(GameUIState.CashOut);
+        gameUIController?.ShowCashOut(
+            roundManager.targetScore,
+            roundManager.currentScore,
+            fixedBlindReward,
+            suitGoldThisBlind,
+            interest,
+            discardBonus,
+            lastCashOutTotal);
+    }
+
     private void RefreshHandTypePreview()
     {
         List<PlayingCard> cardsToPreview = GetSelectedCardsForAction();
@@ -907,10 +958,9 @@ public class PrototypeBootstrap : MonoBehaviour
         if (roundManager.HasPassedBlind)
         {
             Debug.Log("Blind passed.");
-            ApplyBlindClearGoldRewards();
             jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
-            EnterShop();
+            OpenCashOutPanel();
         }
         else if (roundManager.HasFailedBlind)
         {

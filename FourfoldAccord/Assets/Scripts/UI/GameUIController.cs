@@ -18,6 +18,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private Transform jokerSlotsContainer;
     [SerializeField] private DeckStatsUIController deckStatsUIController;
+    [SerializeField] private CashOutUIController cashOutUIController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
@@ -45,6 +46,7 @@ public class GameUIController : MonoBehaviour
     public event Action DiscardButtonClicked;
     public event Action SortBySuitButtonClicked;
     public event Action SortByRankButtonClicked;
+    public event Action CashOutButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
@@ -75,6 +77,7 @@ public class GameUIController : MonoBehaviour
         DisableKnownBackgroundRaycasts();
         BindActionButtons();
         BindDeckStatsController();
+        BindCashOutController();
         EnsurePointerInputSupport();
         LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
@@ -95,6 +98,11 @@ public class GameUIController : MonoBehaviour
         SetActiveIfAssigned(cardTooltipPanel, false);
         SetActiveIfAssigned(actionButtonsContainer, newState == GameUIState.PlayingBlind);
         SetActionButtonsInteractable(CanAcceptGameplayInput);
+
+        if (newState != GameUIState.CashOut)
+        {
+            cashOutUIController?.Hide();
+        }
 
         if (enteringRunFailed)
         {
@@ -172,6 +180,35 @@ public class GameUIController : MonoBehaviour
         {
             deckStatsUIController.SetDataSources(deckManager, handManager);
         }
+    }
+
+    public void ShowCashOut(
+        int targetScore,
+        int currentScore,
+        int fixedBlindReward,
+        int suitGoldThisBlind,
+        int interest,
+        int discardBonus,
+        int cashOutTotal)
+    {
+        if (cashOutUIController == null)
+        {
+            BindCashOutController();
+        }
+
+        cashOutUIController?.ShowCashOut(
+            targetScore,
+            currentScore,
+            fixedBlindReward,
+            suitGoldThisBlind,
+            interest,
+            discardBonus,
+            cashOutTotal);
+    }
+
+    public void SetCashOutButtonInteractable(bool isInteractable)
+    {
+        cashOutUIController?.SetButtonInteractable(isInteractable);
     }
 
     public void RefreshBlindStatus(
@@ -410,12 +447,15 @@ public class GameUIController : MonoBehaviour
 
     private void ResolveStateRoots()
     {
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        Transform canvasRoot = canvas != null ? canvas.transform : null;
+
         playStateRoot = FindGameObjectByPath("Canvas/PlayStateRoot", playStateRoot);
-        cashOutPanel = FindGameObjectByPath("Canvas/CashOutPanel", cashOutPanel);
-        shopPanel = FindGameObjectByPath("Canvas/ShopPanel", shopPanel);
-        deckStatsPanel = FindGameObjectByPath("Canvas/DeckStatsPanel", deckStatsPanel);
-        currentHandStatsPanel = FindGameObjectByPath("Canvas/CurrentHandStatsPanel", currentHandStatsPanel);
-        cardTooltipPanel = FindGameObjectByPath("Canvas/CardTooltipPanel", cardTooltipPanel);
+        cashOutPanel = FindGameObjectIncludingInactive(canvasRoot, "CashOutPanel", cashOutPanel);
+        shopPanel = FindGameObjectIncludingInactive(canvasRoot, "ShopPanel", shopPanel);
+        deckStatsPanel = FindGameObjectIncludingInactive(canvasRoot, "DeckStatsPanel", deckStatsPanel);
+        currentHandStatsPanel = FindGameObjectIncludingInactive(canvasRoot, "CurrentHandStatsPanel", currentHandStatsPanel);
+        cardTooltipPanel = FindGameObjectIncludingInactive(canvasRoot, "CardTooltipPanel", cardTooltipPanel);
         actionButtonsContainer = FindGameObjectByPath("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer", actionButtonsContainer);
     }
 
@@ -823,6 +863,36 @@ public class GameUIController : MonoBehaviour
         deckStatsUIController.Initialize(canvas.transform, actionButtons, () => CurrentState);
     }
 
+    private void BindCashOutController()
+    {
+        if (cashOutUIController == null)
+        {
+            cashOutUIController = GetComponent<CashOutUIController>();
+        }
+
+        if (cashOutUIController == null)
+        {
+            cashOutUIController = gameObject.AddComponent<CashOutUIController>();
+        }
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogError("Failed to bind CashOutUIController: Canvas not found");
+            return;
+        }
+
+        cashOutUIController.Initialize(canvas.transform);
+        cashOutUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
+        cashOutUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
+    }
+
+    private void HandleCashOutButtonClicked()
+    {
+        CashOutButtonClicked?.Invoke();
+    }
+
     private Button BindPlayButton()
     {
         GameObject buttonObject = GameObject.Find(PlayButtonPath);
@@ -1011,6 +1081,24 @@ public class GameUIController : MonoBehaviour
     {
         GameObject foundObject = GameObject.Find(path);
         return foundObject != null ? foundObject : fallback;
+    }
+
+    private GameObject FindGameObjectIncludingInactive(Transform root, string objectName, GameObject fallback)
+    {
+        if (root == null)
+        {
+            return fallback;
+        }
+
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == objectName)
+            {
+                return child.gameObject;
+            }
+        }
+
+        return fallback;
     }
 
     private string GetFullPath(Transform target)
