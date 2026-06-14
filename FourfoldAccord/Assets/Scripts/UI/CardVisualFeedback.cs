@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -12,17 +13,22 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     [SerializeField] private float selectShakeDuration = 0.14f;
     [SerializeField] private float hoverShakeMagnitude = 2f;
     [SerializeField] private float selectShakeMagnitude = 4f;
+    [SerializeField] private float hoverPulseScale = 1.1f;
+    [SerializeField] private float hoverPulseDuration = 0.12f;
 
     private Vector2 baseAnchoredPosition;
     private Vector2 targetOffset;
     private Vector2 shakeOffset;
     private Vector3 targetScale = Vector3.one;
+    private Image visualImage;
     private bool isSelected;
     private bool hasVisualContent;
     private bool isShaking;
+    private bool isPulsing;
     private float shakeTimer;
     private float shakeDuration;
     private float shakeMagnitude;
+    private float pulseTimer;
 
     private void Awake()
     {
@@ -45,6 +51,7 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
         }
 
         UpdateShakeOffset();
+        float pulseMultiplier = UpdatePulseMultiplier();
 
         Vector2 desiredPosition = baseAnchoredPosition + targetOffset + shakeOffset;
         visualRoot.anchoredPosition = Vector2.Lerp(
@@ -53,18 +60,19 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
             Time.unscaledDeltaTime * smoothSpeed);
         visualRoot.localScale = Vector3.Lerp(
             visualRoot.localScale,
-            targetScale,
+            targetScale * pulseMultiplier,
             Time.unscaledDeltaTime * smoothSpeed);
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!hasVisualContent)
+        if (!HasValidVisualContent())
         {
             return;
         }
 
         StartShake(hoverShakeDuration, hoverShakeMagnitude);
+        StartHoverPulse();
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -82,7 +90,7 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     {
         hasVisualContent = hasContent;
 
-        if (!hasVisualContent)
+        if (!HasValidVisualContent())
         {
             ResetVisualImmediate();
         }
@@ -109,7 +117,9 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     {
         isSelected = false;
         isShaking = false;
+        isPulsing = false;
         shakeTimer = 0f;
+        pulseTimer = 0f;
         shakeOffset = Vector2.zero;
         targetOffset = Vector2.zero;
         targetScale = Vector3.one * normalScale;
@@ -143,6 +153,7 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     {
         if (visualRoot != null)
         {
+            ResolveVisualImage();
             return;
         }
 
@@ -153,6 +164,19 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
         {
             visualRoot = transform as RectTransform;
         }
+
+        ResolveVisualImage();
+    }
+
+    private void ResolveVisualImage()
+    {
+        visualImage = visualRoot != null ? visualRoot.GetComponent<Image>() : null;
+    }
+
+    private bool HasValidVisualContent()
+    {
+        ResolveVisualRoot();
+        return hasVisualContent && visualImage != null && visualImage.enabled && visualImage.sprite != null;
     }
 
     private void ApplyTargets()
@@ -167,6 +191,12 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
         shakeTimer = 0f;
         shakeDuration = Mathf.Max(0.01f, duration);
         shakeMagnitude = magnitude;
+    }
+
+    private void StartHoverPulse()
+    {
+        isPulsing = true;
+        pulseTimer = 0f;
     }
 
     private void UpdateShakeOffset()
@@ -190,5 +220,27 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
             isShaking = false;
             shakeOffset = Vector2.zero;
         }
+    }
+
+    private float UpdatePulseMultiplier()
+    {
+        if (!isPulsing)
+        {
+            return 1f;
+        }
+
+        pulseTimer += Time.unscaledDeltaTime;
+        float duration = Mathf.Max(0.01f, hoverPulseDuration);
+        float progress = Mathf.Clamp01(pulseTimer / duration);
+        float pulseAmount = Mathf.Sin(progress * Mathf.PI);
+        float multiplier = Mathf.Lerp(1f, hoverPulseScale, pulseAmount);
+
+        if (progress >= 1f)
+        {
+            isPulsing = false;
+            return 1f;
+        }
+
+        return multiplier;
     }
 }
