@@ -10,12 +10,26 @@ public class ScoreManager
         return CalculateScore(pokerHandResult, null, null);
     }
 
+    public ScoreContext CalculateScore(PokerHandResult pokerHandResult, HandTypeLevelManager handTypeLevelManager)
+    {
+        return CalculateScore(pokerHandResult, null, null, handTypeLevelManager);
+    }
+
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult, SuitMasteryManager suitMasteryManager)
     {
         return CalculateScore(pokerHandResult, suitMasteryManager, null);
     }
 
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult, SuitMasteryManager suitMasteryManager, JokerManager jokerManager)
+    {
+        return CalculateScore(pokerHandResult, suitMasteryManager, jokerManager, null);
+    }
+
+    public ScoreContext CalculateScore(
+        PokerHandResult pokerHandResult,
+        SuitMasteryManager suitMasteryManager,
+        JokerManager jokerManager,
+        HandTypeLevelManager handTypeLevelManager)
     {
         if (pokerHandResult == null)
         {
@@ -25,10 +39,10 @@ public class ScoreManager
         List<PlayingCard> scoringCards = pokerHandResult.scoringCards ?? new List<PlayingCard>();
         Dictionary<PlayingCard, int> cardChipValues = GetCardChipValues(scoringCards);
         Dictionary<Suit, int> suitCounts = GetSuitCounts(scoringCards);
-        int baseChips = GetBaseChips(pokerHandResult.handType);
+        int baseChips = GetBaseChips(pokerHandResult.handType, handTypeLevelManager);
         int rankChips = GetRankChips(cardChipValues);
         int chips = baseChips + rankChips;
-        float mult = GetBaseMult(pokerHandResult.handType);
+        float mult = GetBaseMult(pokerHandResult.handType, handTypeLevelManager);
 
         ScoreContext scoreContext = new ScoreContext(
             new List<PlayingCard>(scoringCards),
@@ -49,6 +63,16 @@ public class ScoreManager
         scoreContext.RecalculateFinalScore();
 
         return scoreContext;
+    }
+
+    private int GetBaseChips(PokerHandType handType, HandTypeLevelManager handTypeLevelManager)
+    {
+        if (handTypeLevelManager != null)
+        {
+            return handTypeLevelManager.GetCurrentBaseChips(handType);
+        }
+
+        return GetBaseChips(handType);
     }
 
     private int GetBaseChips(PokerHandType handType)
@@ -74,6 +98,16 @@ public class ScoreManager
             default:
                 return 10;
         }
+    }
+
+    private float GetBaseMult(PokerHandType handType, HandTypeLevelManager handTypeLevelManager)
+    {
+        if (handTypeLevelManager != null)
+        {
+            return handTypeLevelManager.GetCurrentBaseMult(handType);
+        }
+
+        return GetBaseMult(handType);
     }
 
     private float GetBaseMult(PokerHandType handType)

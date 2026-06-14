@@ -16,6 +16,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private RunManager runManager;
     private ShopManager shopManager;
     private SuitMasteryManager suitMasteryManager;
+    private HandTypeLevelManager handTypeLevelManager;
     private JokerManager jokerManager;
     private bool isInShop;
     private int currentGold;
@@ -39,6 +40,7 @@ public class PrototypeBootstrap : MonoBehaviour
         runManager = new RunManager();
         shopManager = new ShopManager();
         suitMasteryManager = new SuitMasteryManager();
+        handTypeLevelManager = new HandTypeLevelManager();
         jokerManager = new JokerManager();
         currentGold = StartingGold;
 
@@ -627,7 +629,7 @@ public class PrototypeBootstrap : MonoBehaviour
         SetCurrentHandSelectionByIndices(handIndices);
 
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay);
-        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager);
+        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager, handTypeLevelManager);
         latestHandTypeText = scoreContext.handType.ToString();
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
