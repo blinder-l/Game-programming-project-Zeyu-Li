@@ -20,6 +20,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private DeckStatsUIController deckStatsUIController;
     [SerializeField] private CashOutUIController cashOutUIController;
     [SerializeField] private ShopUIController shopUIController;
+    [SerializeField] private CardTooltipController cardTooltipController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
@@ -76,6 +77,7 @@ public class GameUIController : MonoBehaviour
         BindLeftStatusUI();
         BindPlayedCardsUI();
         BindResolutionInfoUI();
+        BindCardTooltipController();
         BindJokerBarUI();
         BindHandCards();
         DisableKnownBackgroundRaycasts();
@@ -529,6 +531,7 @@ public class GameUIController : MonoBehaviour
             }
 
             slotView.SetJoker(null);
+            slotView.SetTooltipController(cardTooltipController);
             jokerSlotViews[i] = slotView;
             Debug.Log($"Bound {slotName}");
         }
@@ -934,6 +937,7 @@ public class GameUIController : MonoBehaviour
         }
 
         shopUIController.Initialize(canvas.transform);
+        shopUIController.SetTooltipController(cardTooltipController);
         shopUIController.JokerOfferClicked -= HandleShopJokerOfferClicked;
         shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
         shopUIController.RerollButtonClicked -= HandleShopRerollButtonClicked;
@@ -955,6 +959,29 @@ public class GameUIController : MonoBehaviour
     private void HandleShopNextBlindButtonClicked()
     {
         ShopNextBlindButtonClicked?.Invoke();
+    }
+
+    private void BindCardTooltipController()
+    {
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        Transform canvasRoot = canvas != null ? canvas.transform : null;
+        GameObject tooltipPanelObject = FindGameObjectIncludingInactive(canvasRoot, "CardTooltipPanel", cardTooltipPanel);
+
+        if (tooltipPanelObject == null)
+        {
+            Debug.LogError("Failed to bind CardTooltipPanel");
+            return;
+        }
+
+        cardTooltipPanel = tooltipPanelObject;
+        cardTooltipController = tooltipPanelObject.GetComponent<CardTooltipController>();
+
+        if (cardTooltipController == null)
+        {
+            cardTooltipController = tooltipPanelObject.AddComponent<CardTooltipController>();
+        }
+
+        cardTooltipController.Initialize(canvasRoot);
     }
 
     private void HandleCashOutButtonClicked()

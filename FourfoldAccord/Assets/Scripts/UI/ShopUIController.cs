@@ -14,6 +14,7 @@ public class ShopUIController : MonoBehaviour
     private ShopOfferView voucherOfferView;
     private ShopOfferView consumableOfferView1;
     private ShopOfferView consumableOfferView2;
+    private CardTooltipController tooltipController;
 
     public event Action<int> JokerOfferClicked;
     public event Action RerollButtonClicked;
@@ -74,6 +75,7 @@ public class ShopUIController : MonoBehaviour
 
             if (offers != null && i < offers.Count)
             {
+                offerView.SetTooltipController(tooltipController);
                 offerView.Bind(offers[i], i, HandleJokerOfferClicked);
             }
             else
@@ -83,6 +85,23 @@ public class ShopUIController : MonoBehaviour
         }
 
         Debug.Log("Shop UI updated.");
+    }
+
+    public void SetTooltipController(CardTooltipController controller)
+    {
+        tooltipController = controller;
+
+        if (jokerOfferViews != null)
+        {
+            for (int i = 0; i < jokerOfferViews.Length; i++)
+            {
+                jokerOfferViews[i]?.SetTooltipController(tooltipController);
+            }
+        }
+
+        voucherOfferView?.SetTooltipController(tooltipController);
+        consumableOfferView1?.SetTooltipController(tooltipController);
+        consumableOfferView2?.SetTooltipController(tooltipController);
     }
 
     private void BindShopPanel(Transform canvasRoot)
@@ -135,12 +154,36 @@ public class ShopUIController : MonoBehaviour
 
     private void BindPlaceholders(Transform canvasRoot)
     {
-        voucherOfferView = BindPlaceholder(canvasRoot, "ShopVoucherOffer", "Voucher\nComing Soon", HandleVoucherClicked);
-        consumableOfferView1 = BindPlaceholder(canvasRoot, "ShopConsumableOffer1", "Consumable\nComing Soon", HandleConsumableClicked);
-        consumableOfferView2 = BindPlaceholder(canvasRoot, "ShopConsumableOffer2", "Consumable\nComing Soon", HandleConsumableClicked);
+        voucherOfferView = BindPlaceholder(
+            canvasRoot,
+            "ShopVoucherOffer",
+            "Voucher",
+            "Future upgrade card. Coming soon.",
+            "Voucher\nComing Soon",
+            HandleVoucherClicked);
+        consumableOfferView1 = BindPlaceholder(
+            canvasRoot,
+            "ShopConsumableOffer1",
+            "Consumable",
+            "Tarot / Planet consumable cards are not implemented yet.",
+            "Consumable\nComing Soon",
+            HandleConsumableClicked);
+        consumableOfferView2 = BindPlaceholder(
+            canvasRoot,
+            "ShopConsumableOffer2",
+            "Consumable",
+            "Tarot / Planet consumable cards are not implemented yet.",
+            "Consumable\nComing Soon",
+            HandleConsumableClicked);
     }
 
-    private ShopOfferView BindPlaceholder(Transform canvasRoot, string objectName, string text, Action onClicked)
+    private ShopOfferView BindPlaceholder(
+        Transform canvasRoot,
+        string objectName,
+        string displayName,
+        string effectText,
+        string viewText,
+        Action onClicked)
     {
         GameObject offerObject = FindObjectIncludingInactive(canvasRoot, objectName);
 
@@ -157,7 +200,8 @@ public class ShopUIController : MonoBehaviour
             offerView = offerObject.AddComponent<ShopOfferView>();
         }
 
-        offerView.SetPlaceholder(text, onClicked);
+        offerView.SetTooltipController(tooltipController);
+        offerView.SetPlaceholder(displayName, effectText, viewText, onClicked);
         Debug.Log($"Bound {objectName}");
         return offerView;
     }

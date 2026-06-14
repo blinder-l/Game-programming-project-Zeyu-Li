@@ -7,6 +7,7 @@ public class ShopOfferView : MonoBehaviour
 {
     [SerializeField] private TMP_Text offerText;
     [SerializeField] private Image offerImage;
+    [SerializeField] private CardTooltipTrigger tooltipTrigger;
 
     private int offerIndex;
     private Action<int> clickedHandler;
@@ -36,6 +37,8 @@ public class ShopOfferView : MonoBehaviour
         }
 
         SetText($"{offer.Joker.Name}\n${offer.Joker.Cost}\n{offer.Joker.Description}");
+        UpdateTooltip(offer.Joker.Name, $"{offer.Joker.Description}\n\nCost: ${offer.Joker.Cost}");
+        Debug.Log($"Shop offer tooltip updated: index {offerIndex}, {offer.Joker.Name}");
         SetInteractable(true);
     }
 
@@ -43,6 +46,8 @@ public class ShopOfferView : MonoBehaviour
     {
         ResolveReferences();
         SetText("Empty");
+        UpdateTooltip("Empty", "No offer available.");
+        Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Empty");
         SetInteractable(false);
     }
 
@@ -50,15 +55,24 @@ public class ShopOfferView : MonoBehaviour
     {
         ResolveReferences();
         SetText("Sold");
+        UpdateTooltip("Sold", "This offer has already been purchased.");
+        Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Sold");
         SetInteractable(false);
     }
 
-    public void SetPlaceholder(string value, Action onClicked)
+    public void SetPlaceholder(string displayName, string effectText, string viewText, Action onClicked)
     {
         ResolveReferences();
-        SetText(value);
+        SetText(viewText);
+        UpdateTooltip(displayName, effectText);
         clickedHandler = _ => onClicked?.Invoke();
         SetInteractable(true);
+    }
+
+    public void SetTooltipController(CardTooltipController tooltipController)
+    {
+        ResolveReferences();
+        tooltipTrigger?.SetTooltipController(tooltipController);
     }
 
     private void ResolveReferences()
@@ -114,6 +128,17 @@ public class ShopOfferView : MonoBehaviour
         button.targetGraphic = offerImage;
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(HandleClicked);
+
+        if (tooltipTrigger == null)
+        {
+            tooltipTrigger = GetComponent<CardTooltipTrigger>();
+        }
+
+        if (tooltipTrigger == null)
+        {
+            tooltipTrigger = gameObject.AddComponent<CardTooltipTrigger>();
+            Debug.Log($"Bound tooltip trigger: {gameObject.name}");
+        }
     }
 
     private void HandleClicked()
@@ -135,5 +160,10 @@ public class ShopOfferView : MonoBehaviour
         {
             button.interactable = isInteractable;
         }
+    }
+
+    private void UpdateTooltip(string displayName, string effectText)
+    {
+        tooltipTrigger?.SetTooltip(displayName, effectText);
     }
 }
