@@ -33,10 +33,12 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private TMP_Text targetScoreText;
     [SerializeField] private TMP_Text currentScoreText;
     [SerializeField] private TMP_Text handTypeText;
+    [SerializeField] private TMP_Text handTypeRankText;
     [SerializeField] private TMP_Text handsText;
     [SerializeField] private TMP_Text discardsText;
     [SerializeField] private TMP_Text goldText;
     [SerializeField] private TMP_Text anteNumberText;
+    [SerializeField] private Button runInfoButton;
     [SerializeField] private GameObject resolutionInfoArea;
     [SerializeField] private GameObject playedCardsArea;
     [SerializeField] private Image[] playedCardImages;
@@ -261,19 +263,21 @@ public class GameUIController : MonoBehaviour
         int anteNumber)
     {
         SetText(blindNameText, CurrentState == GameUIState.RunFailed ? "Run Failed" : blindName);
-        SetText(targetScoreText, $"Target: {targetScore}");
-        SetText(currentScoreText, $"Score: {currentScore}");
-        SetText(handTypeText, $"Hand Type: {latestHandType}");
-        SetText(handsText, $"Hands: {handsRemaining}");
-        SetText(discardsText, $"Discards: {discardsRemaining}");
-        SetText(goldText, $"Gold: ${currentGold}");
-        SetText(anteNumberText, $"Ante: {anteNumber}");
+        SetText(targetScoreText, targetScore.ToString());
+        SetText(currentScoreText, currentScore.ToString());
+        SetText(handTypeText, latestHandType);
+        SetText(handTypeRankText, "-");
+        SetText(handsText, handsRemaining.ToString());
+        SetText(discardsText, discardsRemaining.ToString());
+        SetText(goldText, currentGold.ToString());
+        SetText(anteNumberText, anteNumber.ToString());
         Debug.Log($"Left status UI updated: score = {currentScore}, hands = {handsRemaining}");
     }
 
     public void RefreshHandTypeText(string handTypeTextValue)
     {
-        SetText(handTypeText, $"Hand Type: {handTypeTextValue}");
+        SetText(handTypeText, handTypeTextValue);
+        SetText(handTypeRankText, "-");
     }
 
     public void RefreshPlayedCards(IReadOnlyList<PlayingCard> playedCards)
@@ -468,14 +472,38 @@ public class GameUIController : MonoBehaviour
 
     private void BindLeftStatusUI()
     {
-        blindNameText = BindText("LeftBlindPanel/BlindNameText", "BlindNameText");
-        targetScoreText = BindText("LeftBlindPanel/TargetScoreText", "TargetScoreText");
-        currentScoreText = BindText("LeftBlindPanel/CurrentScoreText", "CurrentScoreText");
-        handTypeText = BindText("LeftBlindPanel/HandTypeText", "HandTypeText");
-        handsText = BindText("LeftBlindPanel/HandsText", "HandsText");
-        discardsText = BindText("LeftBlindPanel/DiscardsText", "DiscardsText");
-        goldText = BindText("LeftBlindPanel/GoldText", "GoldText");
-        anteNumberText = BindText("LeftBlindPanel/AnteNumberText", "AnteNumberText");
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        Transform canvasRoot = canvas != null ? canvas.transform : null;
+        GameObject leftPanelObject = FindGameObjectIncludingInactive(canvasRoot, "LeftBlindPanel", null);
+        Transform leftPanelRoot = leftPanelObject != null ? leftPanelObject.transform : null;
+
+        if (leftPanelRoot == null)
+        {
+            Debug.LogError("Failed to bind LeftBlindPanel");
+            return;
+        }
+
+        blindNameText = BindTextInRoot(leftPanelRoot, "BlindNameText", "BlindNameText");
+        targetScoreText = BindTextInRoot(leftPanelRoot, "TargetScoreText", "TargetScoreText");
+        currentScoreText = BindTextInRoot(leftPanelRoot, "CurrentScoreText", "CurrentScoreText");
+        handTypeText = BindTextInRoot(leftPanelRoot, "HandTypeText", "HandTypeText");
+        handTypeRankText = BindTextInRoot(leftPanelRoot, "HandTypeRankText", "HandTypeRankText");
+        handsText = BindTextInRoot(leftPanelRoot, "HandsNumberText", "HandsNumberText");
+        discardsText = BindTextInRoot(leftPanelRoot, "DiscardsNumberText", "DiscardsNumberText", false);
+
+        if (discardsText == null)
+        {
+            discardsText = BindTextInRoot(leftPanelRoot, "DiscradsNumberText", "DiscradsNumberText");
+
+            if (discardsText != null)
+            {
+                Debug.LogWarning("Bound DiscradsNumberText. Consider renaming it to DiscardsNumberText in the scene.");
+            }
+        }
+
+        goldText = BindTextInRoot(leftPanelRoot, "GoldNumberText", "GoldNumberText");
+        anteNumberText = BindTextInRoot(leftPanelRoot, "AnteNumberText", "AnteNumberText");
+        runInfoButton = BindOptionalButtonInRoot(leftPanelRoot, "RunInfoButton", "RunInfoButton");
         Debug.Log("Bound left status UI");
     }
 
@@ -568,6 +596,68 @@ public class GameUIController : MonoBehaviour
         boundText.raycastTarget = false;
         Debug.Log($"Bound {label}");
         return boundText;
+    }
+
+    private TMP_Text BindTextInRoot(Transform root, string objectName, string label, bool logErrorIfMissing = true)
+    {
+        GameObject textObject = FindGameObjectIncludingInactive(root, objectName, null);
+
+        if (textObject == null)
+        {
+            if (logErrorIfMissing)
+            {
+                Debug.LogError($"Failed to bind {label}");
+            }
+
+            return null;
+        }
+
+        TMP_Text boundText = textObject.GetComponent<TMP_Text>();
+
+        if (boundText == null)
+        {
+            boundText = textObject.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        if (boundText == null)
+        {
+            Debug.LogError($"Failed to bind {label}: TMP_Text missing");
+            return null;
+        }
+
+        boundText.raycastTarget = false;
+        Debug.Log($"Bound {label}");
+        return boundText;
+    }
+
+    private Button BindOptionalButtonInRoot(Transform root, string objectName, string label)
+    {
+        GameObject buttonObject = FindGameObjectIncludingInactive(root, objectName, null);
+
+        if (buttonObject == null)
+        {
+            Debug.LogWarning($"Optional {label} not found");
+            return null;
+        }
+
+        Button button = buttonObject.GetComponent<Button>();
+
+        if (button == null)
+        {
+            button = buttonObject.AddComponent<Button>();
+        }
+
+        Image image = buttonObject.GetComponent<Image>();
+
+        if (image != null)
+        {
+            image.raycastTarget = true;
+            button.targetGraphic = image;
+        }
+
+        DisableTextRaycasts(buttonObject);
+        Debug.Log($"Bound {label}");
+        return button;
     }
 
     private void BindPlayedCardsUI()
