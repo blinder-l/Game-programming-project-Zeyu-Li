@@ -1,27 +1,47 @@
 using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class HandCardView : MonoBehaviour, IPointerClickHandler
+public class HandCardView : MonoBehaviour
 {
     [SerializeField] private Image cardImage;
     [SerializeField] private TMP_Text cardNameText;
     [SerializeField] private GameObject selectedIndicator;
-    [SerializeField] private float selectedYOffset = 24f;
+    [SerializeField] private Color normalTint = Color.white;
+    [SerializeField] private Color selectedTint = new Color(1f, 0.9f, 0.35f, 1f);
 
-    private int handIndex = -1;
-    private Action<int> clickedHandler;
-    private RectTransform rectTransform;
-    private Vector2 baseAnchoredPosition;
-    private Vector3 baseScale;
-    private bool hasCachedBaseTransform;
+    private PlayingCard boundCard;
+    private Action<PlayingCard> clickedHandler;
+    private Button button;
     private bool hasCard;
 
-    public void SetCard(int index, PlayingCard card, CardSpriteDatabase spriteDatabase, Action<int> onClicked)
+    private void Awake()
     {
-        CacheBaseTransformIfNeeded();
+        ResolveReferences();
+    }
+
+    private void OnEnable()
+    {
+        ResolveReferences();
+
+        if (button != null)
+        {
+            button.onClick.AddListener(HandleButtonClicked);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (button != null)
+        {
+            button.onClick.RemoveListener(HandleButtonClicked);
+        }
+    }
+
+    public void SetCard(int index, PlayingCard card, CardSpriteDatabase spriteDatabase, Action<PlayingCard> onClicked)
+    {
+        ResolveReferences();
 
         if (card == null)
         {
@@ -29,17 +49,19 @@ public class HandCardView : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        handIndex = index;
+        boundCard = card;
         clickedHandler = onClicked;
         hasCard = true;
         gameObject.SetActive(true);
+        SetButtonInteractable(clickedHandler != null);
 
         Sprite cardSprite = spriteDatabase != null ? spriteDatabase.GetSprite(card) : null;
 
         if (cardImage != null)
         {
             cardImage.sprite = cardSprite;
-            cardImage.enabled = cardSprite != null;
+            cardImage.enabled = true;
+            cardImage.raycastTarget = true;
         }
 
         if (cardNameText != null)
@@ -53,22 +75,77 @@ public class HandCardView : MonoBehaviour, IPointerClickHandler
 
     public void Clear()
     {
-        CacheBaseTransformIfNeeded();
-        handIndex = -1;
+        ResolveReferences();
+        boundCard = null;
         clickedHandler = null;
         hasCard = false;
+        SetButtonInteractable(false);
+
+        if (cardImage != null)
+        {
+            cardImage.sprite = null;
+        }
+
         SetSelectedVisual(false);
         gameObject.SetActive(false);
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    private void HandleButtonClicked()
     {
-        if (!hasCard || eventData.button != PointerEventData.InputButton.Left)
+        if (!hasCard)
         {
             return;
         }
 
-        clickedHandler?.Invoke(handIndex);
+        clickedHandler?.Invoke(boundCard);
+    }
+
+    private void ResolveReferences()
+    {
+        if (cardImage == null)
+        {
+            cardImage = GetComponent<Image>();
+        }
+
+        if (cardImage == null)
+        {
+            cardImage = GetComponentInChildren<Image>(true);
+        }
+
+        if (cardImage != null)
+        {
+            cardImage.raycastTarget = true;
+        }
+
+        if (cardNameText != null)
+        {
+            cardNameText.raycastTarget = false;
+        }
+
+        if (button == null)
+        {
+            button = GetComponent<Button>();
+        }
+
+        if (button == null)
+        {
+            button = gameObject.AddComponent<Button>();
+        }
+
+        if (button != null && button.targetGraphic == null)
+        {
+            button.targetGraphic = cardImage;
+        }
+    }
+
+    private void SetButtonInteractable(bool isInteractable)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.interactable = isInteractable;
     }
 
     private void SetSelectedVisual(bool isSelected)
@@ -78,32 +155,9 @@ public class HandCardView : MonoBehaviour, IPointerClickHandler
             selectedIndicator.SetActive(isSelected);
         }
 
-        if (rectTransform != null)
+        if (cardImage != null)
         {
-            Vector2 selectedOffset = isSelected ? new Vector2(0f, selectedYOffset) : Vector2.zero;
-            rectTransform.anchoredPosition = baseAnchoredPosition + selectedOffset;
+            cardImage.color = isSelected ? selectedTint : normalTint;
         }
-        else
-        {
-            transform.localScale = baseScale;
-        }
-    }
-
-    private void CacheBaseTransformIfNeeded()
-    {
-        if (hasCachedBaseTransform)
-        {
-            return;
-        }
-
-        rectTransform = transform as RectTransform;
-
-        if (rectTransform != null)
-        {
-            baseAnchoredPosition = rectTransform.anchoredPosition;
-        }
-
-        baseScale = transform.localScale;
-        hasCachedBaseTransform = true;
     }
 }

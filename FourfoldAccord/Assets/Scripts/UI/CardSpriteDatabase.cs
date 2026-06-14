@@ -14,6 +14,11 @@ public class CardSpriteDatabase : MonoBehaviour
 
     public Sprite CardBackSprite => cardBackSprite;
 
+    private void Awake()
+    {
+        EnsureCardSpritesPopulated();
+    }
+
     public Sprite GetSprite(PlayingCard card)
     {
         if (card == null)
@@ -26,6 +31,8 @@ public class CardSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(Suit suit, Rank rank)
     {
+        EnsureCardSpritesPopulated();
+
         if (cardSprites == null)
         {
             return cardBackSprite;
@@ -42,6 +49,16 @@ public class CardSpriteDatabase : MonoBehaviour
         }
 
         return cardBackSprite;
+    }
+
+    private void EnsureCardSpritesPopulated()
+    {
+#if UNITY_EDITOR
+        if (cardSprites == null || cardSprites.Length == 0)
+        {
+            AutoPopulateCardSprites();
+        }
+#endif
     }
 
 #if UNITY_EDITOR

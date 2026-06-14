@@ -4,6 +4,7 @@ using UnityEngine;
 public class PrototypeBootstrap : MonoBehaviour
 {
     private const int StartingGold = 10;
+    private const int MaxSelectedCards = 5;
 
     [SerializeField] private GameUIController gameUIController;
 
@@ -21,6 +22,12 @@ public class PrototypeBootstrap : MonoBehaviour
     private string latestHandTypeText = "None";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
     private ScoreContext latestScoreContext;
+    private readonly List<PlayingCard> selectedCards = new List<PlayingCard>();
+
+    private void Awake()
+    {
+        EnsureGameUIController();
+    }
 
     private void Start()
     {
@@ -44,6 +51,26 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log("Prototype started");
         Debug.Log("Controls: 1-8 select cards, S sort by suit, T sort by rank, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
         StartCurrentBlind();
+    }
+
+    private void EnsureGameUIController()
+    {
+        if (gameUIController == null)
+        {
+            gameUIController = FindFirstObjectByType<GameUIController>();
+        }
+
+        if (gameUIController == null)
+        {
+            gameUIController = gameObject.GetComponent<GameUIController>();
+        }
+
+        if (gameUIController == null)
+        {
+            gameUIController = gameObject.AddComponent<GameUIController>();
+        }
+
+        gameUIController.InitializeRuntimeBindings();
     }
 
     private void OnDestroy()
@@ -91,6 +118,7 @@ public class PrototypeBootstrap : MonoBehaviour
         latestHandTypeText = "None";
         latestPlayedCards.Clear();
         latestScoreContext = null;
+        ClearSelectedCards();
         gameUIController?.SetState(GameUIState.PlayingBlind);
         RefreshGameUI();
 
@@ -235,8 +263,15 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandlePlayButtonClicked()
     {
-        if (isInShop || IsRoundOver())
+        if (isInShop)
         {
+            Debug.Log("Play failed: currently in shop.");
+            return;
+        }
+
+        if (IsRoundOver())
+        {
+            Debug.Log("Play failed: round is already over.");
             return;
         }
 
@@ -245,8 +280,15 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleDiscardButtonClicked()
     {
-        if (isInShop || IsRoundOver())
+        if (isInShop)
         {
+            Debug.Log("Discard failed: currently in shop.");
+            return;
+        }
+
+        if (IsRoundOver())
+        {
+            Debug.Log("Discard failed: round is already over.");
             return;
         }
 
@@ -262,7 +304,8 @@ public class PrototypeBootstrap : MonoBehaviour
 
             if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
             {
-                handManager.ToggleCardSelection(i);
+                ToggleSelectedCard(handManager.CurrentHand[i]);
+                RefreshHandTypePreview();
                 RefreshGameUI();
                 Debug.Log($"Toggled card {i + 1}");
                 LogCurrentState();
@@ -270,17 +313,46 @@ public class PrototypeBootstrap : MonoBehaviour
         }
     }
 
-    private void HandleHandCardClicked(int handIndex)
+    private void HandleHandCardClicked(PlayingCard card)
     {
         if (isInShop || IsRoundOver())
         {
             return;
         }
 
-        handManager.ToggleCardSelection(handIndex);
+        ToggleSelectedCard(card);
+        RefreshHandTypePreview();
         RefreshGameUI();
-        Debug.Log($"Clicked hand card {handIndex + 1}");
         LogCurrentState();
+    }
+
+    private void ToggleSelectedCard(PlayingCard card)
+    {
+        if (card == null || !IsCardInCurrentHand(card))
+        {
+            Debug.Log("Selection failed: card is not in the current hand.");
+            return;
+        }
+
+        PruneSelectedCards();
+
+        if (selectedCards.Contains(card))
+        {
+            selectedCards.Remove(card);
+            card.isSelected = false;
+            Debug.Log($"Deselected card: {card.GetDisplayName()}");
+            return;
+        }
+
+        if (selectedCards.Count >= MaxSelectedCards)
+        {
+            Debug.Log($"Selection failed: cannot select more than {MaxSelectedCards} cards.");
+            return;
+        }
+
+        selectedCards.Add(card);
+        card.isSelected = true;
+        Debug.Log($"Selected card: {card.GetDisplayName()}");
     }
 
     private void HandleHandSortInput()
@@ -319,6 +391,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private void SortHandBySuitAndRefresh()
     {
         handManager.SortHandBySuit();
+        RefreshHandTypePreview();
         RefreshGameUI();
         Debug.Log("Sorted current hand by suit.");
         Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
@@ -327,6 +400,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private void SortHandByRankAndRefresh()
     {
         handManager.SortHandByRank();
+        RefreshHandTypePreview();
         RefreshGameUI();
         Debug.Log("Sorted current hand by rank.");
         Debug.Log($"Current hand:\n{handManager.GetHandDebugText()}");
@@ -381,48 +455,110 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void TryPlaySelectedCards()
     {
-        List<PlayingCard> selectedCards = handManager.GetSelectedCards();
+        List<PlayingCard> cardsToPlay = GetSelectedCardsForAction();
+        Debug.Log($"Selected count: {cardsToPlay.Count}");
+        Debug.Log($"Selected cards:\n{GetCardListDebugText(cardsToPlay)}");
+        Debug.Log($"Play selected cards:\n{GetCardListDebugText(cardsToPlay)}");
 
-        if (selectedCards.Count < 1 || selectedCards.Count > 5)
+        if (cardsToPlay.Count < 1 || cardsToPlay.Count > MaxSelectedCards)
         {
-            Debug.Log("Play requires selecting 1 to 5 cards.");
+            Debug.Log(cardsToPlay.Count < 1 ? "Cannot play: no selected cards." : "Play failed: select 1 to 5 cards.");
             return;
         }
 
-        PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(selectedCards);
+        if (!TryGetCurrentHandIndices(cardsToPlay, out List<int> handIndices))
+        {
+            return;
+        }
+
+        TryPlayCardsByIndices(handIndices);
+    }
+
+    private bool TryPlayCardsByIndices(List<int> handIndices)
+    {
+        if (handIndices == null || handIndices.Count < 1)
+        {
+            Debug.Log("Cannot play: no selected cards.");
+            return false;
+        }
+
+        if (roundManager == null)
+        {
+            Debug.Log("Cannot play: RoundManager is not initialized.");
+            return false;
+        }
+
+        if (roundManager.HasPassedBlind)
+        {
+            Debug.Log("Cannot play: current Blind is already passed.");
+            return false;
+        }
+
+        if (roundManager.HasFailedBlind)
+        {
+            Debug.Log("Cannot play: current Blind is already failed.");
+            return false;
+        }
+
+        if (roundManager.handsRemaining <= 0)
+        {
+            Debug.Log("Cannot play: no hands remaining.");
+            return false;
+        }
+
+        if (!TryGetCardsAtCurrentHandIndices(handIndices, out List<PlayingCard> cardsToPlay))
+        {
+            return false;
+        }
+
+        SetCurrentHandSelectionByIndices(handIndices);
+
+        PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay);
         ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager);
         latestHandTypeText = scoreContext.handType.ToString();
 
         List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
+
+        if (playedCards.Count != cardsToPlay.Count)
+        {
+            Debug.LogError($"Cannot play: expected to play {cardsToPlay.Count} cards, but HandManager played {playedCards.Count}.");
+            return false;
+        }
+
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         currentGold += scoreContext.goldReward;
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
         latestPlayedCards = playedCards;
         latestScoreContext = scoreContext;
+        ClearSelectedCards();
         RefreshGameUI();
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
         LogRoundEndIfNeeded();
+        return true;
     }
 
     private void TryDiscardSelectedCards()
     {
-        List<PlayingCard> selectedCards = handManager.GetSelectedCards();
+        List<PlayingCard> cardsToDiscard = GetSelectedCardsForAction();
+        Debug.Log($"Discard selected cards:\n{GetCardListDebugText(cardsToDiscard)}");
 
-        if (selectedCards.Count < 1)
+        if (cardsToDiscard.Count < 1)
         {
-            Debug.Log("Discard requires selecting at least 1 card.");
+            Debug.Log("Discard failed: select at least 1 card.");
             return;
         }
 
         if (roundManager.discardsRemaining <= 0)
         {
-            Debug.Log("No discards remaining.");
+            Debug.Log("Discard failed: no discards remaining.");
             return;
         }
 
         roundManager.UseDiscard();
         List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
+        ClearSelectedCards();
+        latestHandTypeText = "None";
         RefreshGameUI();
 
         Debug.Log($"Discarded {discardedCards.Count} cards");
@@ -480,6 +616,9 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        PruneSelectedCards();
+        SyncSelectedCardFlags();
+        Debug.Log($"RefreshHandUI: hand count = {GetCurrentHandCountForLog()}, selected count = {selectedCards.Count}");
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
         gameUIController.RefreshResolutionInfo(latestScoreContext);
@@ -498,6 +637,176 @@ public class PrototypeBootstrap : MonoBehaviour
             roundManager.discardsRemaining,
             currentGold,
             runManager.GetAnteNumber());
+    }
+
+    private List<PlayingCard> GetSelectedCardsForAction()
+    {
+        PruneSelectedCards();
+        SyncSelectedCardFlags();
+        return new List<PlayingCard>(selectedCards);
+    }
+
+    private bool TryGetCurrentHandIndices(List<PlayingCard> cards, out List<int> handIndices)
+    {
+        handIndices = new List<int>();
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            PlayingCard selectedCard = cards[i];
+            int handIndex = GetCurrentHandIndex(selectedCard);
+
+            if (handIndex < 0)
+            {
+                Debug.LogError($"Cannot play: selected card was not found in current hand: {selectedCard}");
+                return false;
+            }
+
+            handIndices.Add(handIndex);
+        }
+
+        Debug.Log($"Selected hand indices: {string.Join(", ", handIndices)}");
+        return true;
+    }
+
+    private bool TryGetCardsAtCurrentHandIndices(List<int> handIndices, out List<PlayingCard> cards)
+    {
+        cards = new List<PlayingCard>();
+
+        if (handManager == null)
+        {
+            Debug.Log("Cannot play: HandManager is not initialized.");
+            return false;
+        }
+
+        for (int i = 0; i < handIndices.Count; i++)
+        {
+            int handIndex = handIndices[i];
+
+            if (handIndex < 0 || handIndex >= handManager.CurrentHandCount)
+            {
+                Debug.LogError($"Cannot play: hand index {handIndex} is outside current hand range.");
+                return false;
+            }
+
+            cards.Add(handManager.CurrentHand[handIndex]);
+        }
+
+        return true;
+    }
+
+    private void SetCurrentHandSelectionByIndices(List<int> handIndices)
+    {
+        if (handManager == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < handManager.CurrentHandCount; i++)
+        {
+            handManager.CurrentHand[i].isSelected = handIndices.Contains(i);
+        }
+    }
+
+    private void ClearSelectedCards()
+    {
+        for (int i = 0; i < selectedCards.Count; i++)
+        {
+            if (selectedCards[i] != null)
+            {
+                selectedCards[i].isSelected = false;
+            }
+        }
+
+        selectedCards.Clear();
+        SyncSelectedCardFlags();
+    }
+
+    private void PruneSelectedCards()
+    {
+        for (int i = selectedCards.Count - 1; i >= 0; i--)
+        {
+            if (selectedCards[i] == null || !IsCardInCurrentHand(selectedCards[i]))
+            {
+                selectedCards.RemoveAt(i);
+            }
+        }
+    }
+
+    private void SyncSelectedCardFlags()
+    {
+        if (handManager == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < handManager.CurrentHandCount; i++)
+        {
+            PlayingCard card = handManager.CurrentHand[i];
+            card.isSelected = selectedCards.Contains(card);
+        }
+    }
+
+    private bool IsCardInCurrentHand(PlayingCard card)
+    {
+        if (handManager == null || card == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < handManager.CurrentHandCount; i++)
+        {
+            if (handManager.CurrentHand[i] == card)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int GetCurrentHandIndex(PlayingCard card)
+    {
+        if (handManager == null || card == null)
+        {
+            return -1;
+        }
+
+        for (int i = 0; i < handManager.CurrentHandCount; i++)
+        {
+            if (handManager.CurrentHand[i] == card)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int GetCurrentHandCountForLog()
+    {
+        return handManager != null ? handManager.CurrentHandCount : 0;
+    }
+
+    private void RefreshHandTypePreview()
+    {
+        List<PlayingCard> cardsToPreview = GetSelectedCardsForAction();
+
+        if (cardsToPreview.Count == 0)
+        {
+            latestHandTypeText = "None";
+        }
+        else if (pokerHandEvaluator == null)
+        {
+            latestHandTypeText = "None";
+        }
+        else
+        {
+            PokerHandResult previewResult = pokerHandEvaluator.Evaluate(cardsToPreview);
+            latestHandTypeText = previewResult.handType.ToString();
+        }
+
+        gameUIController?.RefreshHandTypeText(latestHandTypeText);
+        Debug.Log($"Hand type preview updated: {latestHandTypeText}");
     }
 
     private void LogRoundEndIfNeeded()

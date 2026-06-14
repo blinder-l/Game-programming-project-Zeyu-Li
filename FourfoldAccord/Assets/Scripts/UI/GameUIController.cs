@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class GameUIController : MonoBehaviour
 {
+    private const string PlayButtonPath = "Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/PlayButton";
+
     [SerializeField] private GameObject playStateRoot;
     [SerializeField] private GameObject cashOutPanel;
     [SerializeField] private GameObject shopPanel;
@@ -14,6 +17,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject cardTooltipPanel;
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
+    [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private HandCardView[] handCardViews;
     [SerializeField] private Button playButton;
     [SerializeField] private Button discardButton;
@@ -27,36 +31,46 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private TMP_Text discardsText;
     [SerializeField] private TMP_Text goldText;
     [SerializeField] private TMP_Text anteNumberText;
+    [SerializeField] private GameObject resolutionInfoArea;
+    [SerializeField] private GameObject playedCardsArea;
+    [SerializeField] private Image[] playedCardImages;
     [SerializeField] private HandCardView[] playedCardViews;
     [SerializeField] private TMP_Text resolutionInfoText;
 
-    public event Action<int> HandCardClicked;
+    public event Action<PlayingCard> HandCardClicked;
     public event Action PlayButtonClicked;
     public event Action DiscardButtonClicked;
     public event Action SortBySuitButtonClicked;
     public event Action SortByRankButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
-
-    private void OnEnable()
-    {
-        AddButtonListener(playButton, HandlePlayButtonClicked);
-        AddButtonListener(discardButton, HandleDiscardButtonClicked);
-        AddButtonListener(sortBySuitButton, HandleSortBySuitButtonClicked);
-        AddButtonListener(sortByRankButton, HandleSortByRankButtonClicked);
-    }
-
-    private void OnDisable()
-    {
-        RemoveButtonListener(playButton, HandlePlayButtonClicked);
-        RemoveButtonListener(discardButton, HandleDiscardButtonClicked);
-        RemoveButtonListener(sortBySuitButton, HandleSortBySuitButtonClicked);
-        RemoveButtonListener(sortByRankButton, HandleSortByRankButtonClicked);
-    }
+    private bool hasInitialized;
 
     private void Awake()
     {
+        InitializeRuntimeBindings();
+        Debug.Log("GameUIController initialized");
+    }
+
+    public void InitializeRuntimeBindings()
+    {
+        if (hasInitialized)
+        {
+            return;
+        }
+
+        ResolveStateRoots();
+        ResolveCardSpriteDatabaseIfNeeded();
+        BindLeftStatusUI();
+        BindPlayedCardsUI();
+        BindResolutionInfoUI();
+        BindHandCards();
+        DisableKnownBackgroundRaycasts();
+        BindActionButtons();
+        EnsurePointerInputSupport();
+        LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
+        hasInitialized = true;
     }
 
     public void SetState(GameUIState newState)
@@ -82,6 +96,9 @@ public class GameUIController : MonoBehaviour
 
     public void RefreshHand(IReadOnlyList<PlayingCard> currentHand)
     {
+        ResolveCardSpriteDatabaseIfNeeded();
+        EnsureHandCardsBound();
+
         if (handCardViews == null)
         {
             return;
@@ -120,99 +137,145 @@ public class GameUIController : MonoBehaviour
         SetText(blindNameText, blindName);
         SetText(targetScoreText, $"Target: {targetScore}");
         SetText(currentScoreText, $"Score: {currentScore}");
-        SetText(handTypeText, $"Hand: {latestHandType}");
+        SetText(handTypeText, $"Hand Type: {latestHandType}");
         SetText(handsText, $"Hands: {handsRemaining}");
         SetText(discardsText, $"Discards: {discardsRemaining}");
         SetText(goldText, $"Gold: ${currentGold}");
         SetText(anteNumberText, $"Ante: {anteNumber}");
+        Debug.Log($"Left status UI updated: score = {currentScore}, hands = {handsRemaining}");
+    }
+
+    public void RefreshHandTypeText(string handTypeTextValue)
+    {
+        SetText(handTypeText, $"Hand Type: {handTypeTextValue}");
     }
 
     public void RefreshPlayedCards(IReadOnlyList<PlayingCard> playedCards)
     {
-        if (playedCardViews == null)
+        ResolveCardSpriteDatabaseIfNeeded();
+        EnsurePlayedCardsBound();
+
+        if (playedCardImages == null)
         {
             return;
         }
 
-        for (int i = 0; i < playedCardViews.Length; i++)
-        {
-            HandCardView cardView = playedCardViews[i];
+        int displayedCount = 0;
 
-            if (cardView == null)
+        for (int i = 0; i < playedCardImages.Length; i++)
+        {
+            Image cardImage = playedCardImages[i];
+
+            if (cardImage == null)
             {
                 continue;
             }
 
             if (playedCards != null && i < playedCards.Count)
             {
-                cardView.SetCard(i, playedCards[i], cardSpriteDatabase, null);
+                cardImage.gameObject.SetActive(true);
+                cardImage.enabled = true;
+                cardImage.sprite = cardSpriteDatabase != null ? cardSpriteDatabase.GetSprite(playedCards[i]) : null;
+                cardImage.raycastTarget = false;
+                displayedCount++;
             }
             else
             {
-                cardView.Clear();
+                cardImage.sprite = null;
+                cardImage.gameObject.SetActive(false);
             }
         }
+
+        Debug.Log($"Played cards UI updated: {displayedCount} cards");
     }
 
     public void RefreshResolutionInfo(ScoreContext scoreContext)
     {
+        EnsureResolutionInfoBound();
+
         if (scoreContext == null)
         {
             SetText(resolutionInfoText, "No hand played yet.");
+            Debug.Log("Resolution info updated");
             return;
         }
 
         string resolutionText =
             $"Hand Type: {scoreContext.handType}\n" +
-            $"Chips: {scoreContext.chips}  Mult: {scoreContext.mult}\n" +
-            $"Final Score: {scoreContext.finalScore}\n" +
-            $"Gold Reward: +{scoreContext.goldReward}\n\n" +
+            $"Base Chips: {scoreContext.baseChips}\n" +
+            $"Card Chips: {scoreContext.rankChips}\n" +
+            $"Total Chips: {scoreContext.chips}\n" +
+            $"Mult: {scoreContext.mult}\n" +
+            $"Final Score: {scoreContext.finalScore}\n\n" +
             $"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}\n\n" +
-            $"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}";
+            $"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}\n\n" +
+            $"Gold Reward: {scoreContext.goldReward}";
 
         SetText(resolutionInfoText, resolutionText);
+        Debug.Log("Resolution info updated");
     }
 
-    private void HandleHandCardClicked(int handIndex)
+    private void HandleHandCardClicked(PlayingCard card)
     {
         if (CurrentState != GameUIState.PlayingBlind)
         {
             return;
         }
 
-        HandCardClicked?.Invoke(handIndex);
+        Debug.Log($"UI HandCard clicked: {card}");
+        HandCardClicked?.Invoke(card);
     }
 
-    private void HandlePlayButtonClicked()
+    public void HandlePlayButtonClicked()
     {
+        Debug.Log("UI PlayButton clicked");
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             PlayButtonClicked?.Invoke();
+            return;
         }
+
+        Debug.Log($"Play failed: current UI state is {CurrentState}.");
     }
 
     private void HandleDiscardButtonClicked()
     {
+        Debug.Log("UI DiscardButton clicked");
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             DiscardButtonClicked?.Invoke();
+            return;
         }
+
+        Debug.Log($"Discard failed: current UI state is {CurrentState}.");
     }
 
     private void HandleSortBySuitButtonClicked()
     {
+        Debug.Log("UI SortBySuitButton clicked");
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             SortBySuitButtonClicked?.Invoke();
+            return;
         }
+
+        Debug.Log($"Sort by suit ignored: current UI state is {CurrentState}.");
     }
 
     private void HandleSortByRankButtonClicked()
     {
+        Debug.Log("UI SortByRankButton clicked");
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             SortByRankButtonClicked?.Invoke();
+            return;
         }
+
+        Debug.Log($"Sort by rank ignored: current UI state is {CurrentState}.");
     }
 
     private void SetActionButtonsInteractable(bool isInteractable)
@@ -221,6 +284,553 @@ public class GameUIController : MonoBehaviour
         SetButtonInteractable(discardButton, isInteractable);
         SetButtonInteractable(sortBySuitButton, isInteractable);
         SetButtonInteractable(sortByRankButton, isInteractable);
+    }
+
+    private void ResolveCardSpriteDatabaseIfNeeded()
+    {
+        if (cardSpriteDatabase != null)
+        {
+            return;
+        }
+
+        cardSpriteDatabase = FindFirstObjectByType<CardSpriteDatabase>();
+
+        if (cardSpriteDatabase == null)
+        {
+            cardSpriteDatabase = gameObject.AddComponent<CardSpriteDatabase>();
+        }
+    }
+
+    private void ResolveStateRoots()
+    {
+        playStateRoot = FindGameObjectByPath("Canvas/PlayStateRoot", playStateRoot);
+        cashOutPanel = FindGameObjectByPath("Canvas/CashOutPanel", cashOutPanel);
+        shopPanel = FindGameObjectByPath("Canvas/ShopPanel", shopPanel);
+        deckStatsPanel = FindGameObjectByPath("Canvas/DeckStatsPanel", deckStatsPanel);
+        currentHandStatsPanel = FindGameObjectByPath("Canvas/CurrentHandStatsPanel", currentHandStatsPanel);
+        cardTooltipPanel = FindGameObjectByPath("Canvas/CardTooltipPanel", cardTooltipPanel);
+        actionButtonsContainer = FindGameObjectByPath("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer", actionButtonsContainer);
+    }
+
+    private void BindLeftStatusUI()
+    {
+        blindNameText = BindText("LeftBlindPanel/BlindNameText", "BlindNameText");
+        targetScoreText = BindText("LeftBlindPanel/TargetScoreText", "TargetScoreText");
+        currentScoreText = BindText("LeftBlindPanel/CurrentScoreText", "CurrentScoreText");
+        handTypeText = BindText("LeftBlindPanel/HandTypeText", "HandTypeText");
+        handsText = BindText("LeftBlindPanel/HandsText", "HandsText");
+        discardsText = BindText("LeftBlindPanel/DiscardsText", "DiscardsText");
+        goldText = BindText("LeftBlindPanel/GoldText", "GoldText");
+        anteNumberText = BindText("LeftBlindPanel/AnteNumberText", "AnteNumberText");
+        Debug.Log("Bound left status UI");
+    }
+
+    private TMP_Text BindText(string relativePath, string label)
+    {
+        GameObject textObject = GameObject.Find($"Canvas/{relativePath}");
+
+        if (textObject == null)
+        {
+            Debug.LogError($"Failed to find {relativePath}");
+            Debug.LogError($"Failed to bind {label}");
+            return null;
+        }
+
+        TMP_Text boundText = textObject.GetComponent<TMP_Text>();
+
+        if (boundText == null)
+        {
+            boundText = textObject.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        if (boundText == null)
+        {
+            Debug.LogError($"Failed to bind {label}");
+            return null;
+        }
+
+        boundText.raycastTarget = false;
+        Debug.Log($"Bound {label}");
+        return boundText;
+    }
+
+    private void BindPlayedCardsUI()
+    {
+        playedCardsArea = GameObject.Find("Canvas/PlayStateRoot/CenterPlayArea/PlayedCardsArea");
+
+        if (playedCardsArea == null)
+        {
+            Debug.LogError("Failed to find PlayStateRoot/CenterPlayArea/PlayedCardsArea");
+            return;
+        }
+
+        Debug.Log("Bound PlayedCardsArea");
+        playedCardImages = new Image[5];
+
+        for (int i = 0; i < playedCardImages.Length; i++)
+        {
+            string cardName = $"PlayedCard{i + 1}";
+            Transform cardTransform = playedCardsArea.transform.Find(cardName);
+
+            if (cardTransform == null)
+            {
+                Debug.LogError($"Failed to bind {cardName}");
+                continue;
+            }
+
+            Image cardImage = cardTransform.GetComponent<Image>();
+
+            if (cardImage == null)
+            {
+                Debug.LogError($"Failed to bind {cardName}");
+                continue;
+            }
+
+            cardImage.raycastTarget = false;
+            playedCardImages[i] = cardImage;
+            Debug.Log($"Bound {cardName}");
+        }
+
+        Debug.Log("Bound played cards UI");
+    }
+
+    private void EnsurePlayedCardsBound()
+    {
+        if (playedCardImages != null && playedCardImages.Length == 5)
+        {
+            bool hasAllCards = true;
+
+            for (int i = 0; i < playedCardImages.Length; i++)
+            {
+                if (playedCardImages[i] == null)
+                {
+                    hasAllCards = false;
+                    break;
+                }
+            }
+
+            if (hasAllCards)
+            {
+                return;
+            }
+        }
+
+        BindPlayedCardsUI();
+    }
+
+    private void BindResolutionInfoUI()
+    {
+        resolutionInfoArea = GameObject.Find("Canvas/PlayStateRoot/CenterPlayArea/ResolutionInfoArea");
+
+        if (resolutionInfoArea == null)
+        {
+            Debug.LogError("Failed to find PlayStateRoot/CenterPlayArea/ResolutionInfoArea");
+            Debug.LogError("Failed to bind ResolutionInfoText");
+            return;
+        }
+
+        Debug.Log("Bound ResolutionInfoArea");
+        resolutionInfoText = resolutionInfoArea.GetComponent<TMP_Text>();
+
+        if (resolutionInfoText == null)
+        {
+            resolutionInfoText = resolutionInfoArea.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        if (resolutionInfoText == null)
+        {
+            resolutionInfoText = CreateResolutionInfoText(resolutionInfoArea.transform);
+        }
+
+        if (resolutionInfoText == null)
+        {
+            Debug.LogError("Failed to bind ResolutionInfoText");
+            return;
+        }
+
+        resolutionInfoText.raycastTarget = false;
+        Debug.Log("Bound ResolutionInfoText");
+        Debug.Log("Bound resolution info UI");
+    }
+
+    private void EnsureResolutionInfoBound()
+    {
+        if (resolutionInfoText != null)
+        {
+            return;
+        }
+
+        BindResolutionInfoUI();
+    }
+
+    private TMP_Text CreateResolutionInfoText(Transform parent)
+    {
+        GameObject textObject = new GameObject("ResolutionInfoText", typeof(RectTransform));
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = textObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+
+        TextMeshProUGUI text = textObject.AddComponent<TextMeshProUGUI>();
+        text.alignment = TextAlignmentOptions.TopLeft;
+        text.enableWordWrapping = true;
+        text.fontSize = 22f;
+        text.color = Color.white;
+        text.text = "No hand played yet.";
+        Debug.Log("Created ResolutionInfoText");
+        return text;
+    }
+
+    private void BindHandCards()
+    {
+        List<HandCardView> resolvedViews = new List<HandCardView>();
+
+        if (handSlotsContainer == null)
+        {
+            GameObject foundContainer = GameObject.Find("Canvas/PlayStateRoot/BottomHandArea/HandSlotsContainer");
+
+            if (foundContainer != null)
+            {
+                handSlotsContainer = foundContainer.transform;
+            }
+        }
+
+        if (handSlotsContainer == null)
+        {
+            Debug.LogWarning("HandSlotsContainer was not assigned or found. Hand UI cannot refresh yet.");
+            return;
+        }
+
+        for (int i = 1; i <= 8; i++)
+        {
+            string cardName = $"HandCard{i}";
+            Transform cardTransform = handSlotsContainer.Find(cardName);
+
+            if (cardTransform == null)
+            {
+                Debug.LogError($"{cardName} was not found under HandSlotsContainer.");
+                continue;
+            }
+
+            Image cardImage = cardTransform.GetComponent<Image>();
+
+            if (cardImage == null)
+            {
+                Debug.LogError($"{cardName} is missing an Image component.");
+                continue;
+            }
+
+            cardImage.raycastTarget = true;
+
+            Button cardButton = cardTransform.GetComponent<Button>();
+
+            if (cardButton == null)
+            {
+                cardButton = cardTransform.gameObject.AddComponent<Button>();
+            }
+
+            cardButton.targetGraphic = cardImage;
+            cardButton.interactable = true;
+
+            HandCardView cardView = cardTransform.GetComponent<HandCardView>();
+
+            if (cardView == null)
+            {
+                cardView = cardTransform.gameObject.AddComponent<HandCardView>();
+            }
+
+            resolvedViews.Add(cardView);
+            Debug.Log($"Bound {cardName}");
+        }
+
+        handCardViews = resolvedViews.ToArray();
+    }
+
+    private void EnsureHandCardsBound()
+    {
+        if (HasHandCardViews())
+        {
+            return;
+        }
+
+        BindHandCards();
+    }
+
+    private bool HasHandCardViews()
+    {
+        if (handCardViews == null || handCardViews.Length < 8)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            if (handCardViews[i] == null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void EnsurePointerInputSupport()
+    {
+        Canvas canvas = GetComponentInParent<Canvas>();
+
+        if (canvas == null && handSlotsContainer != null)
+        {
+            canvas = handSlotsContainer.GetComponentInParent<Canvas>();
+        }
+
+        if (canvas == null)
+        {
+            canvas = FindFirstObjectByType<Canvas>();
+        }
+
+        if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
+        {
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+        }
+
+        if (EventSystem.current == null)
+        {
+            GameObject eventSystemObject = new GameObject("EventSystem");
+            eventSystemObject.AddComponent<EventSystem>();
+            eventSystemObject.AddComponent<StandaloneInputModule>();
+        }
+    }
+
+    private void BindActionButtons()
+    {
+        playButton = BindPlayButton();
+
+        discardButton = BindButton(
+            "Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/DiscardButton",
+            "DiscardButton",
+            HandleDiscardButtonClicked);
+
+        sortBySuitButton = BindButton(
+            "Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/SortPanel/SortButtonsRow/SortBySuitButton",
+            "SortBySuitButton",
+            HandleSortBySuitButtonClicked);
+
+        sortByRankButton = BindButton(
+            "Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/SortPanel/SortButtonsRow/SortByRankButton",
+            "SortByRankButton",
+            HandleSortByRankButtonClicked);
+    }
+
+    private Button BindPlayButton()
+    {
+        GameObject buttonObject = GameObject.Find(PlayButtonPath);
+
+        if (buttonObject == null)
+        {
+            Debug.LogError($"Failed to find PlayButton at {PlayButtonPath}");
+            return null;
+        }
+
+        Debug.Log($"Found PlayButton: {GetFullPath(buttonObject.transform)}");
+
+        Image buttonImage = buttonObject.GetComponent<Image>();
+
+        if (buttonImage == null)
+        {
+            buttonImage = buttonObject.AddComponent<Image>();
+            Debug.LogWarning("PlayButton was missing Image. Added Image component at runtime.");
+        }
+
+        buttonImage.raycastTarget = true;
+
+        Button button = buttonObject.GetComponent<Button>();
+
+        if (button == null)
+        {
+            button = buttonObject.AddComponent<Button>();
+            Debug.LogWarning("PlayButton was missing Button. Added Button component at runtime.");
+        }
+
+        button.targetGraphic = buttonImage;
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(HandlePlayButtonClicked);
+        button.interactable = true;
+        DisableTextRaycasts(buttonObject);
+        Debug.Log("Bound PlayButton successfully");
+        return button;
+    }
+
+    private Button BindButton(string path, string label, UnityEngine.Events.UnityAction action)
+    {
+        GameObject buttonObject = GameObject.Find(path);
+
+        if (buttonObject == null)
+        {
+            if (label == "PlayButton")
+            {
+                Debug.LogError("Failed to find PlayButton");
+            }
+
+            Debug.LogError($"{label} was not found at path: {path}");
+            return null;
+        }
+
+        Button button = buttonObject.GetComponent<Button>();
+
+        if (button == null)
+        {
+            Debug.LogError($"{label} is missing a Button component.");
+            return null;
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(action);
+        button.interactable = true;
+        DisableTextRaycasts(buttonObject);
+        Debug.Log($"Bound {label}");
+        return button;
+    }
+
+    private void DisableKnownBackgroundRaycasts()
+    {
+        DisableDirectImageRaycast("Canvas/PlayStateRoot/BottomHandArea");
+        DisableDirectImageRaycast("Canvas/PlayStateRoot/BottomHandArea/HandSlotsContainer");
+        DisableDirectImageRaycast("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer");
+        DisableDirectImageRaycast("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/SortPanel");
+    }
+
+    private void DisableDirectImageRaycast(string path)
+    {
+        GameObject targetObject = GameObject.Find(path);
+
+        if (targetObject == null)
+        {
+            return;
+        }
+
+        Image image = targetObject.GetComponent<Image>();
+
+        if (image == null || !image.raycastTarget)
+        {
+            return;
+        }
+
+        image.raycastTarget = false;
+        Debug.Log($"Disabled background raycast target: {GetFullPath(targetObject.transform)}");
+    }
+
+    private void LogPlayButtonDiagnostics()
+    {
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        GraphicRaycaster graphicRaycaster = canvas != null ? canvas.GetComponent<GraphicRaycaster>() : null;
+        EventSystem eventSystem = EventSystem.current;
+        GameObject buttonObject = GameObject.Find(PlayButtonPath);
+
+        Debug.Log($"Canvas GraphicRaycaster: {(graphicRaycaster != null ? "present" : "missing")}");
+        Debug.Log($"EventSystem: {(eventSystem != null ? "present" : "missing")}");
+        Debug.Log($"PlayButton found: {(buttonObject != null ? "yes" : "no")}");
+
+        if (buttonObject == null)
+        {
+            return;
+        }
+
+        Button button = buttonObject.GetComponent<Button>();
+        Image image = buttonObject.GetComponent<Image>();
+        RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
+
+        Debug.Log($"PlayButton activeInHierarchy: {buttonObject.activeInHierarchy}");
+        Debug.Log($"PlayButton Button.interactable: {(button != null && button.interactable)}");
+        Debug.Log($"PlayButton Image.raycastTarget: {(image != null && image.raycastTarget)}");
+        Debug.Log($"PlayButton persistent listener count: {(button != null ? button.onClick.GetPersistentEventCount() : 0)}");
+
+        if (rectTransform != null)
+        {
+            Debug.Log($"PlayButton RectTransform anchoredPosition: {rectTransform.anchoredPosition}, sizeDelta: {rectTransform.sizeDelta}");
+        }
+
+        LogPotentialPlayButtonRaycastBlockers(buttonObject, canvas);
+    }
+
+    private void LogPotentialPlayButtonRaycastBlockers(GameObject buttonObject, Canvas canvas)
+    {
+        RectTransform playButtonRect = buttonObject.GetComponent<RectTransform>();
+
+        if (playButtonRect == null || canvas == null)
+        {
+            return;
+        }
+
+        Vector3[] worldCorners = new Vector3[4];
+        playButtonRect.GetWorldCorners(worldCorners);
+        Vector2 playButtonCenter = (worldCorners[0] + worldCorners[2]) * 0.5f;
+        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        Image[] images = canvas.GetComponentsInChildren<Image>(true);
+
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image image = images[i];
+
+            if (image == null || !image.raycastTarget || !image.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (image.gameObject == buttonObject || image.transform.IsChildOf(buttonObject.transform))
+            {
+                continue;
+            }
+
+            RectTransform imageRect = image.transform as RectTransform;
+
+            if (imageRect == null)
+            {
+                continue;
+            }
+
+            if (RectTransformUtility.RectangleContainsScreenPoint(imageRect, playButtonCenter, eventCamera))
+            {
+                Debug.LogWarning($"Potential PlayButton raycast blocker: {GetFullPath(image.transform)}");
+            }
+        }
+    }
+
+    private void DisableTextRaycasts(GameObject rootObject)
+    {
+        TMP_Text[] textComponents = rootObject.GetComponentsInChildren<TMP_Text>(true);
+
+        for (int i = 0; i < textComponents.Length; i++)
+        {
+            textComponents[i].raycastTarget = false;
+        }
+    }
+
+    private GameObject FindGameObjectByPath(string path, GameObject fallback)
+    {
+        GameObject foundObject = GameObject.Find(path);
+        return foundObject != null ? foundObject : fallback;
+    }
+
+    private string GetFullPath(Transform target)
+    {
+        if (target == null)
+        {
+            return string.Empty;
+        }
+
+        string path = target.name;
+        Transform current = target.parent;
+
+        while (current != null)
+        {
+            path = current.name + "/" + path;
+            current = current.parent;
+        }
+
+        return path;
     }
 
     private void SetActiveIfAssigned(GameObject target, bool isActive)
@@ -253,23 +863,4 @@ public class GameUIController : MonoBehaviour
         targetText.text = value;
     }
 
-    private void AddButtonListener(Button button, UnityEngine.Events.UnityAction action)
-    {
-        if (button == null)
-        {
-            return;
-        }
-
-        button.onClick.AddListener(action);
-    }
-
-    private void RemoveButtonListener(Button button, UnityEngine.Events.UnityAction action)
-    {
-        if (button == null)
-        {
-            return;
-        }
-
-        button.onClick.RemoveListener(action);
-    }
 }
