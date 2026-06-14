@@ -98,9 +98,31 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void Update()
     {
-        if (isInShop)
+        GameUIState currentState = GetCurrentUIState();
+
+        if (currentState == GameUIState.RunFailed)
         {
-            HandleShopInput();
+            HandleRunFailedBlockedInput();
+            return;
+        }
+
+        if (currentState == GameUIState.Shop || isInShop)
+        {
+            if (CanUseShop())
+            {
+                HandleShopInput();
+            }
+            else
+            {
+                HandleBlockedShopInput();
+            }
+
+            return;
+        }
+
+        if (currentState == GameUIState.CashOut)
+        {
+            HandleBlockedCashOutInput();
             return;
         }
 
@@ -187,6 +209,22 @@ public class PrototypeBootstrap : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.N))
         {
             LeaveShopAndStartNextBlind();
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Debug.Log("Ignored key P: current state is Shop.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            Debug.Log("Ignored key D: current state is Shop.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.T))
+        {
+            Debug.Log("Cannot sort: current state is Shop.");
         }
     }
 
@@ -201,9 +239,9 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void TryBuyShopOption(int optionIndex)
     {
-        if (!isInShop)
+        if (!CanUseShop())
         {
-            Debug.Log($"Cannot purchase: current state is {gameUIController.CurrentState}");
+            Debug.Log(GetShopBlockedMessage("purchase"));
             return;
         }
 
@@ -222,8 +260,9 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void TryRerollShop()
     {
-        if (!isInShop)
+        if (!CanUseShop())
         {
+            Debug.Log(GetShopBlockedMessage("reroll"));
             return;
         }
 
@@ -256,7 +295,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (!CanAcceptGameplayInput())
         {
-            Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("play"));
             return;
         }
 
@@ -279,7 +318,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (!CanAcceptGameplayInput())
         {
-            Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("discard"));
             return;
         }
 
@@ -303,6 +342,12 @@ public class PrototypeBootstrap : MonoBehaviour
         if (hasClaimedCashOut)
         {
             Debug.Log("CashOut already claimed; ignoring duplicate click.");
+            return;
+        }
+
+        if (!CanUseCashOut())
+        {
+            Debug.Log(GetCashOutBlockedMessage());
             return;
         }
 
@@ -332,8 +377,9 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void LeaveShopAndStartNextBlind()
     {
-        if (!isInShop)
+        if (!CanUseShop())
         {
+            Debug.Log(GetShopBlockedMessage("go to next blind"));
             return;
         }
 
@@ -364,7 +410,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (!CanAcceptGameplayInput())
         {
-            Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("select card"));
             return;
         }
 
@@ -425,7 +471,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (!CanAcceptGameplayInput())
         {
-            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("sort"));
             return;
         }
 
@@ -441,7 +487,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         if (!CanAcceptGameplayInput())
         {
-            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("sort"));
             return;
         }
 
@@ -869,21 +915,36 @@ public class PrototypeBootstrap : MonoBehaviour
         return gameUIController == null || gameUIController.CanAcceptGameplayInput;
     }
 
+    private bool CanUseCashOut()
+    {
+        return gameUIController != null && gameUIController.CanUseCashOut;
+    }
+
+    private bool CanUseShop()
+    {
+        return gameUIController != null && gameUIController.CanUseShop && isInShop;
+    }
+
+    private GameUIState GetCurrentUIState()
+    {
+        return gameUIController != null ? gameUIController.CurrentState : GameUIState.PlayingBlind;
+    }
+
     private void HandleBlockedGameplayInput()
     {
         if (Input.GetKeyDown(KeyCode.P))
         {
-            Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("play"));
         }
 
         if (Input.GetKeyDown(KeyCode.D))
         {
-            Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("discard"));
         }
 
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.T))
         {
-            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("sort"));
         }
 
         for (int i = 0; i < 8; i++)
@@ -893,10 +954,113 @@ public class PrototypeBootstrap : MonoBehaviour
 
             if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
             {
-                Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
+                Debug.Log(GetGameplayBlockedMessage("select card"));
                 return;
             }
         }
+    }
+
+    private void HandleBlockedCashOutInput()
+    {
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Debug.Log("Ignored key P: current state is CashOut.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            Debug.Log("Ignored key D: current state is CashOut.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.T))
+        {
+            Debug.Log("Cannot sort: current state is CashOut.");
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            KeyCode alphaKey = (KeyCode)((int)KeyCode.Alpha1 + i);
+            KeyCode keypadKey = (KeyCode)((int)KeyCode.Keypad1 + i);
+
+            if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
+            {
+                Debug.Log("Cannot select card: current state is CashOut.");
+                return;
+            }
+        }
+    }
+
+    private void HandleBlockedShopInput()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            Debug.Log(GetShopBlockedMessage("reroll"));
+        }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            Debug.Log(GetShopBlockedMessage("go to next blind"));
+        }
+
+        for (int i = 0; i < shopManager.ShopOptions.Count; i++)
+        {
+            KeyCode alphaKey = (KeyCode)((int)KeyCode.Alpha1 + i);
+            KeyCode keypadKey = (KeyCode)((int)KeyCode.Keypad1 + i);
+
+            if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
+            {
+                Debug.Log(GetShopBlockedMessage("purchase"));
+                return;
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Debug.Log("Ignored key P: current state is Shop.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            Debug.Log("Ignored key D: current state is Shop.");
+        }
+    }
+
+    private void HandleRunFailedBlockedInput()
+    {
+        if (Input.anyKeyDown)
+        {
+            Debug.Log("Run failed. Input ignored.");
+        }
+    }
+
+    private string GetGameplayBlockedMessage(string action)
+    {
+        if (gameUIController != null && gameUIController.IsDeckStatsOpen)
+        {
+            return $"Cannot {action}: deck view is open.";
+        }
+
+        return $"Cannot {action}: current state is {GetCurrentUIState()}.";
+    }
+
+    private string GetCashOutBlockedMessage()
+    {
+        if (gameUIController != null && gameUIController.IsDeckStatsOpen)
+        {
+            return "Cannot claim CashOut: deck view is open.";
+        }
+
+        return $"Cannot claim CashOut: current state is {GetCurrentUIState()}.";
+    }
+
+    private string GetShopBlockedMessage(string action)
+    {
+        if (gameUIController != null && gameUIController.IsDeckStatsOpen)
+        {
+            return $"Cannot {action}: deck view is open.";
+        }
+
+        return $"Cannot {action}: current state is {GetCurrentUIState()}.";
     }
 
     private void RefreshJokerBarUI()

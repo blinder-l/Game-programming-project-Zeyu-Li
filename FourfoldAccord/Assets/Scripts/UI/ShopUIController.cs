@@ -15,6 +15,8 @@ public class ShopUIController : MonoBehaviour
     private ShopOfferView consumableOfferView1;
     private ShopOfferView consumableOfferView2;
     private CardTooltipController tooltipController;
+    private Func<bool> canUseShopInput;
+    private Func<string, string> getBlockedMessage;
 
     public event Action<int> JokerOfferClicked;
     public event Action RerollButtonClicked;
@@ -102,6 +104,12 @@ public class ShopUIController : MonoBehaviour
         voucherOfferView?.SetTooltipController(tooltipController);
         consumableOfferView1?.SetTooltipController(tooltipController);
         consumableOfferView2?.SetTooltipController(tooltipController);
+    }
+
+    public void SetInputGuard(Func<bool> canUseInput, Func<string, string> blockedMessageGetter)
+    {
+        canUseShopInput = canUseInput;
+        getBlockedMessage = blockedMessageGetter;
     }
 
     private void BindShopPanel(Transform canvasRoot)
@@ -252,29 +260,69 @@ public class ShopUIController : MonoBehaviour
     private void HandleJokerOfferClicked(int index)
     {
         Debug.Log($"UI ShopJokerOffer clicked: index {index}");
+
+        if (!CanUseShopInput("purchase"))
+        {
+            return;
+        }
+
         JokerOfferClicked?.Invoke(index);
     }
 
     private void HandleRerollButtonClicked()
     {
         Debug.Log("UI ShopRerollButton clicked");
+
+        if (!CanUseShopInput("reroll"))
+        {
+            return;
+        }
+
         RerollButtonClicked?.Invoke();
     }
 
     private void HandleNextBlindButtonClicked()
     {
         Debug.Log("UI ShopNextBlindButton clicked");
+
+        if (!CanUseShopInput("go to next blind"))
+        {
+            return;
+        }
+
         NextBlindButtonClicked?.Invoke();
     }
 
     private void HandleVoucherClicked()
     {
+        if (!CanUseShopInput("purchase"))
+        {
+            return;
+        }
+
         Debug.Log("Voucher system not implemented yet.");
     }
 
     private void HandleConsumableClicked()
     {
+        if (!CanUseShopInput("purchase"))
+        {
+            return;
+        }
+
         Debug.Log("Consumable system not implemented yet.");
+    }
+
+    private bool CanUseShopInput(string action)
+    {
+        if (canUseShopInput == null || canUseShopInput())
+        {
+            return true;
+        }
+
+        string blockedMessage = getBlockedMessage != null ? getBlockedMessage(action) : $"Cannot {action}: shop input is blocked.";
+        Debug.Log(blockedMessage);
+        return false;
     }
 
     private void DisableTextRaycasts(GameObject rootObject)

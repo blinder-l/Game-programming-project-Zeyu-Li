@@ -106,6 +106,12 @@ public class DeckStatsUIController : MonoBehaviour
 
         GameUIState currentState = getCurrentState != null ? getCurrentState() : GameUIState.PlayingBlind;
 
+        if (currentState == GameUIState.RunFailed)
+        {
+            Debug.Log("Cannot open deck view: run has failed.");
+            return;
+        }
+
         if (currentState == GameUIState.PlayingBlind)
         {
             OpenCurrentHandStatsView();
@@ -166,6 +172,11 @@ public class DeckStatsUIController : MonoBehaviour
 
     public void CloseDeckStatsForStateChange()
     {
+        if (currentMode != DeckViewMode.None)
+        {
+            Debug.Log("Deck view closed due to state change.");
+        }
+
         CloseDeckView(false);
     }
 

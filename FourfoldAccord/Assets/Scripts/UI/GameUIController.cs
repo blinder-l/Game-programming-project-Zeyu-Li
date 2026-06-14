@@ -56,6 +56,8 @@ public class GameUIController : MonoBehaviour
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
     public bool CanAcceptGameplayInput => CurrentState == GameUIState.PlayingBlind && !IsDeckStatsOpen;
+    public bool CanUseCashOut => CurrentState == GameUIState.CashOut && !IsDeckStatsOpen;
+    public bool CanUseShop => CurrentState == GameUIState.Shop && !IsDeckStatsOpen;
 
     private bool hasInitialized;
 
@@ -95,14 +97,15 @@ public class GameUIController : MonoBehaviour
     {
         bool enteringRunFailed = CurrentState != GameUIState.RunFailed && newState == GameUIState.RunFailed;
         CurrentState = newState;
+        Debug.Log($"UI state changed: {newState}");
         deckStatsUIController?.CloseDeckStatsForStateChange();
+        HideTooltipForStateChange();
 
         SetActiveIfAssigned(playStateRoot, newState == GameUIState.PlayingBlind || newState == GameUIState.RunFailed);
         SetActiveIfAssigned(cashOutPanel, newState == GameUIState.CashOut);
         SetActiveIfAssigned(shopPanel, newState == GameUIState.Shop);
         SetActiveIfAssigned(deckStatsPanel, false);
         SetActiveIfAssigned(currentHandStatsPanel, false);
-        SetActiveIfAssigned(cardTooltipPanel, false);
         SetActiveIfAssigned(actionButtonsContainer, newState == GameUIState.PlayingBlind);
         SetActionButtonsInteractable(CanAcceptGameplayInput);
 
@@ -114,6 +117,15 @@ public class GameUIController : MonoBehaviour
         if (newState != GameUIState.Shop)
         {
             shopUIController?.Hide();
+        }
+
+        if (newState == GameUIState.CashOut)
+        {
+            cashOutUIController?.SetButtonInteractable(true);
+        }
+        else
+        {
+            cashOutUIController?.SetButtonInteractable(false);
         }
 
         if (enteringRunFailed)
@@ -248,7 +260,7 @@ public class GameUIController : MonoBehaviour
         int currentGold,
         int anteNumber)
     {
-        SetText(blindNameText, blindName);
+        SetText(blindNameText, CurrentState == GameUIState.RunFailed ? "Run Failed" : blindName);
         SetText(targetScoreText, $"Target: {targetScore}");
         SetText(currentScoreText, $"Score: {currentScore}");
         SetText(handTypeText, $"Hand Type: {latestHandType}");
@@ -333,7 +345,7 @@ public class GameUIController : MonoBehaviour
     {
         if (!CanAcceptGameplayInput)
         {
-            Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
+            Debug.Log(GetGameplayBlockedMessage("select card"));
             return;
         }
 
@@ -347,15 +359,7 @@ public class GameUIController : MonoBehaviour
 
         if (!CanAcceptGameplayInput)
         {
-            if (IsDeckStatsOpen)
-            {
-                Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
-            }
-            else
-            {
-                Debug.Log($"Cannot play: current state is {CurrentState}");
-            }
-
+            Debug.Log(GetGameplayBlockedMessage("play"));
             return;
         }
 
@@ -374,15 +378,7 @@ public class GameUIController : MonoBehaviour
 
         if (!CanAcceptGameplayInput)
         {
-            if (IsDeckStatsOpen)
-            {
-                Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
-            }
-            else
-            {
-                Debug.Log($"Discard failed: current UI state is {CurrentState}.");
-            }
-
+            Debug.Log(GetGameplayBlockedMessage("discard"));
             return;
         }
 
@@ -401,15 +397,7 @@ public class GameUIController : MonoBehaviour
 
         if (!CanAcceptGameplayInput)
         {
-            if (IsDeckStatsOpen)
-            {
-                Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
-            }
-            else
-            {
-                Debug.Log($"Sort by suit ignored: current UI state is {CurrentState}.");
-            }
-
+            Debug.Log(GetGameplayBlockedMessage("sort"));
             return;
         }
 
@@ -428,15 +416,7 @@ public class GameUIController : MonoBehaviour
 
         if (!CanAcceptGameplayInput)
         {
-            if (IsDeckStatsOpen)
-            {
-                Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
-            }
-            else
-            {
-                Debug.Log($"Sort by rank ignored: current UI state is {CurrentState}.");
-            }
-
+            Debug.Log(GetGameplayBlockedMessage("sort"));
             return;
         }
 
@@ -937,6 +917,7 @@ public class GameUIController : MonoBehaviour
         }
 
         shopUIController.Initialize(canvas.transform);
+        shopUIController.SetInputGuard(() => CanUseShop, GetShopBlockedMessage);
         shopUIController.SetTooltipController(cardTooltipController);
         shopUIController.JokerOfferClicked -= HandleShopJokerOfferClicked;
         shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
@@ -948,16 +929,34 @@ public class GameUIController : MonoBehaviour
 
     private void HandleShopJokerOfferClicked(int index)
     {
+        if (!CanUseShop)
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
         ShopJokerOfferClicked?.Invoke(index);
     }
 
     private void HandleShopRerollButtonClicked()
     {
+        if (!CanUseShop)
+        {
+            Debug.Log(GetShopBlockedMessage("reroll"));
+            return;
+        }
+
         ShopRerollButtonClicked?.Invoke();
     }
 
     private void HandleShopNextBlindButtonClicked()
     {
+        if (!CanUseShop)
+        {
+            Debug.Log(GetShopBlockedMessage("go to next blind"));
+            return;
+        }
+
         ShopNextBlindButtonClicked?.Invoke();
     }
 
@@ -986,7 +985,55 @@ public class GameUIController : MonoBehaviour
 
     private void HandleCashOutButtonClicked()
     {
+        if (!CanUseCashOut)
+        {
+            Debug.Log(GetCashOutBlockedMessage());
+            return;
+        }
+
         CashOutButtonClicked?.Invoke();
+    }
+
+    private void HideTooltipForStateChange()
+    {
+        if (cardTooltipController != null)
+        {
+            cardTooltipController.HideTooltip();
+            Debug.Log("Tooltip hidden due to state change.");
+            return;
+        }
+
+        SetActiveIfAssigned(cardTooltipPanel, false);
+    }
+
+    private string GetGameplayBlockedMessage(string action)
+    {
+        if (IsDeckStatsOpen)
+        {
+            return $"Cannot {action}: deck view is open.";
+        }
+
+        return $"Cannot {action}: current state is {CurrentState}.";
+    }
+
+    private string GetCashOutBlockedMessage()
+    {
+        if (IsDeckStatsOpen)
+        {
+            return "Cannot claim CashOut: deck view is open.";
+        }
+
+        return $"Cannot claim CashOut: current state is {CurrentState}.";
+    }
+
+    private string GetShopBlockedMessage(string action)
+    {
+        if (IsDeckStatsOpen)
+        {
+            return $"Cannot {action}: deck view is open.";
+        }
+
+        return $"Cannot {action}: current state is {CurrentState}.";
     }
 
     private Button BindPlayButton()
