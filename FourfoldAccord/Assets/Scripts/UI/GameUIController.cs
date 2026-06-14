@@ -17,6 +17,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject cardTooltipPanel;
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private Transform jokerSlotsContainer;
+    [SerializeField] private DeckStatsUIController deckStatsUIController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
@@ -46,6 +47,9 @@ public class GameUIController : MonoBehaviour
     public event Action SortByRankButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
+    public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
+    public bool CanAcceptGameplayInput => CurrentState == GameUIState.PlayingBlind && !IsDeckStatsOpen;
+
     private bool hasInitialized;
 
     private void Awake()
@@ -70,6 +74,7 @@ public class GameUIController : MonoBehaviour
         BindHandCards();
         DisableKnownBackgroundRaycasts();
         BindActionButtons();
+        BindDeckStatsController();
         EnsurePointerInputSupport();
         LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
@@ -80,6 +85,7 @@ public class GameUIController : MonoBehaviour
     {
         bool enteringRunFailed = CurrentState != GameUIState.RunFailed && newState == GameUIState.RunFailed;
         CurrentState = newState;
+        deckStatsUIController?.CloseDeckStatsForStateChange();
 
         SetActiveIfAssigned(playStateRoot, newState == GameUIState.PlayingBlind || newState == GameUIState.RunFailed);
         SetActiveIfAssigned(cashOutPanel, newState == GameUIState.CashOut);
@@ -88,7 +94,7 @@ public class GameUIController : MonoBehaviour
         SetActiveIfAssigned(currentHandStatsPanel, false);
         SetActiveIfAssigned(cardTooltipPanel, false);
         SetActiveIfAssigned(actionButtonsContainer, newState == GameUIState.PlayingBlind);
-        SetActionButtonsInteractable(newState == GameUIState.PlayingBlind);
+        SetActionButtonsInteractable(CanAcceptGameplayInput);
 
         if (enteringRunFailed)
         {
@@ -153,6 +159,19 @@ public class GameUIController : MonoBehaviour
         }
 
         Debug.Log($"Joker bar updated: {equippedCount} equipped jokers");
+    }
+
+    public void SetDeckStatsSources(DeckManager deckManager, HandManager handManager)
+    {
+        if (deckStatsUIController == null)
+        {
+            BindDeckStatsController();
+        }
+
+        if (deckStatsUIController != null)
+        {
+            deckStatsUIController.SetDataSources(deckManager, handManager);
+        }
     }
 
     public void RefreshBlindStatus(
@@ -248,8 +267,9 @@ public class GameUIController : MonoBehaviour
 
     private void HandleHandCardClicked(PlayingCard card)
     {
-        if (CurrentState != GameUIState.PlayingBlind)
+        if (!CanAcceptGameplayInput)
         {
+            Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
             return;
         }
 
@@ -260,6 +280,20 @@ public class GameUIController : MonoBehaviour
     public void HandlePlayButtonClicked()
     {
         Debug.Log("UI PlayButton clicked");
+
+        if (!CanAcceptGameplayInput)
+        {
+            if (IsDeckStatsOpen)
+            {
+                Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
+            }
+            else
+            {
+                Debug.Log($"Play failed: current UI state is {CurrentState}.");
+            }
+
+            return;
+        }
 
         if (CurrentState == GameUIState.PlayingBlind)
         {
@@ -274,6 +308,20 @@ public class GameUIController : MonoBehaviour
     {
         Debug.Log("UI DiscardButton clicked");
 
+        if (!CanAcceptGameplayInput)
+        {
+            if (IsDeckStatsOpen)
+            {
+                Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
+            }
+            else
+            {
+                Debug.Log($"Discard failed: current UI state is {CurrentState}.");
+            }
+
+            return;
+        }
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             DiscardButtonClicked?.Invoke();
@@ -287,6 +335,20 @@ public class GameUIController : MonoBehaviour
     {
         Debug.Log("UI SortBySuitButton clicked");
 
+        if (!CanAcceptGameplayInput)
+        {
+            if (IsDeckStatsOpen)
+            {
+                Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            }
+            else
+            {
+                Debug.Log($"Sort by suit ignored: current UI state is {CurrentState}.");
+            }
+
+            return;
+        }
+
         if (CurrentState == GameUIState.PlayingBlind)
         {
             SortBySuitButtonClicked?.Invoke();
@@ -299,6 +361,20 @@ public class GameUIController : MonoBehaviour
     private void HandleSortByRankButtonClicked()
     {
         Debug.Log("UI SortByRankButton clicked");
+
+        if (!CanAcceptGameplayInput)
+        {
+            if (IsDeckStatsOpen)
+            {
+                Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            }
+            else
+            {
+                Debug.Log($"Sort by rank ignored: current UI state is {CurrentState}.");
+            }
+
+            return;
+        }
 
         if (CurrentState == GameUIState.PlayingBlind)
         {
@@ -714,6 +790,37 @@ public class GameUIController : MonoBehaviour
             "Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer/SortPanel/SortButtonsRow/SortByRankButton",
             "SortByRankButton",
             HandleSortByRankButtonClicked);
+    }
+
+    private void BindDeckStatsController()
+    {
+        if (deckStatsUIController == null)
+        {
+            deckStatsUIController = GetComponent<DeckStatsUIController>();
+        }
+
+        if (deckStatsUIController == null)
+        {
+            deckStatsUIController = gameObject.AddComponent<DeckStatsUIController>();
+        }
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogError("Failed to bind DeckStatsUIController: Canvas not found");
+            return;
+        }
+
+        Button[] actionButtons =
+        {
+            playButton,
+            discardButton,
+            sortBySuitButton,
+            sortByRankButton
+        };
+
+        deckStatsUIController.Initialize(canvas.transform, actionButtons, () => CurrentState);
     }
 
     private Button BindPlayButton()

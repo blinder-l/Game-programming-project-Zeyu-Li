@@ -13,6 +13,28 @@ public class DeckManager
     public int DrawPileCount => drawPile.Count;
     public int DiscardPileCount => discardPile.Count;
 
+    public List<PlayingCard> GetDrawPileSnapshot()
+    {
+        return new List<PlayingCard>(drawPile);
+    }
+
+    public List<PlayingCard> GetStandardDeckSnapshot()
+    {
+        List<PlayingCard> standardDeck = new List<PlayingCard>();
+        int nextUniqueId = 0;
+
+        foreach (Suit suit in Enum.GetValues(typeof(Suit)))
+        {
+            foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+            {
+                standardDeck.Add(new PlayingCard(nextUniqueId, suit, rank));
+                nextUniqueId++;
+            }
+        }
+
+        return standardDeck;
+    }
+
     public void CreateStandardDeck()
     {
         drawPile.Clear();

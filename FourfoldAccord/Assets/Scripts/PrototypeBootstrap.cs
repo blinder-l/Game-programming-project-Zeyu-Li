@@ -98,6 +98,12 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        if (!CanAcceptGameplayInput())
+        {
+            HandleBlockedGameplayInput();
+            return;
+        }
+
         HandleCardSelectionInput();
         HandleHandSortInput();
         HandleJokerDebugInput();
@@ -264,6 +270,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandlePlayButtonClicked()
     {
+        if (!CanAcceptGameplayInput())
+        {
+            Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
+            return;
+        }
+
         if (isInShop)
         {
             Debug.Log("Play failed: currently in shop.");
@@ -281,6 +293,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleDiscardButtonClicked()
     {
+        if (!CanAcceptGameplayInput())
+        {
+            Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
+            return;
+        }
+
         if (isInShop)
         {
             Debug.Log("Discard failed: currently in shop.");
@@ -316,6 +334,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleHandCardClicked(PlayingCard card)
     {
+        if (!CanAcceptGameplayInput())
+        {
+            Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
+            return;
+        }
+
         if (isInShop || IsRoundOver())
         {
             return;
@@ -371,6 +395,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleSortBySuitButtonClicked()
     {
+        if (!CanAcceptGameplayInput())
+        {
+            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            return;
+        }
+
         if (isInShop || IsRoundOver())
         {
             return;
@@ -381,6 +411,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleSortByRankButtonClicked()
     {
+        if (!CanAcceptGameplayInput())
+        {
+            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+            return;
+        }
+
         if (isInShop || IsRoundOver())
         {
             return;
@@ -622,6 +658,7 @@ public class PrototypeBootstrap : MonoBehaviour
         PruneSelectedCards();
         SyncSelectedCardFlags();
         Debug.Log($"RefreshHandUI: hand count = {GetCurrentHandCountForLog()}, selected count = {selectedCards.Count}");
+        gameUIController.SetDeckStatsSources(deckManager, handManager);
         RefreshJokerBarUI();
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
@@ -789,6 +826,41 @@ public class PrototypeBootstrap : MonoBehaviour
     private int GetCurrentHandCountForLog()
     {
         return handManager != null ? handManager.CurrentHandCount : 0;
+    }
+
+    private bool CanAcceptGameplayInput()
+    {
+        return gameUIController == null || gameUIController.CanAcceptGameplayInput;
+    }
+
+    private void HandleBlockedGameplayInput()
+    {
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Debug.Log("Cannot play: gameplay input is blocked while deck view is open.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            Debug.Log("Cannot discard: gameplay input is blocked while deck view is open.");
+        }
+
+        if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.T))
+        {
+            Debug.Log("Cannot sort: gameplay input is blocked while deck view is open.");
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            KeyCode alphaKey = (KeyCode)((int)KeyCode.Alpha1 + i);
+            KeyCode keypadKey = (KeyCode)((int)KeyCode.Keypad1 + i);
+
+            if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
+            {
+                Debug.Log("Cannot select card: gameplay input is blocked while deck view is open.");
+                return;
+            }
+        }
     }
 
     private void RefreshJokerBarUI()
