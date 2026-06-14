@@ -20,6 +20,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private DeckStatsUIController deckStatsUIController;
     [SerializeField] private CashOutUIController cashOutUIController;
     [SerializeField] private ShopUIController shopUIController;
+    [SerializeField] private RunInfoUIController runInfoUIController;
     [SerializeField] private CardTooltipController cardTooltipController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
@@ -55,6 +56,7 @@ public class GameUIController : MonoBehaviour
     public event Action<int> ShopConsumableOfferClicked;
     public event Action ShopRerollButtonClicked;
     public event Action ShopNextBlindButtonClicked;
+    public event Action RunInfoButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
@@ -90,6 +92,7 @@ public class GameUIController : MonoBehaviour
         BindDeckStatsController();
         BindCashOutController();
         BindShopController();
+        BindRunInfoController();
         EnsurePointerInputSupport();
         LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
@@ -111,6 +114,7 @@ public class GameUIController : MonoBehaviour
         SetActiveIfAssigned(currentHandStatsPanel, false);
         SetActiveIfAssigned(actionButtonsContainer, newState == GameUIState.PlayingBlind);
         SetActionButtonsInteractable(CanAcceptGameplayInput);
+        runInfoUIController?.Hide();
 
         if (newState != GameUIState.CashOut)
         {
@@ -207,6 +211,20 @@ public class GameUIController : MonoBehaviour
         {
             deckStatsUIController.SetDataSources(deckManager, handManager);
         }
+    }
+
+    public void SetRunInfoSources(
+        HandTypeLevelManager handTypeLevelManager,
+        SuitMasteryManager suitMasteryManager,
+        IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts)
+    {
+        if (runInfoUIController == null)
+        {
+            BindRunInfoController();
+        }
+
+        runInfoUIController?.SetDataSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
+        runInfoUIController?.Refresh();
     }
 
     public void ShowCashOut(
@@ -521,6 +539,13 @@ public class GameUIController : MonoBehaviour
         goldText = BindTextInRoot(leftPanelRoot, "GoldNumberText", "GoldNumberText");
         anteNumberText = BindTextInRoot(leftPanelRoot, "AnteNumberText", "AnteNumberText");
         runInfoButton = BindOptionalButtonInRoot(leftPanelRoot, "RunInfoButton", "RunInfoButton");
+
+        if (runInfoButton != null)
+        {
+            runInfoButton.onClick.RemoveAllListeners();
+            runInfoButton.onClick.AddListener(HandleRunInfoButtonClicked);
+        }
+
         Debug.Log("Bound left status UI");
     }
 
@@ -1041,6 +1066,29 @@ public class GameUIController : MonoBehaviour
         shopUIController.NextBlindButtonClicked += HandleShopNextBlindButtonClicked;
     }
 
+    private void BindRunInfoController()
+    {
+        if (runInfoUIController == null)
+        {
+            runInfoUIController = GetComponent<RunInfoUIController>();
+        }
+
+        if (runInfoUIController == null)
+        {
+            runInfoUIController = gameObject.AddComponent<RunInfoUIController>();
+        }
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogError("Failed to bind RunInfoUIController: Canvas not found");
+            return;
+        }
+
+        runInfoUIController.Initialize(canvas.transform);
+    }
+
     private void HandleShopJokerOfferClicked(int index)
     {
         if (!CanUseShop)
@@ -1083,6 +1131,25 @@ public class GameUIController : MonoBehaviour
         }
 
         ShopNextBlindButtonClicked?.Invoke();
+    }
+
+    private void HandleRunInfoButtonClicked()
+    {
+        Debug.Log("UI RunInfoButton clicked");
+        RunInfoButtonClicked?.Invoke();
+
+        if (runInfoUIController == null)
+        {
+            BindRunInfoController();
+        }
+
+        if (runInfoUIController == null)
+        {
+            Debug.LogError("Cannot show RunInfoPanel: RunInfoUIController is null");
+            return;
+        }
+
+        runInfoUIController.ShowDefault();
     }
 
     private void BindCardTooltipController()

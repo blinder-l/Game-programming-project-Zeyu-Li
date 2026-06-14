@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -28,6 +29,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
     private ScoreContext latestScoreContext;
     private readonly List<PlayingCard> selectedCards = new List<PlayingCard>();
+    private readonly Dictionary<PokerHandType, int> handTypePlayCounts = new Dictionary<PokerHandType, int>();
 
     private void Awake()
     {
@@ -42,6 +44,7 @@ public class PrototypeBootstrap : MonoBehaviour
         shopManager = new ShopManager();
         suitMasteryManager = new SuitMasteryManager();
         handTypeLevelManager = new HandTypeLevelManager();
+        InitializeHandTypePlayCounts();
         jokerManager = new JokerManager();
         currentGold = StartingGold;
 
@@ -57,6 +60,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopConsumableOfferClicked += HandleShopConsumableOfferClicked;
             gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
+            gameUIController.RunInfoButtonClicked += HandleRunInfoButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -98,6 +102,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopConsumableOfferClicked -= HandleShopConsumableOfferClicked;
             gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
+            gameUIController.RunInfoButtonClicked -= HandleRunInfoButtonClicked;
         }
     }
 
@@ -386,6 +391,11 @@ public class PrototypeBootstrap : MonoBehaviour
     private void HandleShopNextBlindButtonClicked()
     {
         LeaveShopAndStartNextBlind();
+    }
+
+    private void HandleRunInfoButtonClicked()
+    {
+        RefreshRunInfoSources();
     }
 
     private void TryBuyPlanetOffer(int offerIndex)
@@ -688,6 +698,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
+        IncrementHandTypePlayCount(scoreContext.handType);
         latestPlayedCards = playedCards;
         latestScoreContext = scoreContext;
         ClearSelectedCards();
@@ -781,6 +792,7 @@ public class PrototypeBootstrap : MonoBehaviour
         SyncSelectedCardFlags();
         Debug.Log($"RefreshHandUI: hand count = {GetCurrentHandCountForLog()}, selected count = {selectedCards.Count}");
         gameUIController.SetDeckStatsSources(deckManager, handManager);
+        RefreshRunInfoSources();
         RefreshJokerBarUI();
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
@@ -1181,6 +1193,16 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log($"Hand type preview updated: {latestHandTypeText} {latestHandTypeRankText}");
     }
 
+    private void RefreshRunInfoSources()
+    {
+        if (gameUIController == null)
+        {
+            return;
+        }
+
+        gameUIController.SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
+    }
+
     private string GetHandTypeRankText(PokerHandType handType)
     {
         if (handTypeLevelManager == null)
@@ -1189,6 +1211,27 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         return $"Lv {handTypeLevelManager.GetLevel(handType)}";
+    }
+
+    private void InitializeHandTypePlayCounts()
+    {
+        handTypePlayCounts.Clear();
+
+        foreach (PokerHandType handType in Enum.GetValues(typeof(PokerHandType)))
+        {
+            handTypePlayCounts[handType] = 0;
+        }
+    }
+
+    private void IncrementHandTypePlayCount(PokerHandType handType)
+    {
+        if (!handTypePlayCounts.ContainsKey(handType))
+        {
+            handTypePlayCounts[handType] = 0;
+        }
+
+        handTypePlayCounts[handType]++;
+        Debug.Log($"Hand type play count updated: {handType} = {handTypePlayCounts[handType]}");
     }
 
     private void LogRoundEndIfNeeded()

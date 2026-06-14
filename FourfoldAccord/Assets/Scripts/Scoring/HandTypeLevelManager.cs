@@ -34,6 +34,16 @@ public class HandTypeLevelManager
         return definition.levelOneMult + ((GetLevel(handType) - 1) * definition.multPerLevel);
     }
 
+    public int GetChipsPerLevel(PokerHandType handType)
+    {
+        return GetDefinition(handType).chipsPerLevel;
+    }
+
+    public float GetMultPerLevel(PokerHandType handType)
+    {
+        return GetDefinition(handType).multPerLevel;
+    }
+
     public void Upgrade(PokerHandType handType)
     {
         handTypeLevels[handType] = GetLevel(handType) + 1;
