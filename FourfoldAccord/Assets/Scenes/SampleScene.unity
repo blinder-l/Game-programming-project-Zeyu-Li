@@ -1625,7 +1625,7 @@ GameObject:
   - component: {fileID: 117433360}
   - component: {fileID: 117433361}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox
+  m_Name: StraightFlushBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6490,7 +6490,7 @@ GameObject:
   - component: {fileID: 582140492}
   - component: {fileID: 582140493}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (6)
+  m_Name: TwoPairBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8470,7 +8470,7 @@ GameObject:
   - component: {fileID: 725157363}
   - component: {fileID: 725157364}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (1)
+  m_Name: FourOfAKindBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9092,7 +9092,7 @@ GameObject:
   - component: {fileID: 763562014}
   - component: {fileID: 763562015}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (7)
+  m_Name: OnePairBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9850,7 +9850,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 64.714, y: 42.046}
+  m_SizeDelta: {x: 74.2553, y: 43.835}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &852565674
 MonoBehaviour:
@@ -9899,8 +9899,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 28
-  m_fontSizeBase: 28
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -9935,7 +9935,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -32.87481, y: 0, z: -1.0604858, w: 3.711731}
+  m_margin: {x: -42.416145, y: 0, z: -1.0604858, w: 3.711731}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -13359,7 +13359,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 25.016388, y: -37.359924}
+  m_AnchoredPosition: {x: 25.0164, y: -37.3599}
   m_SizeDelta: {x: 50.0328, y: 74.7198}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1054069533
@@ -15266,7 +15266,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 150}
+  m_SizeDelta: {x: 110, y: 165}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1195414699
 MonoBehaviour:
@@ -15906,7 +15906,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 150}
+  m_SizeDelta: {x: 110, y: 165}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1256014511
 MonoBehaviour:
@@ -17843,7 +17843,7 @@ GameObject:
   - component: {fileID: 1363832037}
   - component: {fileID: 1363832038}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (4)
+  m_Name: StraightBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -18500,7 +18500,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 150}
+  m_SizeDelta: {x: 110, y: 165}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1430894892
 MonoBehaviour:
@@ -19061,7 +19061,7 @@ GameObject:
   - component: {fileID: 1453419303}
   - component: {fileID: 1453419304}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (2)
+  m_Name: FullHouseBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -20732,7 +20732,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "RunInfo\uFF08\u70B9\u51FB\u4E4B\u540E\u5F39\u51FA\u4E00\u4E2A\u663E\u793A\u76EE\u524D\u6784\u7B51\u4FE1\u606F\u7684\u9762\u677F\uFF0C\u4E0A\u9762\u5217\u51FA\u6240\u6709\u724C\u578B\u7684\"(chips)*(mult)\",\u548Crank\u3002\u8FD8\u6709\u82B1\u8272\u7684\u7B49\u7EA7\u548C\u6548\u679C\uFF09"
+  m_text: RunInfo
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -21094,7 +21094,7 @@ GameObject:
   - component: {fileID: 1682663067}
   - component: {fileID: 1682663068}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (3)
+  m_Name: FlushBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23818,7 +23818,7 @@ GameObject:
   - component: {fileID: 1853738809}
   - component: {fileID: 1853738810}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (8)
+  m_Name: HighCardBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23884,7 +23884,7 @@ GameObject:
   - component: {fileID: 1855012329}
   - component: {fileID: 1855012330}
   m_Layer: 5
-  m_Name: GeneralHandTypeInfoBox (5)
+  m_Name: ThreeOfAKindBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -25757,7 +25757,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 150}
+  m_SizeDelta: {x: 110, y: 165}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1965113606
 MonoBehaviour:
@@ -27686,7 +27686,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 665.8539, y: -28.576}
+  m_AnchoredPosition: {x: 665.8538, y: -28.576}
   m_SizeDelta: {x: 381.2789, y: 57.152}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2097003402
@@ -27955,7 +27955,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 150}
+  m_SizeDelta: {x: 110, y: 165}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2120894171
 MonoBehaviour:
