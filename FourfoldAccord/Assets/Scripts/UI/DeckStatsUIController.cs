@@ -44,6 +44,9 @@ public class DeckStatsUIController : MonoBehaviour
     private TMP_Text rankCountText;
     private TMP_Text suitRankMatrixText;
     private TMP_Text currentHandStatsText;
+    private readonly Dictionary<Suit, TMP_Text> currentSuitCountTexts = new Dictionary<Suit, TMP_Text>();
+    private readonly Dictionary<Rank, TMP_Text> currentRankCountTexts = new Dictionary<Rank, TMP_Text>();
+    private readonly Dictionary<Suit, Dictionary<Rank, TMP_Text>> currentSpecificCardCountTexts = new Dictionary<Suit, Dictionary<Rank, TMP_Text>>();
     private Button deckViewButton;
     private Button[] actionButtons;
     private Func<GameUIState> getCurrentState;
@@ -76,6 +79,11 @@ public class DeckStatsUIController : MonoBehaviour
     {
         deckManager = currentDeckManager;
         handManager = currentHandManager;
+
+        if (currentMode == DeckViewMode.CurrentHandStats)
+        {
+            RefreshCurrentAvailableCardStats();
+        }
     }
 
     private void ToggleDeckStats()
@@ -132,8 +140,7 @@ public class DeckStatsUIController : MonoBehaviour
         SetPanelActive(handSlotsContainer, true);
         SetPanelActive(actionButtonsContainer, false);
         SetActionButtonsInteractable(false);
-        List<PlayingCard> availableCards = BuildCurrentAvailableCardsInBlind();
-        UpdateCurrentHandStats(availableCards);
+        RefreshCurrentAvailableCardStats();
         Debug.Log("Deck view mode: CurrentAvailableCards");
         Debug.Log("CurrentHandStatsPanel shown");
         Debug.Log("DeckStatsPanel hidden");
@@ -253,25 +260,64 @@ public class DeckStatsUIController : MonoBehaviour
         Debug.Log($"Deck stats updated: {stats.totalCount} cards");
     }
 
-    private void UpdateCurrentHandStats(IReadOnlyList<PlayingCard> cards)
+    private void RefreshCurrentAvailableCardStats()
     {
-        DeckStats stats = BuildStats(cards);
-        StringBuilder builder = new StringBuilder();
-        builder.AppendLine($"Current available cards in this Blind: {stats.totalCount} cards");
-        builder.AppendLine();
-        builder.AppendLine("Suits:");
-        builder.AppendLine(BuildSuitSummary(stats));
-        builder.AppendLine();
-        builder.AppendLine("Groups:");
-        builder.AppendLine($"A: {stats.aceCount}");
-        builder.AppendLine($"Face: {stats.faceCount}");
-        builder.AppendLine($"Number: {stats.numberCount}");
-        builder.AppendLine();
-        builder.AppendLine("Ranks:");
-        builder.Append(BuildRankCountText(stats));
+        if (deckManager == null)
+        {
+            Debug.LogError("Cannot update available card stats: draw pile snapshot unavailable.");
+            return;
+        }
 
-        SetText(currentHandStatsText, builder.ToString());
-        Debug.Log($"Current hand stats updated: {stats.totalCount} cards");
+        List<PlayingCard> cards = BuildCurrentAvailableCardsInBlind();
+        DeckStats stats = BuildStats(cards);
+        UpdateCurrentSuitCountTexts(stats);
+        UpdateCurrentRankCountTexts(stats);
+        UpdateCurrentSpecificCardCountTexts(stats);
+
+        Debug.Log("Current available card stats updated.");
+        Debug.Log($"Current hand count: {(handManager != null && handManager.CurrentHand != null ? handManager.CurrentHand.Count : 0)}");
+        Debug.Log($"Draw pile count: {deckManager.DrawPileCount}");
+        Debug.Log($"Available cards total: {stats.totalCount}");
+        Debug.Log($"Suit counts: Hearts {stats.suitCounts[Suit.Hearts]}, Spades {stats.suitCounts[Suit.Spades]}, Diamonds {stats.suitCounts[Suit.Diamonds]}, Clubs {stats.suitCounts[Suit.Clubs]}");
+        Debug.Log("Rank counts updated.");
+        Debug.Log("Specific card counts updated.");
+    }
+
+    private void UpdateCurrentSuitCountTexts(DeckStats stats)
+    {
+        foreach (Suit suit in suitDisplayOrder)
+        {
+            TMP_Text countText = currentSuitCountTexts.ContainsKey(suit) ? currentSuitCountTexts[suit] : null;
+            SetText(countText, stats.suitCounts[suit].ToString());
+        }
+    }
+
+    private void UpdateCurrentRankCountTexts(DeckStats stats)
+    {
+        foreach (Rank rank in rankDisplayOrder)
+        {
+            TMP_Text countText = currentRankCountTexts.ContainsKey(rank) ? currentRankCountTexts[rank] : null;
+            SetText(countText, stats.rankCounts[rank].ToString());
+        }
+    }
+
+    private void UpdateCurrentSpecificCardCountTexts(DeckStats stats)
+    {
+        foreach (Suit suit in suitDisplayOrder)
+        {
+            if (!currentSpecificCardCountTexts.ContainsKey(suit))
+            {
+                continue;
+            }
+
+            foreach (Rank rank in rankDisplayOrder)
+            {
+                TMP_Text countText = currentSpecificCardCountTexts[suit].ContainsKey(rank)
+                    ? currentSpecificCardCountTexts[suit][rank]
+                    : null;
+                SetText(countText, stats.suitRankCounts[suit][rank].ToString());
+            }
+        }
     }
 
     private List<PlayingCard> BuildCurrentAvailableCardsInBlind()
@@ -515,17 +561,133 @@ public class DeckStatsUIController : MonoBehaviour
         suitSummaryText = BindText(canvasRoot, "SuitSummaryText");
         rankCountText = BindText(canvasRoot, "RankCountText");
         suitRankMatrixText = BindText(canvasRoot, "SuitRankMatrixText");
-        currentHandStatsText = BindText(canvasRoot, "CurrentHandStatsText");
+        currentHandStatsText = BindText(canvasRoot, "CurrentHandStatsText", false);
+        BindCurrentHandStatsPanelTexts();
         Debug.Log("Bound DeckStats text fields");
     }
 
+    private void BindCurrentHandStatsPanelTexts()
+    {
+        currentSuitCountTexts.Clear();
+        currentRankCountTexts.Clear();
+        currentSpecificCardCountTexts.Clear();
+
+        if (currentHandStatsPanel == null)
+        {
+            Debug.LogError("Failed to bind CurrentHandStatsPanel count texts: panel is null");
+            return;
+        }
+
+        Transform panelRoot = currentHandStatsPanel.transform;
+        BindCurrentSuitCountTexts(panelRoot);
+        BindCurrentRankCountTexts(panelRoot);
+        BindSpecificCardCountTexts(panelRoot);
+    }
+
+    private void BindCurrentSuitCountTexts(Transform panelRoot)
+    {
+        currentSuitCountTexts[Suit.Hearts] = BindText(panelRoot, "HeartsNumberText");
+        currentSuitCountTexts[Suit.Spades] = BindText(panelRoot, "SpadesNumberText");
+        currentSuitCountTexts[Suit.Diamonds] = BindText(panelRoot, "DiamondsNumberText");
+        currentSuitCountTexts[Suit.Clubs] = BindText(panelRoot, "ClubsNumberText");
+        Debug.Log("Bound LeftSuitInfoModule count texts");
+    }
+
+    private void BindCurrentRankCountTexts(Transform panelRoot)
+    {
+        Transform rankModule = FindDeepChildIncludingInactive(panelRoot, "TopRankInfoModule");
+
+        if (rankModule == null)
+        {
+            rankModule = FindDeepChildIncludingInactive(panelRoot, "TopRankInfoMudule");
+
+            if (rankModule != null)
+            {
+                Debug.Log("Found TopRankInfoMudule fallback.");
+            }
+        }
+
+        Transform searchRoot = rankModule != null ? rankModule : panelRoot;
+
+        foreach (Rank rank in rankDisplayOrder)
+        {
+            string textName = $"{GetRankLabel(rank)}NumberText";
+            currentRankCountTexts[rank] = BindText(searchRoot, textName);
+        }
+
+        Debug.Log("Bound TopRankInfoModule count texts");
+    }
+
+    private void BindSpecificCardCountTexts(Transform panelRoot)
+    {
+        Transform specificModule = FindDeepChildIncludingInactive(panelRoot, "SpecificCardCountModule");
+        Transform searchRoot = specificModule != null ? specificModule : panelRoot;
+
+        foreach (Suit suit in suitDisplayOrder)
+        {
+            currentSpecificCardCountTexts[suit] = new Dictionary<Rank, TMP_Text>();
+
+            foreach (Rank rank in rankDisplayOrder)
+            {
+                TMP_Text countText = BindSpecificCardCountText(searchRoot, suit, rank);
+                currentSpecificCardCountTexts[suit][rank] = countText;
+            }
+        }
+
+        Debug.Log("Bound SpecificCardCountModule count texts");
+    }
+
+    private TMP_Text BindSpecificCardCountText(Transform searchRoot, Suit suit, Rank rank)
+    {
+        string rankLabel = GetRankLabel(rank);
+        string[] prefixes = GetSpecificSuitPrefixes(suit);
+
+        for (int i = 0; i < prefixes.Length; i++)
+        {
+            string textName = $"{prefixes[i]}{rankLabel}NumberText";
+            TMP_Text countText = BindText(searchRoot, textName, false);
+
+            if (countText != null)
+            {
+                return countText;
+            }
+        }
+
+        Debug.LogWarning($"Warning: specific card count text not found: {prefixes[0]}{rankLabel}NumberText");
+        return null;
+    }
+
+    private string[] GetSpecificSuitPrefixes(Suit suit)
+    {
+        switch (suit)
+        {
+            case Suit.Hearts:
+                return new[] { "Heart", "Hearts" };
+            case Suit.Spades:
+                return new[] { "Spade", "Spades" };
+            case Suit.Diamonds:
+                return new[] { "Diamond", "Diamonds" };
+            default:
+                return new[] { "Club", "Clubs" };
+        }
+    }
+
     private TMP_Text BindText(Transform canvasRoot, string objectName)
+    {
+        return BindText(canvasRoot, objectName, true);
+    }
+
+    private TMP_Text BindText(Transform canvasRoot, string objectName, bool logErrorIfMissing)
     {
         GameObject textObject = FindObjectIncludingInactive(canvasRoot, objectName);
 
         if (textObject == null)
         {
-            Debug.LogError($"Failed to bind {objectName}");
+            if (logErrorIfMissing)
+            {
+                Debug.LogError($"Failed to bind {objectName}");
+            }
+
             return null;
         }
 
@@ -538,7 +700,11 @@ public class DeckStatsUIController : MonoBehaviour
 
         if (text == null)
         {
-            Debug.LogError($"Failed to bind {objectName}");
+            if (logErrorIfMissing)
+            {
+                Debug.LogError($"Failed to bind {objectName}");
+            }
+
             return null;
         }
 
