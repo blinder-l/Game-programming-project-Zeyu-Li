@@ -8,6 +8,7 @@ public class RunInfoUIController : MonoBehaviour
 {
     private GameObject runInfoPanel;
     private GameObject handTypeInfoContainer;
+    private GameObject suitInfoContainer;
     private GameObject generatedInfoContainer;
     private Button handTypeButton;
     private Button suitButton;
@@ -15,6 +16,7 @@ public class RunInfoUIController : MonoBehaviour
     private Button returnButton;
     private TMP_Text generatedInfoText;
     private readonly List<HandTypeInfoRow> handTypeRows = new List<HandTypeInfoRow>();
+    private readonly List<SuitInfoRow> suitRows = new List<SuitInfoRow>();
     private readonly PokerHandType[] fallbackHandTypeOrder =
     {
         PokerHandType.StraightFlush,
@@ -41,6 +43,14 @@ public class RunInfoUIController : MonoBehaviour
         new HandTypeRowBinding("HighCardBox", PokerHandType.HighCard)
     };
 
+    private readonly SuitRowBinding[] sceneSuitRows =
+    {
+        new SuitRowBinding("HeartBox", Suit.Hearts),
+        new SuitRowBinding("SpadeBox", Suit.Spades),
+        new SuitRowBinding("DiamondsBox", Suit.Diamonds),
+        new SuitRowBinding("ClubsBox", Suit.Clubs)
+    };
+
     private HandTypeLevelManager handTypeLevelManager;
     private SuitMasteryManager suitMasteryManager;
     private IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts;
@@ -63,11 +73,13 @@ public class RunInfoUIController : MonoBehaviour
         }
 
         handTypeInfoContainer = FindObjectIncludingInactive(runInfoPanel.transform, "HandTypeInfoContainer");
+        suitInfoContainer = FindObjectIncludingInactive(runInfoPanel.transform, "SuitInfoContainer");
         handTypeButton = BindButton(runInfoPanel.transform, "HandTypeButton", ShowHandTypeInfo);
         suitButton = BindButton(runInfoPanel.transform, "Suit", ShowSuitInfo);
         voucherButton = BindButton(runInfoPanel.transform, "Voucher", ShowVoucherInfo);
         returnButton = BindButton(runInfoPanel.transform, "ReturnButton", Hide);
         BindHandTypeRows();
+        BindSuitRows();
         EnsureGeneratedInfoContainer();
         Hide();
         Debug.Log("Bound RunInfoPanel");
@@ -122,6 +134,7 @@ public class RunInfoUIController : MonoBehaviour
     {
         currentTab = RunInfoTab.HandTypes;
         SetHandTypeRowsActive(true);
+        SetSuitRowsActive(false);
         SetGeneratedInfoActive(false);
 
         if (handTypeLevelManager == null)
@@ -216,13 +229,28 @@ public class RunInfoUIController : MonoBehaviour
     {
         currentTab = RunInfoTab.Suits;
         SetHandTypeRowsActive(false);
-        SetGeneratedInfoActive(true);
+        SetSuitRowsActive(true);
+        SetGeneratedInfoActive(false);
 
-        if (generatedInfoText != null)
+        if (suitMasteryManager == null)
         {
-            generatedInfoText.text = suitMasteryManager != null
-                ? $"Suit Mastery\n\n{suitMasteryManager.GetMasteryDebugText()}\nHearts: Lv1+ chips, Lv3 adds mult with 2+ Hearts\nSpades: Lv1+ mult, Lv3 adds chips\nDiamonds: Lv1+ gold on 1-2 Diamonds\nClubs: Lv1+ retriggers highest rank chips"
-                : "Suit Mastery data unavailable.";
+            Debug.LogError("Cannot show suit info: SuitMasteryManager is null");
+            return;
+        }
+
+        for (int i = 0; i < suitRows.Count; i++)
+        {
+            SuitInfoRow row = suitRows[i];
+            Suit suit = row.BoundSuit;
+            int level = suitMasteryManager.GetLevel(suit);
+
+            row.SetActive(true);
+            row.SetSuitInfo(
+                $"Lv{level}",
+                GetSuitDisplayName(suit),
+                GetSuitEffectDescription(suit, level));
+
+            Debug.Log($"RunInfo suit row updated: {suit}, Lv {level}, effect: {GetSuitEffectDescription(suit, level)}");
         }
 
         Debug.Log("RunInfoPanel showing suit info");
@@ -232,6 +260,7 @@ public class RunInfoUIController : MonoBehaviour
     {
         currentTab = RunInfoTab.Vouchers;
         SetHandTypeRowsActive(false);
+        SetSuitRowsActive(false);
         SetGeneratedInfoActive(true);
 
         if (generatedInfoText != null)
@@ -290,6 +319,35 @@ public class RunInfoUIController : MonoBehaviour
         }
 
         Debug.Log($"Bound {handTypeRows.Count} hand type info rows");
+    }
+
+    private void BindSuitRows()
+    {
+        suitRows.Clear();
+
+        if (suitInfoContainer == null)
+        {
+            Debug.LogError("Failed to bind SuitInfoContainer");
+            return;
+        }
+
+        for (int i = 0; i < sceneSuitRows.Length; i++)
+        {
+            SuitRowBinding rowBinding = sceneSuitRows[i];
+            GameObject rowObject = FindObjectIncludingInactive(suitInfoContainer.transform, rowBinding.rowObjectName);
+
+            if (rowObject == null)
+            {
+                Debug.LogWarning($"RunInfo suit row not found by name: {rowBinding.rowObjectName}");
+                continue;
+            }
+
+            SuitInfoRow row = new SuitInfoRow(rowObject, rowBinding.suit);
+            suitRows.Add(row);
+            Debug.Log($"Bound suit info row: {rowObject.name}, suit = {row.BoundSuit}");
+        }
+
+        Debug.Log($"Bound {suitRows.Count} suit info rows");
     }
 
     private void BindHandTypeRowsByStructureFallback()
@@ -375,6 +433,14 @@ public class RunInfoUIController : MonoBehaviour
         }
     }
 
+    private void SetSuitRowsActive(bool isActive)
+    {
+        if (suitInfoContainer != null)
+        {
+            suitInfoContainer.SetActive(isActive);
+        }
+    }
+
     private void SetGeneratedInfoActive(bool isActive)
     {
         if (generatedInfoContainer != null)
@@ -410,6 +476,63 @@ public class RunInfoUIController : MonoBehaviour
 
         return null;
     }
+
+    private string GetSuitDisplayName(Suit suit)
+    {
+        switch (suit)
+        {
+            case Suit.Hearts:
+                return "Hearts";
+            case Suit.Spades:
+                return "Spades";
+            case Suit.Diamonds:
+                return "Diamonds";
+            default:
+                return "Clubs";
+        }
+    }
+
+    private string GetSuitEffectDescription(Suit suit, int level)
+    {
+        if (level < 1)
+        {
+            return "No effect unlocked";
+        }
+
+        switch (suit)
+        {
+            case Suit.Hearts:
+                if (level >= 3)
+                {
+                    return "+20 Chips; 2+ Hearts: +0.5 Mult";
+                }
+
+                return level >= 2 ? "+15 Chips" : "+10 Chips";
+            case Suit.Spades:
+                if (level >= 3)
+                {
+                    return "+1.0 Mult; +10 Chips";
+                }
+
+                return level >= 2 ? "+0.8 Mult" : "+0.5 Mult";
+            case Suit.Diamonds:
+                if (level >= 3)
+                {
+                    return "1-2 Diamonds: +3 Gold";
+                }
+
+                return level >= 2 ? "1-2 Diamonds: +2 Gold" : "1-2 Diamonds: +1 Gold";
+            case Suit.Clubs:
+                if (level >= 3)
+                {
+                    return "Retrigger highest rank chips; +5 Chips; +0.5 Mult";
+                }
+
+                return level >= 2 ? "Retrigger highest rank chips; +5 Chips" : "Retrigger highest rank chips";
+            default:
+                return string.Empty;
+        }
+    }
 }
 
 public enum RunInfoTab
@@ -428,6 +551,18 @@ public struct HandTypeRowBinding
     {
         this.rowObjectName = rowObjectName;
         this.handType = handType;
+    }
+}
+
+public struct SuitRowBinding
+{
+    public readonly string rowObjectName;
+    public readonly Suit suit;
+
+    public SuitRowBinding(string rowObjectName, Suit suit)
+    {
+        this.rowObjectName = rowObjectName;
+        this.suit = suit;
     }
 }
 
@@ -580,5 +715,73 @@ public class HandTypeInfoRow
             .Replace("-", string.Empty)
             .Trim()
             .ToLowerInvariant();
+    }
+}
+
+public class SuitInfoRow
+{
+    private readonly GameObject root;
+    private readonly TMP_Text rankText;
+    private readonly TMP_Text suitText;
+    private readonly TMP_Text effectText;
+    private readonly Suit boundSuit;
+
+    public Suit BoundSuit => boundSuit;
+
+    public SuitInfoRow(GameObject root, Suit boundSuit)
+    {
+        this.root = root;
+        this.boundSuit = boundSuit;
+        rankText = FindText(root.transform, "RankText");
+        suitText = FindText(root.transform, "SuitText");
+        effectText = FindText(root.transform, "EffectText");
+
+        if (rankText == null || suitText == null || effectText == null)
+        {
+            Debug.LogWarning($"RunInfo suit row '{(root != null ? root.name : string.Empty)}' missing text binding. Rank: {rankText != null}, Suit: {suitText != null}, Effect: {effectText != null}");
+        }
+    }
+
+    public void SetActive(bool isActive)
+    {
+        if (root != null)
+        {
+            root.SetActive(isActive);
+        }
+    }
+
+    public void SetSuitInfo(string rank, string suit, string effect)
+    {
+        SetText(rankText, rank);
+        SetText(suitText, suit);
+        SetText(effectText, effect);
+    }
+
+    private static TMP_Text FindText(Transform root, string objectName)
+    {
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == objectName)
+            {
+                TMP_Text text = child.GetComponent<TMP_Text>();
+
+                if (text != null)
+                {
+                    text.raycastTarget = false;
+                }
+
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetText(TMP_Text targetText, string value)
+    {
+        if (targetText != null)
+        {
+            targetText.text = value;
+        }
     }
 }
