@@ -28,6 +28,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private int lastCashOutTotal;
     private bool hasClaimedCashOut;
     private bool isResolvingPlayedHand;
+    private bool hasPreparedDeckForNextBlind;
     private string latestHandTypeText = "None";
     private string latestHandTypeRankText = "-";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
@@ -159,12 +160,15 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void StartCurrentBlind()
     {
-        deckManager = new DeckManager();
-        deckManager.CreateStandardDeck();
-        deckManager.Shuffle();
-
-        handManager = new HandManager();
-        handManager.FillHand(deckManager);
+        if (hasPreparedDeckForNextBlind)
+        {
+            hasPreparedDeckForNextBlind = false;
+            Debug.Log("Using pre-refreshed deck and hand for this Blind.");
+        }
+        else
+        {
+            BuildFreshDeckAndHand();
+        }
 
         roundManager = new RoundManager(runManager.GetCurrentTargetScore());
         isInShop = false;
@@ -179,6 +183,26 @@ public class PrototypeBootstrap : MonoBehaviour
 
         Debug.Log($"Starting {runManager.GetDebugStatus()}");
         LogCurrentState();
+    }
+
+    private void BuildFreshDeckAndHand()
+    {
+        deckManager = new DeckManager();
+        deckManager.CreateStandardDeck();
+        deckManager.Shuffle();
+
+        handManager = new HandManager();
+        handManager.FillHand(deckManager);
+    }
+
+    private void PrepareDeckAndHandForNextBlindPreview()
+    {
+        BuildFreshDeckAndHand();
+        hasPreparedDeckForNextBlind = true;
+        ClearSelectedCards();
+        gameUIController?.SetDeckStatsSources(deckManager, handManager);
+        Debug.Log("Prepared fresh deck and hand for next Blind preview.");
+        Debug.Log($"Preview deck count: {deckManager.DrawPileCount} | Preview hand count: {handManager.CurrentHandCount}");
     }
 
     private void StartNextBlind()
@@ -1315,6 +1339,7 @@ public class PrototypeBootstrap : MonoBehaviour
             Debug.Log("Blind passed.");
             jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
+            PrepareDeckAndHandForNextBlindPreview();
             OpenCashOutPanel();
         }
         else if (roundManager.HasFailedBlind)

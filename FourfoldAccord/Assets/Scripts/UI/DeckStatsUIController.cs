@@ -120,33 +120,36 @@ public class DeckStatsUIController : MonoBehaviour
             return;
         }
 
-        if (currentState == GameUIState.PlayingBlind)
-        {
-            OpenCurrentHandStatsView();
-        }
-        else
-        {
-            OpenFullDeckStatsView(currentState);
-        }
+        OpenCurrentHandStatsView(currentState);
     }
 
-    private void OpenCurrentHandStatsView()
+    private void OpenCurrentHandStatsView(GameUIState currentState)
     {
         currentMode = DeckViewMode.CurrentHandStats;
         SetPanelActive(currentHandStatsPanel, true);
         SetPanelActive(deckStatsPanel, false);
-        SetPanelActive(centerPlayArea, false);
-        SetPanelActive(bottomHandArea, true);
-        SetPanelActive(handSlotsContainer, true);
-        SetPanelActive(actionButtonsContainer, false);
+        BringCurrentHandStatsPanelToFront();
+
+        if (currentState == GameUIState.PlayingBlind)
+        {
+            SetPanelActive(centerPlayArea, false);
+            SetPanelActive(bottomHandArea, true);
+            SetPanelActive(handSlotsContainer, true);
+            SetPanelActive(actionButtonsContainer, false);
+        }
+
         SetActionButtonsInteractable(false);
         RefreshCurrentAvailableCardStats();
         Debug.Log("Deck view mode: CurrentAvailableCards");
         Debug.Log("CurrentHandStatsPanel shown");
         Debug.Log("DeckStatsPanel hidden");
-        Debug.Log("CenterPlayArea hidden");
-        Debug.Log("ActionButtonsContainer hidden");
-        Debug.Log("HandSlotsContainer kept visible");
+
+        if (currentState == GameUIState.PlayingBlind)
+        {
+            Debug.Log("CenterPlayArea hidden");
+            Debug.Log("ActionButtonsContainer hidden");
+            Debug.Log("HandSlotsContainer kept visible");
+        }
     }
 
     private void OpenFullDeckStatsView(GameUIState currentState)
@@ -212,8 +215,9 @@ public class DeckStatsUIController : MonoBehaviour
     private void CloseCurrentHandStatsView(bool logClose)
     {
         SetPanelActive(currentHandStatsPanel, false);
+        bool isPlayingBlind = getCurrentState != null && getCurrentState() == GameUIState.PlayingBlind;
 
-        if (getCurrentState != null && getCurrentState() == GameUIState.PlayingBlind)
+        if (isPlayingBlind)
         {
             SetPanelActive(centerPlayArea, true);
             SetPanelActive(bottomHandArea, true);
@@ -225,8 +229,12 @@ public class DeckStatsUIController : MonoBehaviour
         {
             Debug.Log("Deck view closed");
             Debug.Log("CurrentHandStatsPanel hidden");
-            Debug.Log("CenterPlayArea restored");
-            Debug.Log("ActionButtonsContainer restored");
+
+            if (isPlayingBlind)
+            {
+                Debug.Log("CenterPlayArea restored");
+                Debug.Log("ActionButtonsContainer restored");
+            }
         }
     }
 
@@ -246,6 +254,14 @@ public class DeckStatsUIController : MonoBehaviour
         if (deckStatsPanel != null)
         {
             deckStatsPanel.transform.SetAsLastSibling();
+        }
+    }
+
+    private void BringCurrentHandStatsPanelToFront()
+    {
+        if (currentHandStatsPanel != null)
+        {
+            currentHandStatsPanel.transform.SetAsLastSibling();
         }
     }
 
