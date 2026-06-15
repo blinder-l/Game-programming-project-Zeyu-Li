@@ -20,7 +20,12 @@ public class RunManager
 
     public int GetBlindInAnte()
     {
-        return ((CurrentBlindNumber - 1) % BlindsPerAnte) + 1;
+        return GetBlindInAnte(CurrentBlindNumber);
+    }
+
+    public int GetBlindInAnte(int blindNumber)
+    {
+        return ((blindNumber - 1) % BlindsPerAnte) + 1;
     }
 
     public string GetBlindDisplayName()
@@ -38,7 +43,12 @@ public class RunManager
 
     public bool IsBossBlind()
     {
-        return GetBlindInAnte() == BlindsPerAnte;
+        return IsBossBlind(CurrentBlindNumber);
+    }
+
+    public bool IsBossBlind(int blindNumber)
+    {
+        return GetBlindInAnte(blindNumber) == BlindsPerAnte;
     }
 
     public int GetFixedBlindReward()

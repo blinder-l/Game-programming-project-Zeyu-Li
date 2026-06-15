@@ -19,6 +19,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private RoundManager roundManager;
     private RunManager runManager;
     private ShopManager shopManager;
+    private BossBlindManager bossBlindManager;
     private SuitMasteryManager suitMasteryManager;
     private HandTypeLevelManager handTypeLevelManager;
     private JokerManager jokerManager;
@@ -52,6 +53,7 @@ public class PrototypeBootstrap : MonoBehaviour
         scoreManager = new ScoreManager();
         runManager = new RunManager();
         shopManager = new ShopManager();
+        bossBlindManager = new BossBlindManager();
         suitMasteryManager = new SuitMasteryManager();
         handTypeLevelManager = new HandTypeLevelManager();
         InitializeHandTypePlayCounts();
@@ -183,17 +185,28 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void StartCurrentBlind()
     {
+        bossBlindManager.StartPreparedBlind(runManager.CurrentBlindNumber, runManager.IsBossBlind());
+        int handSizeLimit = bossBlindManager.GetHandSizeLimit(HandManager.DefaultHandSizeLimit);
+
         if (hasPreparedDeckForNextBlind)
         {
             hasPreparedDeckForNextBlind = false;
+            if (handManager != null)
+            {
+                handManager.HandSizeLimit = handSizeLimit;
+            }
             Debug.Log("Using pre-refreshed deck and hand for this Blind.");
         }
         else
         {
-            BuildFreshDeckAndHand();
+            BuildFreshDeckAndHand(handSizeLimit);
         }
 
-        roundManager = new RoundManager(runManager.GetCurrentTargetScore());
+        int baseTargetScore = runManager.GetCurrentTargetScore();
+        int targetScore = bossBlindManager.GetTargetScore(baseTargetScore);
+        int startingHands = bossBlindManager.GetStartingHands(4);
+        int startingDiscards = bossBlindManager.GetStartingDiscards(3);
+        roundManager = new RoundManager(targetScore, startingHands, startingDiscards);
         isInShop = false;
         latestHandTypeText = "None";
         latestHandTypeRankText = "-";
@@ -209,25 +222,30 @@ public class PrototypeBootstrap : MonoBehaviour
         LogCurrentState();
     }
 
-    private void BuildFreshDeckAndHand()
+    private void BuildFreshDeckAndHand(int handSizeLimit = HandManager.DefaultHandSizeLimit)
     {
         deckManager = new DeckManager();
         deckManager.CreateStandardDeck();
         deckManager.Shuffle();
 
         handManager = new HandManager();
+        handManager.HandSizeLimit = handSizeLimit;
         handManager.FillHand(deckManager);
     }
 
     private void PrepareDeckAndHandForNextBlindPreview()
     {
+        int nextBlindNumber = runManager.CurrentBlindNumber + 1;
+        bossBlindManager.PrepareForBlind(nextBlindNumber, runManager.IsBossBlind(nextBlindNumber));
+        int handSizeLimit = bossBlindManager.GetHandSizeLimit(HandManager.DefaultHandSizeLimit);
+
         List<PlayingCard> ownedCards = deckManager != null
             ? deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand)
             : new List<PlayingCard>();
 
         if (ownedCards.Count == 0)
         {
-            BuildFreshDeckAndHand();
+            BuildFreshDeckAndHand(handSizeLimit);
         }
         else
         {
@@ -236,6 +254,7 @@ public class PrototypeBootstrap : MonoBehaviour
             deckManager.Shuffle();
 
             handManager = new HandManager();
+            handManager.HandSizeLimit = handSizeLimit;
             handManager.FillHand(deckManager);
         }
 
@@ -895,6 +914,12 @@ public class PrototypeBootstrap : MonoBehaviour
 
         JokerRuleContext ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null;
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay, ruleContext);
+
+        if (!CanPlaySelectedCardsAgainstBoss(cardsToPlay, pokerHandResult))
+        {
+            return false;
+        }
+
         JokerRuntimeContext playRuntimeContext = BuildJokerRuntimeContext(cardsToPlay, roundManager.handsRemaining == 4);
         jokerManager?.NotifyBeforeScore(playRuntimeContext);
         List<PlayingCard> ownedCardsSnapshot = deckManager != null
@@ -912,10 +937,40 @@ public class PrototypeBootstrap : MonoBehaviour
             heldCardsSnapshot,
             ruleContext,
             currentHandTypePlayCount,
-            handTypePlayCountsBeforeHand);
+            handTypePlayCountsBeforeHand,
+            bossBlindManager != null ? bossBlindManager.BuildContext() : null);
         latestHandTypeText = scoreContext.handType.ToString();
         latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
         StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext, playRuntimeContext));
+        return true;
+    }
+
+    private bool CanPlaySelectedCardsAgainstBoss(List<PlayingCard> cardsToPlay, PokerHandResult pokerHandResult)
+    {
+        if (bossBlindManager == null || !bossBlindManager.IsActive)
+        {
+            return true;
+        }
+
+        if (bossBlindManager.CurrentType == BossBlindType.Psychic && (cardsToPlay == null || cardsToPlay.Count != 5))
+        {
+            Debug.Log("Boss Blocked Play: The Psychic requires exactly 5 selected cards.");
+            return false;
+        }
+
+        if (bossBlindManager.CurrentType == BossBlindType.Eye)
+        {
+            PokerHandType handType = pokerHandResult != null ? pokerHandResult.handType : PokerHandType.HighCard;
+
+            if (!bossBlindManager.TryRecordEyeHandType(handType, out string message))
+            {
+                Debug.Log(message);
+                return false;
+            }
+
+            Debug.Log(message);
+        }
+
         return true;
     }
 
@@ -1398,6 +1453,7 @@ public class PrototypeBootstrap : MonoBehaviour
         RefreshRunInfoSources();
         RefreshJokerBarUI();
         gameUIController.RefreshConsumableSlots(heldSpellCards);
+        SyncBossDebuffFlagsForCurrentHand();
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
         gameUIController.RefreshResolutionInfo(latestScoreContext);
@@ -1407,8 +1463,9 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        gameUIController.RefreshBossBlindInfo(bossBlindManager != null ? bossBlindManager.CurrentRuleText : string.Empty);
         gameUIController.RefreshBlindStatus(
-            runManager.GetBlindDisplayName(),
+            GetCurrentBlindDisplayName(),
             roundManager.targetScore,
             roundManager.currentScore,
             latestHandTypeText,
@@ -1417,6 +1474,36 @@ public class PrototypeBootstrap : MonoBehaviour
             roundManager.discardsRemaining,
             currentGold,
             runManager.GetAnteNumber());
+    }
+
+    private string GetCurrentBlindDisplayName()
+    {
+        if (bossBlindManager != null && bossBlindManager.IsActive)
+        {
+            return bossBlindManager.CurrentDisplayName;
+        }
+
+        return runManager != null ? runManager.GetBlindDisplayName() : string.Empty;
+    }
+
+    private void SyncBossDebuffFlagsForCurrentHand()
+    {
+        if (handManager == null || handManager.CurrentHand == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < handManager.CurrentHand.Count; i++)
+        {
+            PlayingCard card = handManager.CurrentHand[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            card.isDebuffed = bossBlindManager != null && bossBlindManager.IsCardDebuffedByBoss(card);
+        }
     }
 
     private List<PlayingCard> GetSelectedCardsForAction()

@@ -106,6 +106,7 @@ public class ScoreContext
     public int currentHandTypePlayCount;
     public IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand;
     public JokerRuleContext ruleContext;
+    public BossBlindContext bossBlindContext;
     public List<string> triggeredCardEffectLog;
     public List<string> triggeredSuitEffectLog;
     public List<string> triggeredJokerEffectLog;
@@ -130,6 +131,7 @@ public class ScoreContext
         int currentHandTypePlayCount,
         IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand,
         JokerRuleContext ruleContext,
+        BossBlindContext bossBlindContext,
         List<string> triggeredCardEffectLog,
         List<string> triggeredSuitEffectLog,
         List<string> triggeredJokerEffectLog)
@@ -153,9 +155,15 @@ public class ScoreContext
         this.currentHandTypePlayCount = currentHandTypePlayCount;
         this.handTypePlayCountsBeforeHand = handTypePlayCountsBeforeHand;
         this.ruleContext = ruleContext;
+        this.bossBlindContext = bossBlindContext;
         this.triggeredCardEffectLog = triggeredCardEffectLog;
         this.triggeredSuitEffectLog = triggeredSuitEffectLog;
         this.triggeredJokerEffectLog = triggeredJokerEffectLog;
+    }
+
+    public bool IsCardDebuffedByBoss(PlayingCard card)
+    {
+        return bossBlindContext != null && bossBlindContext.IsCardDebuffed(card);
     }
 
     public string GetCardChipDebugText()

@@ -40,6 +40,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private Button sortBySuitButton;
     [SerializeField] private Button sortByRankButton;
     [SerializeField] private TMP_Text blindNameText;
+    [SerializeField] private TMP_Text bossBlindInfoText;
     [SerializeField] private TMP_Text targetScoreText;
     [SerializeField] private TMP_Text currentScoreText;
     [SerializeField] private TMP_Text handTypeText;
@@ -878,6 +879,7 @@ public class GameUIController : MonoBehaviour
         }
 
         blindNameText = BindTextInRoot(leftPanelRoot, "BlindNameText", "BlindNameText");
+        bossBlindInfoText = BindTextInRoot(leftPanelRoot, "BossBlindInfo", "BossBlindInfo", false);
         targetScoreText = BindTextInRoot(leftPanelRoot, "TargetScoreText", "TargetScoreText");
         currentScoreText = BindTextInRoot(leftPanelRoot, "CurrentScoreText", "CurrentScoreText");
         handTypeText = BindTextInRoot(leftPanelRoot, "HandTypeText", "HandTypeText");
@@ -907,6 +909,18 @@ public class GameUIController : MonoBehaviour
         }
 
         Debug.Log("Bound left status UI");
+    }
+
+    public void RefreshBossBlindInfo(string ruleText)
+    {
+        if (bossBlindInfoText == null)
+        {
+            return;
+        }
+
+        bool hasRuleText = !string.IsNullOrWhiteSpace(ruleText);
+        bossBlindInfoText.text = hasRuleText ? ruleText : string.Empty;
+        bossBlindInfoText.gameObject.SetActive(hasRuleText);
     }
 
     private void ResolveJokerSpriteDatabaseIfNeeded()

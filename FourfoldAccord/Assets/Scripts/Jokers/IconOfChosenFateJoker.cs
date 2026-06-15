@@ -65,6 +65,7 @@ public class IconOfChosenFateJoker : JokerBase
             PlayingCard card = scoreEvent != null ? scoreEvent.card : null;
 
             if (card == null ||
+                scoreContext.IsCardDebuffedByBoss(card) ||
                 !card.HasRank ||
                 card.rank != targetRank ||
                 !CardTraitUtility.GetEffectiveSuits(card, scoreContext.ruleContext).Contains(targetSuit))

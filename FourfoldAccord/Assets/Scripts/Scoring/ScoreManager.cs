@@ -34,7 +34,8 @@ public class ScoreManager
         IReadOnlyList<PlayingCard> heldCardsSnapshot = null,
         JokerRuleContext ruleContext = null,
         int currentHandTypePlayCount = 0,
-        IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand = null)
+        IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand = null,
+        BossBlindContext bossBlindContext = null)
     {
         if (pokerHandResult == null)
         {
@@ -52,17 +53,27 @@ public class ScoreManager
             scoringCards,
             jokerManager,
             ruleContext,
+            bossBlindContext,
             triggeredCardEffectLog,
             cardScoreEvents,
             jokerScoreEvents,
             out bonusCardGoldReward,
             out luckySuccessfulTriggerCount,
             out cardEffectMultBonus);
-        Dictionary<Suit, int> suitCounts = GetSuitCounts(scoringCards);
+        Dictionary<Suit, int> suitCounts = GetSuitCounts(scoringCards, bossBlindContext);
         int baseChips = GetBaseChips(pokerHandResult.handType, handTypeLevelManager);
+        float baseMult = GetBaseMult(pokerHandResult.handType, handTypeLevelManager);
+
+        if (bossBlindContext != null && bossBlindContext.IsFlint)
+        {
+            baseChips = (int)Math.Floor(baseChips * 0.5f);
+            baseMult *= 0.5f;
+            triggeredCardEffectLog.Add("Boss Applied: The Flint - Base chips and base mult halved.");
+        }
+
         int rankChips = GetRankChips(cardChipValues);
         int chips = baseChips + rankChips;
-        float mult = GetBaseMult(pokerHandResult.handType, handTypeLevelManager) + cardEffectMultBonus;
+        float mult = baseMult + cardEffectMultBonus;
 
         ScoreContext scoreContext = new ScoreContext(
             new List<PlayingCard>(scoringCards),
@@ -84,6 +95,7 @@ public class ScoreManager
             currentHandTypePlayCount,
             handTypePlayCountsBeforeHand,
             ruleContext,
+            bossBlindContext,
             triggeredCardEffectLog,
             new List<string>(),
             new List<string>());
@@ -171,6 +183,7 @@ public class ScoreManager
         List<PlayingCard> cards,
         JokerManager jokerManager,
         JokerRuleContext ruleContext,
+        BossBlindContext bossBlindContext,
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         List<JokerScoreEvent> jokerScoreEvents,
@@ -200,6 +213,7 @@ public class ScoreManager
                 false,
                 "Card",
                 ruleContext,
+                bossBlindContext,
                 triggeredCardEffectLog,
                 cardScoreEvents,
                 out cardBonusGoldReward,
@@ -221,7 +235,7 @@ public class ScoreManager
 
             List<CardRetriggerEffect> retriggerEffects = new List<CardRetriggerEffect>();
 
-            if (card.seal == CardSeal.Red)
+            if ((bossBlindContext == null || !bossBlindContext.IsCardDebuffed(card)) && card.seal == CardSeal.Red)
             {
                 retriggerEffects.Add(new CardRetriggerEffect(1, -1, "+1", "Red Seal"));
             }
@@ -263,6 +277,7 @@ public class ScoreManager
                         true,
                         retriggerEffect.effectSource,
                         ruleContext,
+                        bossBlindContext,
                         triggeredCardEffectLog,
                         cardScoreEvents,
                         out retriggerBonusGoldReward,
@@ -285,6 +300,7 @@ public class ScoreManager
         bool isRetrigger,
         string effectSource,
         JokerRuleContext ruleContext,
+        BossBlindContext bossBlindContext,
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         out int bonusCardGoldReward,
@@ -294,6 +310,20 @@ public class ScoreManager
         bonusCardGoldReward = 0;
         luckySuccessfulTriggerCount = 0;
         multBonus = 0f;
+
+        if (bossBlindContext != null && bossBlindContext.IsCardDebuffed(card))
+        {
+            triggeredCardEffectLog.Add($"Boss Debuff: {card.suit} card ignored for scoring bonuses: {card.GetDisplayName()}");
+            cardScoreEvents.Add(new CardScoreEvent(
+                card,
+                -1,
+                0,
+                0,
+                isRetrigger,
+                "+0",
+                effectSource));
+            return 0;
+        }
 
         int cardChips;
 
@@ -433,7 +463,7 @@ public class ScoreManager
         }
     }
 
-    private Dictionary<Suit, int> GetSuitCounts(List<PlayingCard> cards)
+    private Dictionary<Suit, int> GetSuitCounts(List<PlayingCard> cards, BossBlindContext bossBlindContext)
     {
         Dictionary<Suit, int> suitCounts = new Dictionary<Suit, int>();
 
@@ -444,7 +474,7 @@ public class ScoreManager
 
         for (int i = 0; i < cards.Count; i++)
         {
-            if (cards[i] == null || !cards[i].HasSuit)
+            if (cards[i] == null || !cards[i].HasSuit || (bossBlindContext != null && bossBlindContext.IsCardDebuffed(cards[i])))
             {
                 continue;
             }

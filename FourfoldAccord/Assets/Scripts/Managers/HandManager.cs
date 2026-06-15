@@ -3,12 +3,13 @@ using System.Text;
 
 public class HandManager
 {
+    public const int DefaultHandSizeLimit = 8;
     private const int MaxSelectedCards = 5;
 
     private readonly List<PlayingCard> currentHand = new List<PlayingCard>();
 
     public IReadOnlyList<PlayingCard> CurrentHand => currentHand;
-    public int HandSizeLimit { get; } = 8;
+    public int HandSizeLimit { get; set; } = DefaultHandSizeLimit;
     public int CurrentHandCount => currentHand.Count;
     public int MaxSelectedCardCount => MaxSelectedCards;
 

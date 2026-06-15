@@ -16,7 +16,9 @@ public class BloodstoneDivinerJoker : JokerBase
             CardScoreEvent scoreEvent = scoreContext.cardScoreEvents[i];
             PlayingCard card = scoreEvent != null ? scoreEvent.card : null;
 
-            if (card == null || !CardTraitUtility.GetEffectiveSuits(card, scoreContext.ruleContext).Contains(Suit.Hearts))
+            if (card == null ||
+                scoreContext.IsCardDebuffedByBoss(card) ||
+                !CardTraitUtility.GetEffectiveSuits(card, scoreContext.ruleContext).Contains(Suit.Hearts))
             {
                 continue;
             }

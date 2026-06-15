@@ -34,7 +34,9 @@ public class SageOfTheShiftingSigilJoker : JokerBase
             CardScoreEvent scoreEvent = scoreContext.cardScoreEvents[i];
             PlayingCard card = scoreEvent != null ? scoreEvent.card : null;
 
-            if (card == null || !CardTraitUtility.GetEffectiveSuits(card, scoreContext.ruleContext).Contains(currentTargetSuit))
+            if (card == null ||
+                scoreContext.IsCardDebuffedByBoss(card) ||
+                !CardTraitUtility.GetEffectiveSuits(card, scoreContext.ruleContext).Contains(currentTargetSuit))
             {
                 continue;
             }
