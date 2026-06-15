@@ -10,7 +10,7 @@ public class ShopManager
     public const int ConsumableOfferCount = 2;
 
     private readonly List<ShopOffer> currentOffers = new List<ShopOffer>();
-    private readonly List<PlanetShopOffer> currentConsumableOffers = new List<PlanetShopOffer>();
+    private readonly List<ConsumableShopOffer> currentConsumableOffers = new List<ConsumableShopOffer>();
     private readonly Random random = new Random();
     private readonly List<Func<JokerBase>> jokerFactories = new List<Func<JokerBase>>
     {
@@ -49,7 +49,7 @@ public class ShopManager
 
     public IReadOnlyList<ShopOffer> CurrentOffers => currentOffers;
     public IReadOnlyList<ShopOffer> ShopOptions => currentOffers;
-    public IReadOnlyList<PlanetShopOffer> CurrentConsumableOffers => currentConsumableOffers;
+    public IReadOnlyList<ConsumableShopOffer> CurrentConsumableOffers => currentConsumableOffers;
 
     public void GenerateOffers()
     {
@@ -72,11 +72,11 @@ public class ShopManager
 
         for (int i = 0; i < ConsumableOfferCount; i++)
         {
-            currentConsumableOffers.Add(new PlanetShopOffer(CreateRandomPlanetCard()));
+            currentConsumableOffers.Add(CreateRandomConsumableOffer());
         }
 
         UnityEngine.Debug.Log("Generated 4 Joker offers.");
-        UnityEngine.Debug.Log("Generated 2 Planet offers.");
+        UnityEngine.Debug.Log("Generated 2 Consumable offers.");
     }
 
     public void GenerateShopOptions()
@@ -200,11 +200,11 @@ public class ShopManager
             return false;
         }
 
-        PlanetShopOffer offer = currentConsumableOffers[index];
+        ConsumableShopOffer offer = currentConsumableOffers[index];
 
-        if (offer == null || offer.PlanetCard == null)
+        if (offer == null || !offer.IsPlanet || offer.PlanetCard == null)
         {
-            message = "Cannot purchase Planet: invalid offer index";
+            message = "Cannot purchase Planet: selected consumable is not a Planet card";
             return false;
         }
 
@@ -233,6 +233,56 @@ public class ShopManager
         return true;
     }
 
+    public bool TryPurchaseSpellOffer(
+        int index,
+        int currentGold,
+        bool hasFreeConsumableSlot,
+        out SpellCard spellCard,
+        out string message,
+        out int newGold)
+    {
+        spellCard = null;
+        newGold = currentGold;
+
+        if (index < 0 || index >= currentConsumableOffers.Count)
+        {
+            message = "Cannot purchase Spell: invalid offer index";
+            return false;
+        }
+
+        ConsumableShopOffer offer = currentConsumableOffers[index];
+
+        if (offer == null || !offer.IsSpell || offer.SpellCard == null)
+        {
+            message = "Cannot purchase Spell: selected consumable is not a Spell card";
+            return false;
+        }
+
+        if (offer.IsSold)
+        {
+            message = "Cannot purchase Spell: offer already sold";
+            return false;
+        }
+
+        if (!hasFreeConsumableSlot)
+        {
+            message = "Cannot buy spell card: consumable slots are full.";
+            return false;
+        }
+
+        if (currentGold < offer.SpellCard.cost)
+        {
+            message = $"Cannot purchase Spell: not enough gold. Cost {offer.SpellCard.cost}, current gold {currentGold}";
+            return false;
+        }
+
+        spellCard = offer.SpellCard;
+        newGold = currentGold - spellCard.cost;
+        offer.MarkSold();
+        message = $"Purchased Spell: {spellCard.Name}, cost {spellCard.cost}, remaining gold {newGold}";
+        return true;
+    }
+
     public string GetShopDebugText()
     {
         if (currentOffers.Count == 0)
@@ -256,10 +306,19 @@ public class ShopManager
 
             for (int i = 0; i < currentConsumableOffers.Count; i++)
             {
-                PlanetShopOffer offer = currentConsumableOffers[i];
+                ConsumableShopOffer offer = currentConsumableOffers[i];
                 string status = offer.IsSold ? "Sold" : "Available";
-                PlanetCard planetCard = offer.PlanetCard;
-                builder.AppendLine($"{i + 1}. {planetCard.Name} (Cost: {planetCard.cost}) - {status} - {planetCard.Description}");
+
+                if (offer.IsPlanet)
+                {
+                    PlanetCard planetCard = offer.PlanetCard;
+                    builder.AppendLine($"{i + 1}. {planetCard.Name} (Cost: {planetCard.cost}) - {status} - {planetCard.Description}");
+                }
+                else if (offer.IsSpell)
+                {
+                    SpellCard spellCard = offer.SpellCard;
+                    builder.AppendLine($"{i + 1}. {spellCard.Name} (Cost: {spellCard.cost}) - {status} - {spellCard.Description}");
+                }
             }
         }
 
@@ -317,6 +376,23 @@ public class ShopManager
         PlanetCardType planetType = (PlanetCardType)planetTypes.GetValue(random.Next(planetTypes.Length));
         return new PlanetCard(planetType);
     }
+
+    private ConsumableShopOffer CreateRandomConsumableOffer()
+    {
+        Array planetTypes = Enum.GetValues(typeof(PlanetCardType));
+        Array spellTypes = Enum.GetValues(typeof(SpellCardType));
+        int totalTypes = planetTypes.Length + spellTypes.Length;
+        int randomIndex = random.Next(totalTypes);
+
+        if (randomIndex < planetTypes.Length)
+        {
+            PlanetCardType planetType = (PlanetCardType)planetTypes.GetValue(randomIndex);
+            return new ConsumableShopOffer(new PlanetCard(planetType));
+        }
+
+        SpellCardType spellType = (SpellCardType)spellTypes.GetValue(randomIndex - planetTypes.Length);
+        return new ConsumableShopOffer(new SpellCard(spellType));
+    }
 }
 
 public class ShopOffer
@@ -335,14 +411,22 @@ public class ShopOffer
     }
 }
 
-public class PlanetShopOffer
+public class ConsumableShopOffer
 {
     public PlanetCard PlanetCard { get; }
+    public SpellCard SpellCard { get; }
     public bool IsSold { get; private set; }
+    public bool IsPlanet => PlanetCard != null;
+    public bool IsSpell => SpellCard != null;
 
-    public PlanetShopOffer(PlanetCard planetCard)
+    public ConsumableShopOffer(PlanetCard planetCard)
     {
         PlanetCard = planetCard;
+    }
+
+    public ConsumableShopOffer(SpellCard spellCard)
+    {
+        SpellCard = spellCard;
     }
 
     public void MarkSold()

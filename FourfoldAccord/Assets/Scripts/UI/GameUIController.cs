@@ -25,11 +25,15 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private CardModifierSpriteDatabase cardModifierSpriteDatabase;
     [SerializeField] private JokerSpriteDatabase jokerSpriteDatabase;
+    [SerializeField] private SpellSpriteDatabase spellSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
+    [SerializeField] private ConsumableSlotView[] consumableSlotViews;
     [SerializeField] private PlayedCardEffectView[] jokerEffectViews;
     [SerializeField] private GameObject jokerSaleArea;
     [SerializeField] private Button[] jokerSaleButtons;
+    [SerializeField] private GameObject consumableUseArea;
+    [SerializeField] private Button[] consumableUseButtons;
     [SerializeField] private HandCardView[] handCardViews;
     [SerializeField] private Button playButton;
     [SerializeField] private Button discardButton;
@@ -69,6 +73,8 @@ public class GameUIController : MonoBehaviour
     public event Action ShopNextBlindButtonClicked;
     public event Action RunInfoButtonClicked;
     public event Action<int> JokerSaleButtonClicked;
+    public event Action<int> ConsumableSlotClicked;
+    public event Action<int> ConsumableUseButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
@@ -81,6 +87,8 @@ public class GameUIController : MonoBehaviour
     private JokerEffectContext jokerEffectContext = new JokerEffectContext();
     private IReadOnlyList<JokerBase> currentEquippedJokers;
     private int selectedJokerSaleSlotIndex = -1;
+    private IReadOnlyList<SpellCard> currentHeldSpellCards;
+    private int selectedConsumableUseSlotIndex = -1;
 
     private void Awake()
     {
@@ -103,7 +111,7 @@ public class GameUIController : MonoBehaviour
         BindResolutionInfoUI();
         BindCardTooltipController();
         BindJokerBarUI();
-        ClearTopConsumableSlots();
+        BindConsumableSlotsUI();
         BindHandCards();
         DisableKnownBackgroundRaycasts();
         BindActionButtons();
@@ -124,6 +132,7 @@ public class GameUIController : MonoBehaviour
         Debug.Log($"UI state changed: {newState}");
         deckStatsUIController?.CloseDeckStatsForStateChange();
         HideTooltipForStateChange();
+        HideConsumableUseButtons();
 
         if (newState != GameUIState.PlayingBlind)
         {
@@ -304,6 +313,55 @@ public class GameUIController : MonoBehaviour
         }
     }
 
+    public void RefreshConsumableSlots(IReadOnlyList<SpellCard> heldSpellCards)
+    {
+        EnsureConsumableSlotsBound();
+        ResolveSpellSpriteDatabaseIfNeeded();
+        currentHeldSpellCards = heldSpellCards;
+
+        if (consumableSlotViews == null)
+        {
+            Debug.LogError("Cannot refresh consumable slots: slots are not bound");
+            return;
+        }
+
+        for (int i = 0; i < consumableSlotViews.Length; i++)
+        {
+            ConsumableSlotView slotView = consumableSlotViews[i];
+
+            if (slotView == null)
+            {
+                continue;
+            }
+
+            SpellCard spellCard = heldSpellCards != null && i < heldSpellCards.Count ? heldSpellCards[i] : null;
+            slotView.SetSpell(spellCard, spellSpriteDatabase);
+            slotView.SetClickHandler(i, HandleConsumableSlotClicked);
+        }
+
+        UpdateVisibleConsumableUseButton();
+        Debug.Log("Consumable slots updated.");
+    }
+
+    public void HideConsumableUseButtons()
+    {
+        EnsureConsumableUseButtonsBound();
+        selectedConsumableUseSlotIndex = -1;
+
+        if (consumableUseButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < consumableUseButtons.Length; i++)
+        {
+            if (consumableUseButtons[i] != null)
+            {
+                SetConsumableUseButtonVisible(consumableUseButtons[i], false);
+            }
+        }
+    }
+
     public void SetJokerTooltipContext(int ownedStoneCardCount)
     {
         if (jokerEffectContext == null)
@@ -382,7 +440,7 @@ public class GameUIController : MonoBehaviour
         ShowShop(offers, null);
     }
 
-    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<PlanetShopOffer> consumableOffers)
+    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
         if (shopUIController == null)
         {
@@ -397,7 +455,7 @@ public class GameUIController : MonoBehaviour
         shopUIController?.RefreshOffers(offers);
     }
 
-    public void RefreshShopConsumableOffers(IReadOnlyList<PlanetShopOffer> consumableOffers)
+    public void RefreshShopConsumableOffers(IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
         shopUIController?.RefreshConsumableOffers(consumableOffers);
     }
@@ -866,6 +924,21 @@ public class GameUIController : MonoBehaviour
         }
     }
 
+    private void ResolveSpellSpriteDatabaseIfNeeded()
+    {
+        if (spellSpriteDatabase != null)
+        {
+            return;
+        }
+
+        spellSpriteDatabase = FindFirstObjectByType<SpellSpriteDatabase>();
+
+        if (spellSpriteDatabase == null)
+        {
+            spellSpriteDatabase = gameObject.AddComponent<SpellSpriteDatabase>();
+        }
+    }
+
     private void BindScoreCalculationUI(Transform leftPanelRoot)
     {
         Transform scoreCalculationRoot = FindChildByTrimmedName(leftPanelRoot, "ScoreCalculationModule");
@@ -986,53 +1059,108 @@ public class GameUIController : MonoBehaviour
         ValidateJokerSaleButtonMapping();
     }
 
-    private void ClearTopConsumableSlots()
+    private void BindConsumableSlotsUI()
     {
-        GameObject containerObject = GameObject.Find("Canvas/TopJokerBar/ConsumableSlotsContainer");
+        Canvas canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        GameObject containerObject = canvas != null
+            ? FindGameObjectIncludingInactive(canvas.transform, "ConsumableSlotsContainer", null)
+            : GameObject.Find("Canvas/TopJokerBar/ConsumableSlotsContainer");
 
         if (containerObject == null)
         {
+            Debug.LogWarning("Failed to bind TopJokerBar/ConsumableSlotsContainer");
             return;
         }
 
-        for (int i = 1; i <= 2; i++)
+        ResolveSpellSpriteDatabaseIfNeeded();
+        consumableSlotViews = new ConsumableSlotView[2];
+
+        for (int i = 0; i < consumableSlotViews.Length; i++)
         {
-            Transform slotTransform = containerObject.transform.Find($"ConsumableSlot{i}");
+            string slotName = $"ConsumableSlot{i + 1}";
+            Transform slotTransform = containerObject.transform.Find(slotName);
 
             if (slotTransform == null)
             {
+                Debug.LogWarning($"Failed to bind {slotName}");
                 continue;
             }
 
-            ClearEmptyTopCardSlot(slotTransform.gameObject);
-            Debug.Log($"Cleared empty ConsumableSlot{i}");
+            ConsumableSlotView slotView = slotTransform.GetComponent<ConsumableSlotView>();
+
+            if (slotView == null)
+            {
+                slotView = slotTransform.gameObject.AddComponent<ConsumableSlotView>();
+            }
+
+            slotView.SetTooltipController(cardTooltipController);
+            slotView.SetSpell(null, spellSpriteDatabase);
+            slotView.SetClickHandler(i, HandleConsumableSlotClicked);
+            consumableSlotViews[i] = slotView;
+            Debug.Log($"Bound {slotName}");
         }
+
+        BindConsumableUseButtonsUI();
     }
 
-    private void ClearEmptyTopCardSlot(GameObject slotObject)
+    private void BindConsumableUseButtonsUI()
     {
-        if (slotObject == null)
+        Canvas canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        GameObject useAreaObject = canvas != null
+            ? FindGameObjectIncludingInactive(canvas.transform, "ConsumableCardsUseArea", consumableUseArea)
+            : GameObject.Find("Canvas/TopJokerBar/ConsumableCardsUseArea");
+
+        if (useAreaObject == null)
         {
+            Debug.LogWarning("Failed to bind TopJokerBar/ConsumableCardsUseArea");
             return;
         }
 
-        Image[] images = slotObject.GetComponentsInChildren<Image>(true);
+        consumableUseArea = useAreaObject;
+        consumableUseButtons = new Button[2];
 
-        for (int i = 0; i < images.Length; i++)
+        for (int i = 0; i < consumableUseButtons.Length; i++)
         {
-            images[i].sprite = null;
-            Color color = images[i].color;
-            color.a = 0f;
-            images[i].color = color;
-            images[i].raycastTarget = false;
-        }
+            string buttonName = $"ConsumableCardsUseButton{i + 1}";
+            GameObject buttonObject = FindDirectChildGameObject(consumableUseArea.transform, buttonName);
 
-        TMP_Text[] texts = slotObject.GetComponentsInChildren<TMP_Text>(true);
+            if (buttonObject == null)
+            {
+                buttonObject = FindGameObjectIncludingInactive(consumableUseArea.transform, buttonName, null);
+            }
 
-        for (int i = 0; i < texts.Length; i++)
-        {
-            texts[i].text = string.Empty;
-            texts[i].raycastTarget = false;
+            if (buttonObject == null)
+            {
+                Debug.LogWarning($"Failed to bind {buttonName}");
+                continue;
+            }
+
+            Image buttonImage = buttonObject.GetComponent<Image>();
+
+            if (buttonImage == null)
+            {
+                buttonImage = buttonObject.AddComponent<Image>();
+            }
+
+            buttonImage.raycastTarget = true;
+            Button button = buttonObject.GetComponent<Button>();
+
+            if (button == null)
+            {
+                button = buttonObject.AddComponent<Button>();
+            }
+
+            int capturedIndex = i;
+            button.targetGraphic = buttonImage;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => HandleConsumableUseButtonClicked(capturedIndex));
+            button.interactable = true;
+            DisableTextRaycasts(buttonObject);
+            consumableUseButtons[i] = button;
+            SetConsumableUseButtonVisible(button, false);
+            RectTransform buttonRect = buttonObject.transform as RectTransform;
+            string positionText = buttonRect != null ? buttonRect.anchoredPosition.ToString() : "no RectTransform";
+            Debug.Log($"Bound {buttonName}: {GetFullPath(buttonObject.transform)} at {positionText}");
         }
     }
 
@@ -1084,6 +1212,54 @@ public class GameUIController : MonoBehaviour
         }
 
         BindJokerSaleButtonsUI();
+    }
+
+    private void EnsureConsumableSlotsBound()
+    {
+        if (consumableSlotViews != null && consumableSlotViews.Length == 2)
+        {
+            bool hasAllSlots = true;
+
+            for (int i = 0; i < consumableSlotViews.Length; i++)
+            {
+                if (consumableSlotViews[i] == null)
+                {
+                    hasAllSlots = false;
+                    break;
+                }
+            }
+
+            if (hasAllSlots)
+            {
+                return;
+            }
+        }
+
+        BindConsumableSlotsUI();
+    }
+
+    private void EnsureConsumableUseButtonsBound()
+    {
+        if (consumableUseButtons != null && consumableUseButtons.Length == 2)
+        {
+            bool hasAnyButton = false;
+
+            for (int i = 0; i < consumableUseButtons.Length; i++)
+            {
+                if (consumableUseButtons[i] != null)
+                {
+                    hasAnyButton = true;
+                    break;
+                }
+            }
+
+            if (hasAnyButton)
+            {
+                return;
+            }
+        }
+
+        BindConsumableUseButtonsUI();
     }
 
     private void EnsureJokerEffectsBound()
@@ -1809,6 +1985,52 @@ public class GameUIController : MonoBehaviour
         JokerSaleButtonClicked?.Invoke(slotIndex);
     }
 
+    private void HandleConsumableSlotClicked(int slotIndex)
+    {
+        SpellCard spellCard = GetHeldSpellAt(slotIndex);
+
+        if (spellCard == null)
+        {
+            HideConsumableUseButtons();
+            return;
+        }
+
+        if (!CanAcceptGameplayInput)
+        {
+            Debug.Log($"Cannot use consumable: current state is {CurrentState}.");
+            HideConsumableUseButtons();
+            return;
+        }
+
+        EnsureConsumableUseButtonsBound();
+
+        if (selectedConsumableUseSlotIndex == slotIndex && IsConsumableUseButtonVisible(slotIndex))
+        {
+            HideConsumableUseButtons();
+            Debug.Log($"Consumable use button hidden: slot {slotIndex + 1}");
+            return;
+        }
+
+        selectedConsumableUseSlotIndex = slotIndex;
+        UpdateVisibleConsumableUseButton();
+        ConsumableSlotClicked?.Invoke(slotIndex);
+    }
+
+    private void HandleConsumableUseButtonClicked(int slotIndex)
+    {
+        SpellCard spellCard = GetHeldSpellAt(slotIndex);
+
+        if (spellCard == null)
+        {
+            HideConsumableUseButtons();
+            Debug.Log($"Cannot use consumable: slot {slotIndex + 1} is empty");
+            return;
+        }
+
+        Debug.Log($"UI ConsumableCardsUseButton clicked: slot {slotIndex + 1}, {spellCard.Name}");
+        ConsumableUseButtonClicked?.Invoke(slotIndex);
+    }
+
     private void UpdateVisibleJokerSaleButton()
     {
         EnsureJokerSaleButtonsBound();
@@ -1856,6 +2078,92 @@ public class GameUIController : MonoBehaviour
             && slotIndex < jokerSaleButtons.Length
             && jokerSaleButtons[slotIndex] != null
             && IsJokerSaleButtonVisualVisible(jokerSaleButtons[slotIndex]);
+    }
+
+    private void UpdateVisibleConsumableUseButton()
+    {
+        EnsureConsumableUseButtonsBound();
+
+        if (consumableUseButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < consumableUseButtons.Length; i++)
+        {
+            Button useButton = consumableUseButtons[i];
+
+            if (useButton == null)
+            {
+                continue;
+            }
+
+            SpellCard spellCard = GetHeldSpellAt(i);
+            bool shouldShow = i == selectedConsumableUseSlotIndex && spellCard != null && CanAcceptGameplayInput;
+            SetConsumableUseButtonVisible(useButton, shouldShow);
+
+            if (shouldShow)
+            {
+                TMP_Text buttonText = useButton.GetComponentInChildren<TMP_Text>(true);
+                SetText(buttonText, "Use");
+                Debug.Log($"Consumable use button shown: slot {i + 1}, {spellCard.Name}");
+            }
+        }
+    }
+
+    private bool IsConsumableUseButtonVisible(int slotIndex)
+    {
+        return consumableUseButtons != null
+            && slotIndex >= 0
+            && slotIndex < consumableUseButtons.Length
+            && consumableUseButtons[slotIndex] != null
+            && IsConsumableUseButtonVisualVisible(consumableUseButtons[slotIndex]);
+    }
+
+    private void SetConsumableUseButtonVisible(Button useButton, bool isVisible)
+    {
+        if (useButton == null)
+        {
+            return;
+        }
+
+        if (!useButton.gameObject.activeSelf)
+        {
+            useButton.gameObject.SetActive(true);
+        }
+
+        CanvasGroup canvasGroup = useButton.GetComponent<CanvasGroup>();
+
+        if (canvasGroup == null)
+        {
+            canvasGroup = useButton.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        canvasGroup.alpha = isVisible ? 1f : 0f;
+        canvasGroup.interactable = isVisible;
+        canvasGroup.blocksRaycasts = isVisible;
+        useButton.interactable = isVisible;
+    }
+
+    private bool IsConsumableUseButtonVisualVisible(Button useButton)
+    {
+        if (useButton == null)
+        {
+            return false;
+        }
+
+        CanvasGroup canvasGroup = useButton.GetComponent<CanvasGroup>();
+        return useButton.gameObject.activeInHierarchy && canvasGroup != null && canvasGroup.alpha > 0.5f;
+    }
+
+    private SpellCard GetHeldSpellAt(int slotIndex)
+    {
+        if (currentHeldSpellCards == null || slotIndex < 0 || slotIndex >= currentHeldSpellCards.Count)
+        {
+            return null;
+        }
+
+        return currentHeldSpellCards[slotIndex];
     }
 
     private void SetJokerSaleButtonVisible(Button saleButton, bool isVisible)

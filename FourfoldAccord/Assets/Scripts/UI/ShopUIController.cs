@@ -17,6 +17,7 @@ public class ShopUIController : MonoBehaviour
     private CardTooltipController tooltipController;
     private JokerSpriteDatabase jokerSpriteDatabase;
     private PlanetSpriteDatabase planetSpriteDatabase;
+    private SpellSpriteDatabase spellSpriteDatabase;
     private JokerEffectContext jokerEffectContext = new JokerEffectContext();
     private Func<bool> canUseShopInput;
     private Func<string, string> getBlockedMessage;
@@ -37,6 +38,7 @@ public class ShopUIController : MonoBehaviour
         BindShopPanel(canvasRoot);
         ResolveJokerSpriteDatabase();
         ResolvePlanetSpriteDatabase();
+        ResolveSpellSpriteDatabase();
         BindActionButtons(canvasRoot);
         BindJokerOffers(canvasRoot);
         BindPlaceholders(canvasRoot);
@@ -48,7 +50,7 @@ public class ShopUIController : MonoBehaviour
         ShowShop(offers, null);
     }
 
-    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<PlanetShopOffer> consumableOffers)
+    public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
         if (shopPanel == null)
         {
@@ -103,9 +105,10 @@ public class ShopUIController : MonoBehaviour
         Debug.Log("Shop UI updated.");
     }
 
-    public void RefreshConsumableOffers(IReadOnlyList<PlanetShopOffer> consumableOffers)
+    public void RefreshConsumableOffers(IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
         ResolvePlanetSpriteDatabase();
+        ResolveSpellSpriteDatabase();
         ShopOfferView[] consumableViews = GetConsumableOfferViews();
 
         for (int i = 0; i < consumableViews.Length; i++)
@@ -121,7 +124,7 @@ public class ShopUIController : MonoBehaviour
 
             if (consumableOffers != null && i < consumableOffers.Count)
             {
-                offerView.BindPlanet(consumableOffers[i], i, HandleConsumableOfferClicked, planetSpriteDatabase);
+                offerView.BindConsumable(consumableOffers[i], i, HandleConsumableOfferClicked, planetSpriteDatabase, spellSpriteDatabase);
             }
             else
             {
@@ -450,6 +453,21 @@ public class ShopUIController : MonoBehaviour
         if (jokerSpriteDatabase == null)
         {
             jokerSpriteDatabase = gameObject.AddComponent<JokerSpriteDatabase>();
+        }
+    }
+
+    private void ResolveSpellSpriteDatabase()
+    {
+        if (spellSpriteDatabase != null)
+        {
+            return;
+        }
+
+        spellSpriteDatabase = FindFirstObjectByType<SpellSpriteDatabase>();
+
+        if (spellSpriteDatabase == null)
+        {
+            spellSpriteDatabase = gameObject.AddComponent<SpellSpriteDatabase>();
         }
     }
 }

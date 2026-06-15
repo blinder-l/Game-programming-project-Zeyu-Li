@@ -62,13 +62,18 @@ public class ShopOfferView : MonoBehaviour
         SetInteractable(true);
     }
 
-    public void BindPlanet(PlanetShopOffer offer, int index, Action<int> onClicked, PlanetSpriteDatabase spriteDatabase)
+    public void BindConsumable(
+        ConsumableShopOffer offer,
+        int index,
+        Action<int> onClicked,
+        PlanetSpriteDatabase planetSpriteDatabase,
+        SpellSpriteDatabase spellSpriteDatabase)
     {
         ResolveReferences();
         offerIndex = index;
         clickedHandler = onClicked;
 
-        if (offer == null || offer.PlanetCard == null)
+        if (offer == null)
         {
             SetEmpty();
             return;
@@ -80,12 +85,29 @@ public class ShopOfferView : MonoBehaviour
             return;
         }
 
-        PlanetCard planetCard = offer.PlanetCard;
-        SetText($"{planetCard.Name}\n${planetCard.cost}\n{planetCard.targetHandType}");
-        SetSprite(spriteDatabase != null ? spriteDatabase.GetSprite(planetCard) : null);
-        UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}", string.Empty, string.Empty);
+        if (offer.IsPlanet)
+        {
+            PlanetCard planetCard = offer.PlanetCard;
+            SetText($"{planetCard.Name}\n${planetCard.cost}\n{planetCard.targetHandType}");
+            SetSprite(planetSpriteDatabase != null ? planetSpriteDatabase.GetSprite(planetCard) : null);
+            UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}", string.Empty, string.Empty);
+            Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {planetCard.Name}");
+        }
+        else if (offer.IsSpell)
+        {
+            SpellCard spellCard = offer.SpellCard;
+            SetText($"{spellCard.Name}\n${spellCard.cost}\nSpell");
+            SetSprite(spellSpriteDatabase != null ? spellSpriteDatabase.GetSprite(spellCard) : null);
+            UpdateTooltip(spellCard.Name, $"{spellCard.Description}\n\nCost: ${spellCard.cost}", string.Empty, string.Empty);
+            Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {spellCard.Name}");
+        }
+        else
+        {
+            SetEmpty();
+            return;
+        }
+
         visualFeedback?.SetHasVisualContent(true);
-        Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {planetCard.Name}");
         SetInteractable(true);
     }
 

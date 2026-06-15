@@ -37,6 +37,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
     private ScoreContext latestScoreContext;
     private readonly List<PlayingCard> selectedCards = new List<PlayingCard>();
+    private readonly SpellCard[] heldSpellCards = new SpellCard[2];
     private readonly Dictionary<PokerHandType, int> handTypePlayCounts = new Dictionary<PokerHandType, int>();
 
     private void Awake()
@@ -71,6 +72,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked += HandleRunInfoButtonClicked;
             gameUIController.JokerSaleButtonClicked += HandleJokerSaleButtonClicked;
+            gameUIController.ConsumableUseButtonClicked += HandleConsumableUseButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -128,6 +130,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked -= HandleRunInfoButtonClicked;
             gameUIController.JokerSaleButtonClicked -= HandleJokerSaleButtonClicked;
+            gameUIController.ConsumableUseButtonClicked -= HandleConsumableUseButtonClicked;
         }
     }
 
@@ -446,7 +449,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleShopConsumableOfferClicked(int offerIndex)
     {
-        TryBuyPlanetOffer(offerIndex);
+        TryBuyConsumableOffer(offerIndex);
     }
 
     private void HandleShopRerollButtonClicked()
@@ -496,6 +499,78 @@ public class PrototypeBootstrap : MonoBehaviour
         }
     }
 
+    private void HandleConsumableUseButtonClicked(int slotIndex)
+    {
+        if (!CanUseSpellConsumable())
+        {
+            Debug.Log(GetGameplayBlockedMessage("use consumable"));
+            gameUIController?.HideConsumableUseButtons();
+            return;
+        }
+
+        if (slotIndex < 0 || slotIndex >= heldSpellCards.Length)
+        {
+            Debug.Log($"Cannot use Spell: invalid slot {slotIndex + 1}");
+            return;
+        }
+
+        SpellCard spellCard = heldSpellCards[slotIndex];
+
+        if (spellCard == null)
+        {
+            Debug.Log($"Cannot use Spell: slot {slotIndex + 1} is empty");
+            gameUIController?.HideConsumableUseButtons();
+            return;
+        }
+
+        if (!TryUseSpellCard(spellCard, out string message))
+        {
+            Debug.Log(message);
+            RefreshGameUI();
+            return;
+        }
+
+        heldSpellCards[slotIndex] = null;
+        Debug.Log(message);
+        Debug.Log($"Consumed Spell: {spellCard.Name}");
+        gameUIController?.HideConsumableUseButtons();
+        RefreshHandTypePreview();
+        RefreshGameUI();
+    }
+
+    private void TryBuyConsumableOffer(int offerIndex)
+    {
+        if (!CanUseShop())
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        ConsumableShopOffer offer = offerIndex >= 0 && offerIndex < shopManager.CurrentConsumableOffers.Count
+            ? shopManager.CurrentConsumableOffers[offerIndex]
+            : null;
+
+        if (offer == null)
+        {
+            Debug.Log("Cannot purchase consumable: invalid offer index");
+            return;
+        }
+
+        if (offer.IsPlanet)
+        {
+            TryBuyPlanetOffer(offerIndex);
+            return;
+        }
+
+        if (offer.IsSpell)
+        {
+            TryBuySpellOffer(offerIndex);
+            return;
+        }
+
+        Debug.Log("Cannot purchase consumable: offer has no card.");
+    }
+
     private void TryBuyPlanetOffer(int offerIndex)
     {
         if (!CanUseShop())
@@ -525,6 +600,38 @@ public class PrototypeBootstrap : MonoBehaviour
             Debug.Log(message);
         }
 
+        Debug.Log("Shop UI updated.");
+        LogShopState();
+    }
+
+    private void TryBuySpellOffer(int offerIndex)
+    {
+        if (!CanUseShop())
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        if (shopManager.TryPurchaseSpellOffer(
+            offerIndex,
+            currentGold,
+            HasFreeSpellSlot(),
+            out SpellCard purchasedSpellCard,
+            out string message,
+            out int newGold))
+        {
+            currentGold = newGold;
+
+            if (!TryAddHeldSpellCard(purchasedSpellCard))
+            {
+                Debug.LogError($"Purchased Spell but failed to add to held slots: {purchasedSpellCard?.Name}");
+            }
+
+            RefreshGameUI();
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+        }
+
+        Debug.Log(message);
         Debug.Log("Shop UI updated.");
         LogShopState();
     }
@@ -1290,6 +1397,7 @@ public class PrototypeBootstrap : MonoBehaviour
         gameUIController.SetJokerTooltipContext(GetOwnedStoneCardCount());
         RefreshRunInfoSources();
         RefreshJokerBarUI();
+        gameUIController.RefreshConsumableSlots(heldSpellCards);
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.RefreshPlayedCards(latestPlayedCards);
         gameUIController.RefreshResolutionInfo(latestScoreContext);
@@ -1316,6 +1424,161 @@ public class PrototypeBootstrap : MonoBehaviour
         PruneSelectedCards();
         SyncSelectedCardFlags();
         return new List<PlayingCard>(selectedCards);
+    }
+
+    private bool HasFreeSpellSlot()
+    {
+        for (int i = 0; i < heldSpellCards.Length; i++)
+        {
+            if (heldSpellCards[i] == null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryAddHeldSpellCard(SpellCard spellCard)
+    {
+        if (spellCard == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < heldSpellCards.Length; i++)
+        {
+            if (heldSpellCards[i] != null)
+            {
+                continue;
+            }
+
+            heldSpellCards[i] = spellCard;
+            Debug.Log($"Stored Spell in ConsumableSlot{i + 1}: {spellCard.Name}");
+            return true;
+        }
+
+        Debug.Log("Cannot buy spell card: consumable slots are full.");
+        return false;
+    }
+
+    private bool TryUseSpellCard(SpellCard spellCard, out string message)
+    {
+        message = "Cannot use Spell: invalid Spell card.";
+
+        if (spellCard == null)
+        {
+            return false;
+        }
+
+        PlayingCard targetCard = null;
+
+        if (spellCard.RequiresSingleSelectedHandCard && !TryGetSingleSelectedHandCard(out targetCard, out message))
+        {
+            return false;
+        }
+
+        switch (spellCard.spellType)
+        {
+            case SpellCardType.AuricCovenant:
+                targetCard.enhancement = CardEnhancement.Gold;
+                message = $"Auric Covenant: {targetCard.GetDisplayName()} became Gold.";
+                return true;
+            case SpellCardType.StoneboundOath:
+                targetCard.enhancement = CardEnhancement.Stone;
+                message = $"Stonebound Oath: {targetCard.GetDisplayName()} became Stone.";
+                return true;
+            case SpellCardType.FortuneInscription:
+                targetCard.enhancement = CardEnhancement.Lucky;
+                message = $"Fortune Inscription: {targetCard.GetDisplayName()} became Lucky.";
+                return true;
+            case SpellCardType.CrimsonSealRite:
+                targetCard.seal = CardSeal.Red;
+                message = $"Crimson Seal Rite: {targetCard.GetDisplayName()} gained Red Seal.";
+                return true;
+            case SpellCardType.GildedSealRite:
+                targetCard.seal = CardSeal.Gold;
+                message = $"Gilded Seal Rite: {targetCard.GetDisplayName()} gained Gold Seal.";
+                return true;
+            case SpellCardType.HermitsVault:
+                int gainedGold = Mathf.Min(currentGold, 20);
+                currentGold += gainedGold;
+                message = $"Hermit’s Vault: gained ${gainedGold}. Current gold: {currentGold}";
+                return true;
+            case SpellCardType.GallowsOffering:
+                return TryUseGallowsOffering(targetCard, out message);
+            case SpellCardType.AscendantBlessing:
+                return TryUseAscendantBlessing(out message);
+            default:
+                message = $"Cannot use Spell: {spellCard.Name} is not implemented.";
+                return false;
+        }
+    }
+
+    private bool TryGetSingleSelectedHandCard(out PlayingCard targetCard, out string message)
+    {
+        targetCard = null;
+        List<PlayingCard> selected = GetSelectedCardsForAction();
+
+        if (selected.Count != 1)
+        {
+            message = "Spell requires exactly 1 selected hand card.";
+            return false;
+        }
+
+        targetCard = selected[0];
+
+        if (!IsCardInCurrentHand(targetCard))
+        {
+            message = "Spell target failed: selected card is not in current hand.";
+            return false;
+        }
+
+        message = string.Empty;
+        return true;
+    }
+
+    private bool TryUseGallowsOffering(PlayingCard targetCard, out string message)
+    {
+        if (targetCard == null || !IsCardInCurrentHand(targetCard))
+        {
+            message = "Gallows Offering failed: target card is not in current hand.";
+            return false;
+        }
+
+        List<PlayingCard> removedCards = handManager.RemoveCardsWithoutDiscard(new[] { targetCard });
+
+        if (removedCards.Count == 0)
+        {
+            message = "Gallows Offering failed: target card could not be removed.";
+            return false;
+        }
+
+        for (int i = 0; i < removedCards.Count; i++)
+        {
+            deckManager?.MarkDestroyed(removedCards[i]);
+        }
+
+        selectedCards.Remove(targetCard);
+        targetCard.isSelected = false;
+        currentGold += 5;
+        ClearSelectedCards();
+        message = $"Gallows Offering: destroyed {targetCard.GetDisplayName()} and gained $5. Current gold: {currentGold}";
+        return true;
+    }
+
+    private bool TryUseAscendantBlessing(out string message)
+    {
+        if (latestScoreContext == null)
+        {
+            message = "Ascendant Blessing failed: no valid last played hand type.";
+            return false;
+        }
+
+        PokerHandType handType = latestScoreContext.handType;
+        handTypeLevelManager.Upgrade(handType);
+        message = $"Ascendant Blessing: upgraded {handType} to Lv {handTypeLevelManager.GetLevel(handType)}.";
+        return true;
     }
 
     private bool TryGetCurrentHandIndices(List<PlayingCard> cards, out List<int> handIndices)
@@ -1462,6 +1725,11 @@ public class PrototypeBootstrap : MonoBehaviour
     private bool CanAcceptGameplayInput()
     {
         return gameUIController == null || gameUIController.CanAcceptGameplayInput;
+    }
+
+    private bool CanUseSpellConsumable()
+    {
+        return CanAcceptGameplayInput() && !isInShop && !IsRoundOver() && !isResolvingPlayedHand;
     }
 
     private bool CanUseCashOut()
