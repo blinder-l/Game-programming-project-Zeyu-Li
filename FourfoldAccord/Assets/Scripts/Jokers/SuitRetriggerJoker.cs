@@ -25,7 +25,7 @@ public class SuitRetriggerJoker : JokerBase
 
         foreach (KeyValuePair<PlayingCard, int> cardChipValue in scoreContext.cardChipValues)
         {
-            if (cardChipValue.Key.suit != targetSuit)
+            if (!cardChipValue.Key.HasSuit || cardChipValue.Key.suit != targetSuit)
             {
                 continue;
             }

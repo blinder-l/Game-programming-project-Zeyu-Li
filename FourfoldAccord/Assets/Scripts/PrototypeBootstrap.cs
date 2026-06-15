@@ -25,8 +25,10 @@ public class PrototypeBootstrap : MonoBehaviour
     private bool isInShop;
     private int currentGold;
     private int suitGoldThisBlind;
+    private int bonusCardGoldThisBlind;
     private int lastCashOutTotal;
     private bool hasClaimedCashOut;
+    private bool heldCardEffectsProcessedThisBlind;
     private bool isResolvingPlayedHand;
     private bool hasPreparedDeckForNextBlind;
     private string latestHandTypeText = "None";
@@ -755,18 +757,28 @@ public class PrototypeBootstrap : MonoBehaviour
         for (int i = 0; i < displayedCards.Count; i++)
         {
             PlayingCard card = displayedCards[i];
+            List<CardScoreEvent> scoreEvents = GetScoreEventsForDisplayedCard(scoreContext, card);
 
-            if (scoreContext.cardChipValues == null || !scoreContext.cardChipValues.ContainsKey(card))
+            if (scoreEvents.Count == 0)
             {
                 Debug.Log($"PlayedCard{i + 1} skipped non-scoring card: {card.GetDisplayName()}; PlayedCardEffect{i + 1} stays hidden.");
                 continue;
             }
 
-            int chipValue = scoreContext.cardChipValues[card];
-            displayedChips += chipValue;
-            gameUIController?.PlayCardChipEffect(i, card, chipValue);
-            gameUIController?.RefreshScoreCalculation(displayedChips, scoreContext.mult);
-            yield return new WaitForSeconds(CardScoreStepDelay);
+            for (int eventIndex = 0; eventIndex < scoreEvents.Count; eventIndex++)
+            {
+                CardScoreEvent scoreEvent = scoreEvents[eventIndex];
+                displayedChips += scoreEvent.chipValue;
+                gameUIController?.PlayCardChipEffect(i, card, scoreEvent.chipValue);
+                gameUIController?.RefreshScoreCalculation(displayedChips, scoreContext.mult);
+
+                if (scoreEvent.isRetrigger)
+                {
+                    Debug.Log($"PlayedCard{i + 1} Red Seal retrigger animation: {card.GetDisplayName()} +{scoreEvent.chipValue}");
+                }
+
+                yield return new WaitForSeconds(CardScoreStepDelay);
+            }
         }
 
         gameUIController?.RefreshScoreCalculation(scoreContext.chips, scoreContext.mult);
@@ -786,11 +798,19 @@ public class PrototypeBootstrap : MonoBehaviour
         handManager.FillHand(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         suitGoldThisBlind += scoreContext.goldReward;
+        bonusCardGoldThisBlind += scoreContext.bonusCardGoldReward;
 
         if (scoreContext.goldReward > 0)
         {
             Debug.Log($"Suit gold earned this hand: {scoreContext.goldReward}");
             Debug.Log($"Suit gold this blind total: {suitGoldThisBlind}");
+            Debug.Log($"Current gold unchanged until CashOut: {currentGold}");
+        }
+
+        if (scoreContext.bonusCardGoldReward > 0)
+        {
+            Debug.Log($"Bonus card gold earned this hand: {scoreContext.bonusCardGoldReward}");
+            Debug.Log($"Bonus card gold this blind total: {bonusCardGoldThisBlind}");
             Debug.Log($"Current gold unchanged until CashOut: {currentGold}");
         }
 
@@ -812,6 +832,28 @@ public class PrototypeBootstrap : MonoBehaviour
         LogRoundEndIfNeeded();
     }
 
+    private List<CardScoreEvent> GetScoreEventsForDisplayedCard(ScoreContext scoreContext, PlayingCard card)
+    {
+        List<CardScoreEvent> matchingEvents = new List<CardScoreEvent>();
+
+        if (scoreContext == null || scoreContext.cardScoreEvents == null || card == null)
+        {
+            return matchingEvents;
+        }
+
+        for (int i = 0; i < scoreContext.cardScoreEvents.Count; i++)
+        {
+            CardScoreEvent scoreEvent = scoreContext.cardScoreEvents[i];
+
+            if (scoreEvent != null && scoreEvent.card == card)
+            {
+                matchingEvents.Add(scoreEvent);
+            }
+        }
+
+        return matchingEvents;
+    }
+
     private void TryDiscardSelectedCards()
     {
         List<PlayingCard> cardsToDiscard = GetSelectedCardsForAction();
@@ -831,6 +873,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         roundManager.UseDiscard();
         List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
+        HandleDiscardedCardSealEffects(discardedCards);
         ClearSelectedCards();
         latestHandTypeText = "None";
         latestHandTypeRankText = "-";
@@ -856,8 +899,9 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log("=== Played Hand Resolution ===");
         Debug.Log($"Selected Cards:\n{GetCardListDebugText(playedCards)}");
         Debug.Log($"Hand Type: {scoreContext.handType}");
-        Debug.Log($"Score Breakdown:\nBase Chips: {scoreContext.baseChips}\nRank Chips: {scoreContext.rankChips}\nTotal Chips: {scoreContext.chips}\nMult: {scoreContext.mult}\nFinal Score: {scoreContext.finalScore}\nGold Reward: {scoreContext.goldReward}\nCurrent Gold: {currentGold}");
+        Debug.Log($"Score Breakdown:\nBase Chips: {scoreContext.baseChips}\nRank Chips: {scoreContext.rankChips}\nTotal Chips: {scoreContext.chips}\nMult: {scoreContext.mult}\nFinal Score: {scoreContext.finalScore}\nGold Reward: {scoreContext.goldReward}\nBonus Card Gold Reward: {scoreContext.bonusCardGoldReward}\nCurrent Gold: {currentGold}");
         Debug.Log($"Card Chips:\n{scoreContext.GetCardChipDebugText()}");
+        Debug.Log($"Card Effects:\n{scoreContext.GetCardEffectDebugText()}");
         Debug.Log($"Scoring Suit Presence:\n{scoreContext.GetSuitPresenceDebugText()}");
         Debug.Log($"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}");
         Debug.Log($"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}");
@@ -865,6 +909,77 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log($"Suit Mastery Status:\n{suitMasteryManager.GetMasteryDebugText()}");
         Debug.Log($"Round Status: {roundManager.GetDebugStatus()}");
         Debug.Log($"Next Hand:\n{handManager.GetHandDebugText()}");
+    }
+
+    private void HandleDiscardedCardSealEffects(List<PlayingCard> discardedCards)
+    {
+        if (discardedCards == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < discardedCards.Count; i++)
+        {
+            PlayingCard card = discardedCards[i];
+
+            if (card == null || card.seal != CardSeal.Purple)
+            {
+                continue;
+            }
+
+            Debug.Log($"{card.GetDisplayName()}: Purple Seal would create a tarot card on discard");
+        }
+    }
+
+    private void ProcessHeldCardEffectsBeforeCashOut()
+    {
+        if (heldCardEffectsProcessedThisBlind)
+        {
+            Debug.Log("Held card end-of-blind effects already processed for this Blind.");
+            return;
+        }
+
+        heldCardEffectsProcessedThisBlind = true;
+
+        if (handManager == null)
+        {
+            Debug.Log("Cannot process held card effects: HandManager is null.");
+            return;
+        }
+
+        string lastPlayedHandType = GetLastPlayedHandTypeText();
+
+        for (int i = 0; i < handManager.CurrentHandCount; i++)
+        {
+            PlayingCard card = handManager.CurrentHand[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            if (card.enhancement == CardEnhancement.Gold)
+            {
+                bonusCardGoldThisBlind += 3;
+                Debug.Log($"{card.GetDisplayName()}: Gold Card held at end of Blind +$3");
+                Debug.Log($"Bonus card gold this blind total: {bonusCardGoldThisBlind}");
+            }
+
+            if (card.seal == CardSeal.Blue)
+            {
+                Debug.Log($"{card.GetDisplayName()}: Blue Seal would create planet card for last played hand type: {lastPlayedHandType}");
+            }
+        }
+    }
+
+    private string GetLastPlayedHandTypeText()
+    {
+        if (latestScoreContext == null)
+        {
+            return "unknown";
+        }
+
+        return latestScoreContext.handType.ToString();
     }
 
     private string GetCardListDebugText(List<PlayingCard> cards)
@@ -1249,11 +1364,15 @@ public class PrototypeBootstrap : MonoBehaviour
     private void ResetCashOutForNewBlind()
     {
         suitGoldThisBlind = 0;
+        bonusCardGoldThisBlind = 0;
         lastCashOutTotal = 0;
         hasClaimedCashOut = false;
+        heldCardEffectsProcessedThisBlind = false;
         Debug.Log("CashOut reset for new blind.");
         Debug.Log($"suitGoldThisBlind = {suitGoldThisBlind}");
+        Debug.Log($"bonusCardGoldThisBlind = {bonusCardGoldThisBlind}");
         Debug.Log($"hasClaimedCashOut = {hasClaimedCashOut}");
+        Debug.Log($"heldCardEffectsProcessedThisBlind = {heldCardEffectsProcessedThisBlind}");
     }
 
     private void OpenCashOutPanel()
@@ -1261,11 +1380,12 @@ public class PrototypeBootstrap : MonoBehaviour
         int fixedBlindReward = runManager.GetFixedBlindReward();
         int interest = Mathf.Min(currentGold / 5, 5);
         int discardBonus = roundManager.discardsRemaining;
-        lastCashOutTotal = fixedBlindReward + suitGoldThisBlind + interest + discardBonus;
+        lastCashOutTotal = fixedBlindReward + suitGoldThisBlind + bonusCardGoldThisBlind + interest + discardBonus;
 
         Debug.Log("Blind passed. Opening CashOutPanel.");
         Debug.Log($"Fixed blind reward: {fixedBlindReward}");
         Debug.Log($"Suit gold this blind: {suitGoldThisBlind}");
+        Debug.Log($"Bonus card gold this blind: {bonusCardGoldThisBlind}");
         Debug.Log($"Interest: {interest}");
         Debug.Log($"Discard bonus: {discardBonus}");
         Debug.Log($"CashOut total: {lastCashOutTotal}");
@@ -1276,6 +1396,7 @@ public class PrototypeBootstrap : MonoBehaviour
             roundManager.currentScore,
             fixedBlindReward,
             suitGoldThisBlind,
+            bonusCardGoldThisBlind,
             interest,
             discardBonus,
             lastCashOutTotal);
@@ -1376,6 +1497,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (roundManager.HasPassedBlind)
         {
             Debug.Log("Blind passed.");
+            ProcessHeldCardEffectsBeforeCashOut();
             jokerManager.NotifyBlindPassed(roundManager);
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
             PrepareDeckAndHandForNextBlindPreview();

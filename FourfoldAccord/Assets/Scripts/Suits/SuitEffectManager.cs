@@ -162,7 +162,7 @@ public class SuitEffectManager
 
         for (int i = 0; i < scoreContext.playedCards.Count; i++)
         {
-            if (scoreContext.playedCards[i].suit == suit)
+            if (scoreContext.playedCards[i].HasSuit && scoreContext.playedCards[i].suit == suit)
             {
                 cardsOfSuit.Add(scoreContext.playedCards[i]);
             }

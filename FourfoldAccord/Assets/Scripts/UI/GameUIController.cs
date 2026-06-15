@@ -298,6 +298,7 @@ public class GameUIController : MonoBehaviour
         int currentScore,
         int fixedBlindReward,
         int suitGoldThisBlind,
+        int bonusCardGoldThisBlind,
         int interest,
         int discardBonus,
         int cashOutTotal)
@@ -312,6 +313,7 @@ public class GameUIController : MonoBehaviour
             currentScore,
             fixedBlindReward,
             suitGoldThisBlind,
+            bonusCardGoldThisBlind,
             interest,
             discardBonus,
             cashOutTotal);

@@ -13,6 +13,7 @@ public class CashOutUIController : MonoBehaviour
     private TMP_Text suitGoldText;
     private TMP_Text interestText;
     private TMP_Text discardBonusText;
+    private TMP_Text bonusCardGoldText;
 
     public event Action CashOutButtonClicked;
 
@@ -33,6 +34,7 @@ public class CashOutUIController : MonoBehaviour
         int currentScore,
         int fixedBlindReward,
         int suitGoldThisBlind,
+        int bonusCardGoldThisBlind,
         int interest,
         int discardBonus,
         int cashOutTotal)
@@ -48,6 +50,16 @@ public class CashOutUIController : MonoBehaviour
         SetText(targetScoreText, $"Target: {targetScore}\nScore: {currentScore}");
         SetText(blindRewardText, new string('$', fixedBlindReward));
         SetText(suitGoldText, $"Suit Gold: ${suitGoldThisBlind}");
+        if (bonusCardGoldText != null)
+        {
+            SetText(bonusCardGoldText, $"Bonus Cards: ${bonusCardGoldThisBlind}");
+            Debug.Log($"CashOut bonus card gold displayed: {bonusCardGoldThisBlind}");
+        }
+        else
+        {
+            Debug.LogWarning($"Cannot display bonus card gold: CashOutFromBonusCardsText is not bound. Value was {bonusCardGoldThisBlind}");
+        }
+
         SetText(interestText, $"Interest: ${interest}");
         SetText(discardBonusText, $"Discard Bonus: ${discardBonus}");
 
@@ -91,6 +103,7 @@ public class CashOutUIController : MonoBehaviour
         suitGoldText = BindText(canvasRoot, "CashOutSuitGoldText");
         interestText = BindText(canvasRoot, "CashOutInterestText");
         discardBonusText = BindText(canvasRoot, "CashOutDiscardBonusText");
+        bonusCardGoldText = BindOptionalText(canvasRoot, "CashOutFromBonusCardsText");
     }
 
     private Button BindButton(Transform canvasRoot, string objectName)
@@ -168,6 +181,34 @@ public class CashOutUIController : MonoBehaviour
         if (text == null)
         {
             Debug.LogError($"Failed to bind {objectName}");
+            return null;
+        }
+
+        text.raycastTarget = false;
+        Debug.Log($"Bound {objectName}");
+        return text;
+    }
+
+    private TMP_Text BindOptionalText(Transform canvasRoot, string objectName)
+    {
+        GameObject textObject = FindObjectIncludingInactive(canvasRoot, objectName);
+
+        if (textObject == null)
+        {
+            Debug.LogWarning($"Optional CashOut text not found: {objectName}");
+            return null;
+        }
+
+        TMP_Text text = textObject.GetComponent<TMP_Text>();
+
+        if (text == null)
+        {
+            text = textObject.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        if (text == null)
+        {
+            Debug.LogWarning($"Optional CashOut text has no TMP_Text: {objectName}");
             return null;
         }
 

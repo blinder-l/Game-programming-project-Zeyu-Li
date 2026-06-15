@@ -1,9 +1,34 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 public class PokerHandEvaluator
 {
     public PokerHandResult Evaluate(List<PlayingCard> playedCards)
+    {
+        if (playedCards == null || playedCards.Count == 0)
+        {
+            return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard>());
+        }
+
+        List<PlayingCard> stoneCards = playedCards
+            .Where(card => card != null && card.IsStone)
+            .ToList();
+        List<PlayingCard> rankSuitCards = playedCards
+            .Where(card => card != null && !card.IsStone)
+            .ToList();
+
+        if (stoneCards.Count > 0)
+        {
+            Debug.Log($"Poker hand evaluation ignored {stoneCards.Count} Stone Card(s)");
+        }
+
+        PokerHandResult result = EvaluateRankSuitCards(rankSuitCards);
+        AddStoneCardsToScoringCards(result, stoneCards);
+        return result;
+    }
+
+    private PokerHandResult EvaluateRankSuitCards(List<PlayingCard> playedCards)
     {
         if (playedCards == null || playedCards.Count == 0)
         {
@@ -77,6 +102,21 @@ public class PokerHandEvaluator
             .First();
 
         return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard> { highestCard });
+    }
+
+    private void AddStoneCardsToScoringCards(PokerHandResult result, List<PlayingCard> stoneCards)
+    {
+        if (result == null || stoneCards == null || stoneCards.Count == 0)
+        {
+            return;
+        }
+
+        if (result.scoringCards == null)
+        {
+            result.scoringCards = new List<PlayingCard>();
+        }
+
+        result.scoringCards.AddRange(stoneCards);
     }
 
     private Dictionary<Rank, List<PlayingCard>> GroupCardsByRank(List<PlayingCard> cards)
