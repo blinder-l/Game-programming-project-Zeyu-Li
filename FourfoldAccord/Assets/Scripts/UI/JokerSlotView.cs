@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,11 @@ public class JokerSlotView : MonoBehaviour
     [SerializeField] private CardVisualFeedback visualFeedback;
     [SerializeField] private Image cardVisualImage;
     [SerializeField] private Image slotImage;
+    [SerializeField] private Button slotButton;
+
+    private int slotIndex = -1;
+    private JokerBase currentJoker;
+    private Action<int> onSlotClicked;
 
     private void Awake()
     {
@@ -29,6 +35,7 @@ public class JokerSlotView : MonoBehaviour
     public void SetJoker(JokerBase joker, JokerSpriteDatabase spriteDatabase, JokerEffectContext effectContext)
     {
         ResolveReferences();
+        currentJoker = joker;
 
         if (jokerNameText == null)
         {
@@ -45,7 +52,16 @@ public class JokerSlotView : MonoBehaviour
         tooltipTrigger?.SetTooltip(tooltipName, tooltipEffect, tooltipCurrentEffect, string.Empty);
         visualFeedback?.SetHasVisualContent(jokerSprite != null);
         SetSlotRootVisible(joker != null);
+        ConfigureButton(joker != null);
         Debug.Log($"JokerSlot tooltip updated: {tooltipName}");
+    }
+
+    public void SetClickHandler(int index, Action<int> clickHandler)
+    {
+        ResolveReferences();
+        slotIndex = index;
+        onSlotClicked = clickHandler;
+        ConfigureButton(currentJoker != null);
     }
 
     public void SetTooltipController(CardTooltipController tooltipController)
@@ -116,6 +132,21 @@ public class JokerSlotView : MonoBehaviour
         }
 
         visualFeedback.SetVisualRoot(cardVisualRoot);
+
+        if (slotButton == null)
+        {
+            slotButton = GetComponent<Button>();
+        }
+
+        if (slotButton == null)
+        {
+            slotButton = gameObject.AddComponent<Button>();
+        }
+
+        if (slotImage != null)
+        {
+            slotButton.targetGraphic = slotImage;
+        }
     }
 
     private void EnsureCardVisualRoot()
@@ -236,5 +267,39 @@ public class JokerSlotView : MonoBehaviour
         {
             cardVisualRoot.gameObject.SetActive(hasJoker);
         }
+    }
+
+    private void ConfigureButton(bool hasJoker)
+    {
+        if (slotButton == null)
+        {
+            return;
+        }
+
+        slotButton.onClick.RemoveAllListeners();
+
+        if (hasJoker)
+        {
+            slotButton.onClick.AddListener(HandleSlotClicked);
+        }
+
+        slotButton.interactable = hasJoker;
+
+        if (slotImage != null)
+        {
+            slotImage.raycastTarget = hasJoker;
+        }
+    }
+
+    private void HandleSlotClicked()
+    {
+        if (currentJoker == null)
+        {
+            return;
+        }
+
+        visualFeedback?.PlayScorePulse();
+        Debug.Log($"JokerSlot{slotIndex + 1} clicked: {currentJoker.Name}");
+        onSlotClicked?.Invoke(slotIndex);
     }
 }

@@ -41,6 +41,26 @@ public class JokerManager
         equippedJokers.Remove(joker);
     }
 
+    public bool TrySellJokerAt(int index, out JokerBase soldJoker)
+    {
+        soldJoker = null;
+
+        if (index < 0 || index >= equippedJokers.Count)
+        {
+            return false;
+        }
+
+        soldJoker = equippedJokers[index];
+
+        if (soldJoker == null)
+        {
+            return false;
+        }
+
+        equippedJokers.RemoveAt(index);
+        return true;
+    }
+
     public void ApplyScoreJokers(ScoreContext scoreContext)
     {
         if (scoreContext == null)

@@ -69,6 +69,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked += HandleRunInfoButtonClicked;
+            gameUIController.JokerSaleButtonClicked += HandleJokerSaleButtonClicked;
         }
 
         Debug.Log("Prototype started");
@@ -125,6 +126,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked -= HandleRunInfoButtonClicked;
+            gameUIController.JokerSaleButtonClicked -= HandleJokerSaleButtonClicked;
         }
     }
 
@@ -458,6 +460,37 @@ public class PrototypeBootstrap : MonoBehaviour
     private void HandleRunInfoButtonClicked()
     {
         RefreshRunInfoSources();
+    }
+
+    private void HandleJokerSaleButtonClicked(int slotIndex)
+    {
+        if (jokerManager == null)
+        {
+            Debug.LogError("Cannot sell Joker: JokerManager is null");
+            return;
+        }
+
+        if (!jokerManager.TrySellJokerAt(slotIndex, out JokerBase soldJoker))
+        {
+            Debug.Log($"Cannot sell Joker: slot {slotIndex + 1} is empty or invalid");
+            gameUIController?.HideJokerSaleButtons();
+            return;
+        }
+
+        int sellPrice = Mathf.Max(1, soldJoker.Cost - 2);
+        currentGold += sellPrice;
+        Debug.Log($"Sold Joker: {soldJoker.Name} for ${sellPrice}. Current gold: {currentGold}");
+
+        gameUIController?.HideJokerSaleButtons();
+        RefreshJokerBarUI();
+        RefreshGameUI();
+
+        if (GetCurrentUIState() == GameUIState.Shop)
+        {
+            gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+            Debug.Log("Shop UI updated after Joker sale.");
+        }
     }
 
     private void TryBuyPlanetOffer(int offerIndex)

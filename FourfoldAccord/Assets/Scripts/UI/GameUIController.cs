@@ -27,6 +27,8 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
     [SerializeField] private PlayedCardEffectView[] jokerEffectViews;
+    [SerializeField] private GameObject jokerSaleArea;
+    [SerializeField] private Button[] jokerSaleButtons;
     [SerializeField] private HandCardView[] handCardViews;
     [SerializeField] private Button playButton;
     [SerializeField] private Button discardButton;
@@ -64,6 +66,7 @@ public class GameUIController : MonoBehaviour
     public event Action ShopRerollButtonClicked;
     public event Action ShopNextBlindButtonClicked;
     public event Action RunInfoButtonClicked;
+    public event Action<int> JokerSaleButtonClicked;
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
@@ -74,6 +77,8 @@ public class GameUIController : MonoBehaviour
     private bool hasInitialized;
     private bool isGameplayInputLocked;
     private JokerEffectContext jokerEffectContext = new JokerEffectContext();
+    private IReadOnlyList<JokerBase> currentEquippedJokers;
+    private int selectedJokerSaleSlotIndex = -1;
 
     private void Awake()
     {
@@ -245,7 +250,9 @@ public class GameUIController : MonoBehaviour
     public void RefreshJokerBar(IReadOnlyList<JokerBase> equippedJokers)
     {
         EnsureJokerSlotsBound();
+        EnsureJokerSaleButtonsBound();
         ResolveJokerSpriteDatabaseIfNeeded();
+        currentEquippedJokers = equippedJokers;
 
         if (jokerSlotViews == null)
         {
@@ -266,9 +273,30 @@ public class GameUIController : MonoBehaviour
 
             JokerBase joker = equippedJokers != null && i < equippedJokers.Count ? equippedJokers[i] : null;
             slotView.SetJoker(joker, jokerSpriteDatabase, jokerEffectContext);
+            slotView.SetClickHandler(i, HandleJokerSlotClicked);
         }
 
+        UpdateVisibleJokerSaleButton();
         Debug.Log($"Joker bar updated: {equippedCount} equipped jokers");
+    }
+
+    public void HideJokerSaleButtons()
+    {
+        EnsureJokerSaleButtonsBound();
+        selectedJokerSaleSlotIndex = -1;
+
+        if (jokerSaleButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < jokerSaleButtons.Length; i++)
+        {
+            if (jokerSaleButtons[i] != null)
+            {
+                jokerSaleButtons[i].gameObject.SetActive(false);
+            }
+        }
     }
 
     public void SetJokerTooltipContext(int ownedStoneCardCount)
@@ -859,6 +887,61 @@ public class GameUIController : MonoBehaviour
         }
 
         BindJokerEffectsUI();
+        BindJokerSaleButtonsUI();
+    }
+
+    private void BindJokerSaleButtonsUI()
+    {
+        Canvas canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        GameObject saleAreaObject = canvas != null
+            ? FindGameObjectIncludingInactive(canvas.transform, "JokerSaleArea", jokerSaleArea)
+            : GameObject.Find("Canvas/TopJokerBar/JokerSaleArea");
+
+        if (saleAreaObject == null)
+        {
+            Debug.LogWarning("Failed to bind TopJokerBar/JokerSaleArea");
+            return;
+        }
+
+        jokerSaleArea = saleAreaObject;
+        jokerSaleButtons = new Button[5];
+
+        for (int i = 0; i < jokerSaleButtons.Length; i++)
+        {
+            string buttonName = $"JokerSaleButton{i + 1}";
+            GameObject buttonObject = FindGameObjectIncludingInactive(jokerSaleArea.transform, buttonName, null);
+
+            if (buttonObject == null)
+            {
+                Debug.LogWarning($"Failed to bind {buttonName}");
+                continue;
+            }
+
+            Image buttonImage = buttonObject.GetComponent<Image>();
+
+            if (buttonImage == null)
+            {
+                buttonImage = buttonObject.AddComponent<Image>();
+            }
+
+            buttonImage.raycastTarget = true;
+            Button button = buttonObject.GetComponent<Button>();
+
+            if (button == null)
+            {
+                button = buttonObject.AddComponent<Button>();
+            }
+
+            int capturedIndex = i;
+            button.targetGraphic = buttonImage;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => HandleJokerSaleButtonClicked(capturedIndex));
+            button.interactable = true;
+            DisableTextRaycasts(buttonObject);
+            buttonObject.SetActive(false);
+            jokerSaleButtons[i] = button;
+            Debug.Log($"Bound {buttonName}");
+        }
     }
 
     private void ClearTopConsumableSlots()
@@ -934,6 +1017,31 @@ public class GameUIController : MonoBehaviour
 
         BindJokerBarUI();
         BindJokerEffectsUI();
+        BindJokerSaleButtonsUI();
+    }
+
+    private void EnsureJokerSaleButtonsBound()
+    {
+        if (jokerSaleButtons != null && jokerSaleButtons.Length == 5)
+        {
+            bool hasAnyButton = false;
+
+            for (int i = 0; i < jokerSaleButtons.Length; i++)
+            {
+                if (jokerSaleButtons[i] != null)
+                {
+                    hasAnyButton = true;
+                    break;
+                }
+            }
+
+            if (hasAnyButton)
+            {
+                return;
+            }
+        }
+
+        BindJokerSaleButtonsUI();
     }
 
     private void EnsureJokerEffectsBound()
@@ -1604,6 +1712,101 @@ public class GameUIController : MonoBehaviour
         }
 
         ShopNextBlindButtonClicked?.Invoke();
+    }
+
+    private void HandleJokerSlotClicked(int slotIndex)
+    {
+        JokerBase joker = GetEquippedJokerAt(slotIndex);
+
+        if (joker == null)
+        {
+            HideJokerSaleButtons();
+            return;
+        }
+
+        EnsureJokerSaleButtonsBound();
+
+        if (selectedJokerSaleSlotIndex == slotIndex && IsJokerSaleButtonVisible(slotIndex))
+        {
+            HideJokerSaleButtons();
+            Debug.Log($"Joker sale button hidden: slot {slotIndex + 1}");
+            return;
+        }
+
+        selectedJokerSaleSlotIndex = slotIndex;
+        UpdateVisibleJokerSaleButton();
+    }
+
+    private void HandleJokerSaleButtonClicked(int slotIndex)
+    {
+        JokerBase joker = GetEquippedJokerAt(slotIndex);
+
+        if (joker == null)
+        {
+            HideJokerSaleButtons();
+            Debug.Log($"Cannot sell Joker: slot {slotIndex + 1} is empty");
+            return;
+        }
+
+        Debug.Log($"UI JokerSaleButton clicked: slot {slotIndex + 1}");
+        JokerSaleButtonClicked?.Invoke(slotIndex);
+    }
+
+    private void UpdateVisibleJokerSaleButton()
+    {
+        EnsureJokerSaleButtonsBound();
+
+        if (jokerSaleButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < jokerSaleButtons.Length; i++)
+        {
+            Button saleButton = jokerSaleButtons[i];
+
+            if (saleButton == null)
+            {
+                continue;
+            }
+
+            JokerBase joker = GetEquippedJokerAt(i);
+            bool shouldShow = i == selectedJokerSaleSlotIndex && joker != null;
+            saleButton.gameObject.SetActive(shouldShow);
+            saleButton.interactable = shouldShow;
+
+            if (shouldShow)
+            {
+                int sellPrice = GetJokerSellPrice(joker);
+                TMP_Text buttonText = saleButton.GetComponentInChildren<TMP_Text>(true);
+                SetText(buttonText, $"Sell ${sellPrice}");
+                Debug.Log($"Joker sale button shown: slot {i + 1}, sell price ${sellPrice}");
+            }
+        }
+    }
+
+    private bool IsJokerSaleButtonVisible(int slotIndex)
+    {
+        return jokerSaleButtons != null
+            && slotIndex >= 0
+            && slotIndex < jokerSaleButtons.Length
+            && jokerSaleButtons[slotIndex] != null
+            && jokerSaleButtons[slotIndex].gameObject.activeSelf;
+    }
+
+    private JokerBase GetEquippedJokerAt(int slotIndex)
+    {
+        if (currentEquippedJokers == null || slotIndex < 0 || slotIndex >= currentEquippedJokers.Count)
+        {
+            return null;
+        }
+
+        return currentEquippedJokers[slotIndex];
+    }
+
+    private int GetJokerSellPrice(JokerBase joker)
+    {
+        return joker != null ? Mathf.Max(1, joker.Cost - 2) : 1;
     }
 
     private void HandleRunInfoButtonClicked()
