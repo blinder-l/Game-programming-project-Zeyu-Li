@@ -23,6 +23,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private RunInfoUIController runInfoUIController;
     [SerializeField] private CardTooltipController cardTooltipController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
+    [SerializeField] private CardModifierSpriteDatabase cardModifierSpriteDatabase;
     [SerializeField] private JokerSpriteDatabase jokerSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
@@ -49,6 +50,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject resolutionInfoArea;
     [SerializeField] private GameObject playedCardsArea;
     [SerializeField] private Image[] playedCardImages;
+    [SerializeField] private PlayingCardModifierOverlayView[] playedCardModifierOverlayViews;
     [SerializeField] private CardVisualFeedback[] playedCardFeedbacks;
     [SerializeField] private PlayedCardEffectView[] playedCardEffectViews;
     private PlayingCard[] playedCardSlotCards;
@@ -95,6 +97,7 @@ public class GameUIController : MonoBehaviour
 
         ResolveStateRoots();
         ResolveCardSpriteDatabaseIfNeeded();
+        ResolveCardModifierSpriteDatabaseIfNeeded();
         BindLeftStatusUI();
         BindPlayedCardsUI();
         BindResolutionInfoUI();
@@ -165,6 +168,7 @@ public class GameUIController : MonoBehaviour
     public void RefreshHand(IReadOnlyList<PlayingCard> currentHand)
     {
         ResolveCardSpriteDatabaseIfNeeded();
+        ResolveCardModifierSpriteDatabaseIfNeeded();
         EnsureHandCardsBound();
 
         if (handCardViews == null)
@@ -183,7 +187,7 @@ public class GameUIController : MonoBehaviour
 
             if (currentHand != null && i < currentHand.Count)
             {
-                cardView.SetCard(i, currentHand[i], cardSpriteDatabase, HandleHandCardClicked);
+                cardView.SetCard(i, currentHand[i], cardSpriteDatabase, cardModifierSpriteDatabase, HandleHandCardClicked);
             }
             else
             {
@@ -197,6 +201,7 @@ public class GameUIController : MonoBehaviour
         IReadOnlyCollection<PlayingCard> hiddenCards)
     {
         ResolveCardSpriteDatabaseIfNeeded();
+        ResolveCardModifierSpriteDatabaseIfNeeded();
         EnsureHandCardsBound();
 
         if (handCardViews == null)
@@ -223,7 +228,7 @@ public class GameUIController : MonoBehaviour
                 }
                 else
                 {
-                    cardView.SetCard(i, card, cardSpriteDatabase, HandleHandCardClicked);
+                    cardView.SetCard(i, card, cardSpriteDatabase, cardModifierSpriteDatabase, HandleHandCardClicked);
                 }
             }
             else
@@ -434,6 +439,7 @@ public class GameUIController : MonoBehaviour
     public void RefreshPlayedCards(IReadOnlyList<PlayingCard> playedCards)
     {
         ResolveCardSpriteDatabaseIfNeeded();
+        ResolveCardModifierSpriteDatabaseIfNeeded();
         EnsurePlayedCardsBound();
 
         if (playedCardImages == null)
@@ -459,6 +465,10 @@ public class GameUIController : MonoBehaviour
                 cardImage.enabled = true;
                 cardImage.sprite = cardSpriteDatabase != null ? cardSpriteDatabase.GetSprite(playedCards[i]) : null;
                 cardImage.raycastTarget = false;
+                if (playedCardModifierOverlayViews != null && i < playedCardModifierOverlayViews.Length)
+                {
+                    playedCardModifierOverlayViews[i]?.Refresh(playedCards[i]);
+                }
                 SetPlayedCardVisualContent(i, cardImage.sprite != null);
                 displayedCount++;
             }
@@ -467,6 +477,10 @@ public class GameUIController : MonoBehaviour
                 playedCardSlotCards[i] = null;
                 cardImage.sprite = null;
                 cardImage.enabled = false;
+                if (playedCardModifierOverlayViews != null && i < playedCardModifierOverlayViews.Length)
+                {
+                    playedCardModifierOverlayViews[i]?.Clear();
+                }
                 SetPlayedCardVisualContent(i, false);
                 cardImage.gameObject.SetActive(false);
             }
@@ -621,6 +635,10 @@ public class GameUIController : MonoBehaviour
 
             cardImage.sprite = null;
             cardImage.enabled = false;
+            if (playedCardModifierOverlayViews != null && i < playedCardModifierOverlayViews.Length)
+            {
+                playedCardModifierOverlayViews[i]?.Clear();
+            }
             if (playedCardSlotCards != null && i < playedCardSlotCards.Length)
             {
                 playedCardSlotCards[i] = null;
@@ -756,6 +774,21 @@ public class GameUIController : MonoBehaviour
         if (cardSpriteDatabase == null)
         {
             cardSpriteDatabase = gameObject.AddComponent<CardSpriteDatabase>();
+        }
+    }
+
+    private void ResolveCardModifierSpriteDatabaseIfNeeded()
+    {
+        if (cardModifierSpriteDatabase != null)
+        {
+            return;
+        }
+
+        cardModifierSpriteDatabase = FindFirstObjectByType<CardModifierSpriteDatabase>();
+
+        if (cardModifierSpriteDatabase == null)
+        {
+            cardModifierSpriteDatabase = gameObject.AddComponent<CardModifierSpriteDatabase>();
         }
     }
 
@@ -1210,6 +1243,7 @@ public class GameUIController : MonoBehaviour
 
     private void BindPlayedCardsUI()
     {
+        ResolveCardModifierSpriteDatabaseIfNeeded();
         playedCardsArea = GameObject.Find("Canvas/PlayStateRoot/CenterPlayArea/PlayedCardsArea");
 
         if (playedCardsArea == null)
@@ -1220,6 +1254,7 @@ public class GameUIController : MonoBehaviour
 
         Debug.Log("Bound PlayedCardsArea");
         playedCardImages = new Image[5];
+        playedCardModifierOverlayViews = new PlayingCardModifierOverlayView[5];
         playedCardFeedbacks = new CardVisualFeedback[5];
         playedCardSlotCards = new PlayingCard[5];
 
@@ -1245,6 +1280,17 @@ public class GameUIController : MonoBehaviour
             cardImage.raycastTarget = false;
             playedCardImages[i] = cardImage;
 
+            PlayingCardModifierOverlayView modifierOverlayView = cardTransform.GetComponent<PlayingCardModifierOverlayView>();
+
+            if (modifierOverlayView == null)
+            {
+                modifierOverlayView = cardTransform.gameObject.AddComponent<PlayingCardModifierOverlayView>();
+            }
+
+            modifierOverlayView.Bind(cardImage.transform as RectTransform, cardModifierSpriteDatabase);
+            modifierOverlayView.Clear();
+            playedCardModifierOverlayViews[i] = modifierOverlayView;
+
             CardVisualFeedback visualFeedback = cardTransform.GetComponent<CardVisualFeedback>();
 
             if (visualFeedback == null)
@@ -1263,13 +1309,15 @@ public class GameUIController : MonoBehaviour
 
     private void EnsurePlayedCardsBound()
     {
-        if (playedCardImages != null && playedCardImages.Length == 5 && playedCardFeedbacks != null && playedCardFeedbacks.Length == 5)
+        if (playedCardImages != null && playedCardImages.Length == 5 &&
+            playedCardFeedbacks != null && playedCardFeedbacks.Length == 5 &&
+            playedCardModifierOverlayViews != null && playedCardModifierOverlayViews.Length == 5)
         {
             bool hasAllCards = true;
 
             for (int i = 0; i < playedCardImages.Length; i++)
             {
-                if (playedCardImages[i] == null || playedCardFeedbacks[i] == null)
+                if (playedCardImages[i] == null || playedCardFeedbacks[i] == null || playedCardModifierOverlayViews[i] == null)
                 {
                     hasAllCards = false;
                     break;

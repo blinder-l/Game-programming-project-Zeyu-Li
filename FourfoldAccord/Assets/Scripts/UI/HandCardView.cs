@@ -13,6 +13,7 @@ public class HandCardView : MonoBehaviour
     [SerializeField] private RectTransform cardVisualRoot;
     [SerializeField] private CardVisualFeedback visualFeedback;
     [SerializeField] private CardTooltipTrigger tooltipTrigger;
+    [SerializeField] private PlayingCardModifierOverlayView modifierOverlayView;
 
     private PlayingCard boundCard;
     private Action<PlayingCard> clickedHandler;
@@ -44,6 +45,16 @@ public class HandCardView : MonoBehaviour
 
     public void SetCard(int index, PlayingCard card, CardSpriteDatabase spriteDatabase, Action<PlayingCard> onClicked)
     {
+        SetCard(index, card, spriteDatabase, null, onClicked);
+    }
+
+    public void SetCard(
+        int index,
+        PlayingCard card,
+        CardSpriteDatabase spriteDatabase,
+        CardModifierSpriteDatabase modifierSpriteDatabase,
+        Action<PlayingCard> onClicked)
+    {
         ResolveReferences();
 
         if (card == null)
@@ -74,6 +85,8 @@ public class HandCardView : MonoBehaviour
         }
 
         visualFeedback?.SetHasVisualContent(cardSprite != null);
+        modifierOverlayView?.Bind(cardVisualRoot, modifierSpriteDatabase);
+        modifierOverlayView?.Refresh(card);
         UpdatePlayingCardTooltip(card);
         SetSelectedVisual(card.isSelected);
     }
@@ -93,6 +106,7 @@ public class HandCardView : MonoBehaviour
 
         visualFeedback?.SetHasVisualContent(false);
         visualFeedback?.ResetVisualImmediate();
+        modifierOverlayView?.Clear();
         tooltipTrigger?.SetTooltip("Empty", "No card.", string.Empty, string.Empty);
         SetSelectedVisual(false);
         gameObject.SetActive(false);
@@ -121,6 +135,7 @@ public class HandCardView : MonoBehaviour
 
         visualFeedback?.SetHasVisualContent(false);
         visualFeedback?.ResetVisualImmediate();
+        modifierOverlayView?.Clear();
         tooltipTrigger?.SetTooltip("Empty", "No card.", string.Empty, string.Empty);
         SetSelectedVisual(false);
     }
@@ -193,6 +208,16 @@ public class HandCardView : MonoBehaviour
         if (tooltipTrigger == null)
         {
             tooltipTrigger = gameObject.AddComponent<CardTooltipTrigger>();
+        }
+
+        if (modifierOverlayView == null)
+        {
+            modifierOverlayView = GetComponent<PlayingCardModifierOverlayView>();
+        }
+
+        if (modifierOverlayView == null)
+        {
+            modifierOverlayView = gameObject.AddComponent<PlayingCardModifierOverlayView>();
         }
 
         if (cardNameText != null)
