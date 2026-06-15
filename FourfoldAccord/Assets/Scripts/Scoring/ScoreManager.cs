@@ -32,6 +32,7 @@ public class ScoreManager
         JokerManager jokerManager,
         HandTypeLevelManager handTypeLevelManager,
         IReadOnlyList<PlayingCard> ownedCardsSnapshot = null,
+        IReadOnlyList<PlayingCard> heldCardsSnapshot = null,
         JokerRuleContext ruleContext = null,
         int currentHandTypePlayCount = 0)
     {
@@ -43,13 +44,17 @@ public class ScoreManager
         List<PlayingCard> scoringCards = pokerHandResult.scoringCards ?? new List<PlayingCard>();
         List<string> triggeredCardEffectLog = new List<string>();
         List<CardScoreEvent> cardScoreEvents = new List<CardScoreEvent>();
+        List<JokerScoreEvent> jokerScoreEvents = new List<JokerScoreEvent>();
         int bonusCardGoldReward = 0;
         int luckySuccessfulTriggerCount = 0;
         float cardEffectMultBonus = 0f;
         Dictionary<PlayingCard, int> cardChipValues = GetCardChipValues(
             scoringCards,
+            jokerManager,
+            ruleContext,
             triggeredCardEffectLog,
             cardScoreEvents,
+            jokerScoreEvents,
             out bonusCardGoldReward,
             out luckySuccessfulTriggerCount,
             out cardEffectMultBonus);
@@ -61,6 +66,7 @@ public class ScoreManager
 
         ScoreContext scoreContext = new ScoreContext(
             new List<PlayingCard>(scoringCards),
+            heldCardsSnapshot != null ? new List<PlayingCard>(heldCardsSnapshot) : new List<PlayingCard>(),
             pokerHandResult.handType,
             baseChips,
             rankChips,
@@ -69,7 +75,7 @@ public class ScoreManager
             0,
             cardChipValues,
             cardScoreEvents,
-            new List<JokerScoreEvent>(),
+            jokerScoreEvents,
             suitCounts,
             0,
             bonusCardGoldReward,
@@ -162,8 +168,11 @@ public class ScoreManager
 
     private Dictionary<PlayingCard, int> GetCardChipValues(
         List<PlayingCard> cards,
+        JokerManager jokerManager,
+        JokerRuleContext ruleContext,
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
+        List<JokerScoreEvent> jokerScoreEvents,
         out int bonusCardGoldReward,
         out int luckySuccessfulTriggerCount,
         out float multBonus)
@@ -187,8 +196,8 @@ public class ScoreManager
             float cardMultBonus;
             int cardChipValue = ScoreSingleCard(
                 card,
-                true,
                 false,
+                "Card",
                 triggeredCardEffectLog,
                 cardScoreEvents,
                 out cardBonusGoldReward,
@@ -207,6 +216,62 @@ public class ScoreManager
             bonusCardGoldReward += cardBonusGoldReward;
             luckySuccessfulTriggerCount += cardLuckySuccessfulTriggerCount;
             multBonus += cardMultBonus;
+
+            List<CardRetriggerEffect> retriggerEffects = new List<CardRetriggerEffect>();
+
+            if (card.seal == CardSeal.Red)
+            {
+                retriggerEffects.Add(new CardRetriggerEffect(1, -1, "+1", "Red Seal"));
+            }
+
+            if (jokerManager != null)
+            {
+                retriggerEffects.AddRange(jokerManager.GetCardRetriggerEffects(card, i, cards, ruleContext));
+            }
+
+            CardScoreEvent baseScoreEvent = cardScoreEvents.Count > 0 ? cardScoreEvents[cardScoreEvents.Count - 1] : null;
+
+            for (int effectIndex = 0; effectIndex < retriggerEffects.Count; effectIndex++)
+            {
+                CardRetriggerEffect retriggerEffect = retriggerEffects[effectIndex];
+
+                if (retriggerEffect == null || retriggerEffect.extraTriggerCount <= 0)
+                {
+                    continue;
+                }
+
+                if (retriggerEffect.jokerSlotIndex >= 0)
+                {
+                    jokerScoreEvents.Add(new JokerScoreEvent(
+                        retriggerEffect.jokerSlotIndex,
+                        retriggerEffect.effectText,
+                        retriggerEffect.effectSource,
+                        baseScoreEvent));
+                }
+
+                triggeredCardEffectLog.Add($"{card.GetDisplayName()}: {retriggerEffect.effectSource} retriggered +{retriggerEffect.extraTriggerCount} time(s)");
+
+                for (int retriggerIndex = 0; retriggerIndex < retriggerEffect.extraTriggerCount; retriggerIndex++)
+                {
+                    int retriggerBonusGoldReward;
+                    int retriggerLuckySuccessfulTriggerCount;
+                    float retriggerMultBonus;
+                    int retriggerChipValue = ScoreSingleCard(
+                        card,
+                        true,
+                        retriggerEffect.effectSource,
+                        triggeredCardEffectLog,
+                        cardScoreEvents,
+                        out retriggerBonusGoldReward,
+                        out retriggerLuckySuccessfulTriggerCount,
+                        out retriggerMultBonus);
+
+                    cardChipValues[card] += retriggerChipValue;
+                    bonusCardGoldReward += retriggerBonusGoldReward;
+                    luckySuccessfulTriggerCount += retriggerLuckySuccessfulTriggerCount;
+                    multBonus += retriggerMultBonus;
+                }
+            }
         }
 
         return cardChipValues;
@@ -214,8 +279,8 @@ public class ScoreManager
 
     private int ScoreSingleCard(
         PlayingCard card,
-        bool allowRedSealRetrigger,
         bool isRetrigger,
+        string effectSource,
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         out int bonusCardGoldReward,
@@ -247,7 +312,7 @@ public class ScoreManager
             0,
             isRetrigger,
             $"+{cardChips}",
-            isRetrigger ? "Red Seal" : "Card"));
+            effectSource));
 
         if (card.enhancement == CardEnhancement.Lucky)
         {
@@ -285,34 +350,6 @@ public class ScoreManager
         {
             bonusCardGoldReward += 3;
             triggeredCardEffectLog.Add($"{card.GetDisplayName()}: Gold Seal +$3");
-        }
-
-        if (card.seal == CardSeal.Red)
-        {
-            if (allowRedSealRetrigger)
-            {
-                triggeredCardEffectLog.Add($"{card.GetDisplayName()}: Red Seal retriggered once");
-
-                int retriggerBonusGoldReward;
-                int retriggerLuckySuccessfulTriggerCount;
-                float retriggerMultBonus;
-                cardChips += ScoreSingleCard(
-                    card,
-                    false,
-                    true,
-                    triggeredCardEffectLog,
-                    cardScoreEvents,
-                    out retriggerBonusGoldReward,
-                    out retriggerLuckySuccessfulTriggerCount,
-                    out retriggerMultBonus);
-                bonusCardGoldReward += retriggerBonusGoldReward;
-                luckySuccessfulTriggerCount += retriggerLuckySuccessfulTriggerCount;
-                multBonus += retriggerMultBonus;
-            }
-            else
-            {
-                triggeredCardEffectLog.Add($"{card.GetDisplayName()}: Red Seal retrigger skipped during retrigger");
-            }
         }
 
         return cardChips;

@@ -67,9 +67,26 @@ public class JokerScoreEvent
     }
 }
 
+public class CardRetriggerEffect
+{
+    public int extraTriggerCount;
+    public int jokerSlotIndex;
+    public string effectText;
+    public string effectSource;
+
+    public CardRetriggerEffect(int extraTriggerCount, int jokerSlotIndex, string effectText, string effectSource)
+    {
+        this.extraTriggerCount = extraTriggerCount;
+        this.jokerSlotIndex = jokerSlotIndex;
+        this.effectText = effectText;
+        this.effectSource = effectSource;
+    }
+}
+
 public class ScoreContext
 {
     public List<PlayingCard> playedCards;
+    public List<PlayingCard> heldCards;
     public PokerHandType handType;
     public int baseChips;
     public int rankChips;
@@ -94,6 +111,7 @@ public class ScoreContext
 
     public ScoreContext(
         List<PlayingCard> playedCards,
+        List<PlayingCard> heldCards,
         PokerHandType handType,
         int baseChips,
         int rankChips,
@@ -115,6 +133,7 @@ public class ScoreContext
         List<string> triggeredJokerEffectLog)
     {
         this.playedCards = playedCards;
+        this.heldCards = heldCards;
         this.handType = handType;
         this.baseChips = baseChips;
         this.rankChips = rankChips;

@@ -294,7 +294,7 @@ public class GameUIController : MonoBehaviour
         {
             if (jokerSaleButtons[i] != null)
             {
-                jokerSaleButtons[i].gameObject.SetActive(false);
+                SetJokerSaleButtonVisible(jokerSaleButtons[i], false);
             }
         }
     }
@@ -909,7 +909,12 @@ public class GameUIController : MonoBehaviour
         for (int i = 0; i < jokerSaleButtons.Length; i++)
         {
             string buttonName = $"JokerSaleButton{i + 1}";
-            GameObject buttonObject = FindGameObjectIncludingInactive(jokerSaleArea.transform, buttonName, null);
+            GameObject buttonObject = FindDirectChildGameObject(jokerSaleArea.transform, buttonName);
+
+            if (buttonObject == null)
+            {
+                buttonObject = FindGameObjectIncludingInactive(jokerSaleArea.transform, buttonName, null);
+            }
 
             if (buttonObject == null)
             {
@@ -938,10 +943,14 @@ public class GameUIController : MonoBehaviour
             button.onClick.AddListener(() => HandleJokerSaleButtonClicked(capturedIndex));
             button.interactable = true;
             DisableTextRaycasts(buttonObject);
-            buttonObject.SetActive(false);
             jokerSaleButtons[i] = button;
-            Debug.Log($"Bound {buttonName}");
+            SetJokerSaleButtonVisible(button, false);
+            RectTransform buttonRect = buttonObject.transform as RectTransform;
+            string positionText = buttonRect != null ? buttonRect.anchoredPosition.ToString() : "no RectTransform";
+            Debug.Log($"Bound {buttonName}: {GetFullPath(buttonObject.transform)} at {positionText}");
         }
+
+        ValidateJokerSaleButtonMapping();
     }
 
     private void ClearTopConsumableSlots()
@@ -1772,8 +1781,7 @@ public class GameUIController : MonoBehaviour
 
             JokerBase joker = GetEquippedJokerAt(i);
             bool shouldShow = i == selectedJokerSaleSlotIndex && joker != null;
-            saleButton.gameObject.SetActive(shouldShow);
-            saleButton.interactable = shouldShow;
+            SetJokerSaleButtonVisible(saleButton, shouldShow);
 
             if (shouldShow)
             {
@@ -1783,6 +1791,14 @@ public class GameUIController : MonoBehaviour
                 Debug.Log($"Joker sale button shown: slot {i + 1}, sell price ${sellPrice}");
             }
         }
+
+        if (selectedJokerSaleSlotIndex >= 0 &&
+            selectedJokerSaleSlotIndex < jokerSaleButtons.Length &&
+            GetEquippedJokerAt(selectedJokerSaleSlotIndex) != null &&
+            jokerSaleButtons[selectedJokerSaleSlotIndex] == null)
+        {
+            Debug.LogWarning($"Cannot show Joker sale button: JokerSaleButton{selectedJokerSaleSlotIndex + 1} is not bound");
+        }
     }
 
     private bool IsJokerSaleButtonVisible(int slotIndex)
@@ -1791,7 +1807,43 @@ public class GameUIController : MonoBehaviour
             && slotIndex >= 0
             && slotIndex < jokerSaleButtons.Length
             && jokerSaleButtons[slotIndex] != null
-            && jokerSaleButtons[slotIndex].gameObject.activeSelf;
+            && IsJokerSaleButtonVisualVisible(jokerSaleButtons[slotIndex]);
+    }
+
+    private void SetJokerSaleButtonVisible(Button saleButton, bool isVisible)
+    {
+        if (saleButton == null)
+        {
+            return;
+        }
+
+        if (!saleButton.gameObject.activeSelf)
+        {
+            saleButton.gameObject.SetActive(true);
+        }
+
+        CanvasGroup canvasGroup = saleButton.GetComponent<CanvasGroup>();
+
+        if (canvasGroup == null)
+        {
+            canvasGroup = saleButton.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        canvasGroup.alpha = isVisible ? 1f : 0f;
+        canvasGroup.interactable = isVisible;
+        canvasGroup.blocksRaycasts = isVisible;
+        saleButton.interactable = isVisible;
+    }
+
+    private bool IsJokerSaleButtonVisualVisible(Button saleButton)
+    {
+        if (saleButton == null)
+        {
+            return false;
+        }
+
+        CanvasGroup canvasGroup = saleButton.GetComponent<CanvasGroup>();
+        return saleButton.gameObject.activeInHierarchy && canvasGroup != null && canvasGroup.alpha > 0.5f;
     }
 
     private JokerBase GetEquippedJokerAt(int slotIndex)
@@ -2144,6 +2196,17 @@ public class GameUIController : MonoBehaviour
         return foundObject != null ? foundObject : fallback;
     }
 
+    private GameObject FindDirectChildGameObject(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrEmpty(childName))
+        {
+            return null;
+        }
+
+        Transform child = root.Find(childName);
+        return child != null ? child.gameObject : null;
+    }
+
     private GameObject FindGameObjectIncludingInactive(Transform root, string objectName, GameObject fallback)
     {
         if (root == null)
@@ -2160,6 +2223,30 @@ public class GameUIController : MonoBehaviour
         }
 
         return fallback;
+    }
+
+    private void ValidateJokerSaleButtonMapping()
+    {
+        if (jokerSaleButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < jokerSaleButtons.Length; i++)
+        {
+            if (jokerSaleButtons[i] == null)
+            {
+                continue;
+            }
+
+            for (int j = i + 1; j < jokerSaleButtons.Length; j++)
+            {
+                if (jokerSaleButtons[j] != null && jokerSaleButtons[i].gameObject == jokerSaleButtons[j].gameObject)
+                {
+                    Debug.LogError($"Joker sale button mapping error: JokerSaleButton{i + 1} and JokerSaleButton{j + 1} are bound to the same GameObject: {GetFullPath(jokerSaleButtons[i].transform)}");
+                }
+            }
+        }
     }
 
     private string GetFullPath(Transform target)

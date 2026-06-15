@@ -25,7 +25,15 @@ public class ShopManager
         () => new SigilSmearerJoker(),
         () => new WitnessOfTheFirstExposureJoker(),
         () => new RiderOfTheLongRouteJoker(),
-        () => new PriestOfTheSupernovaRemnantJoker()
+        () => new PriestOfTheSupernovaRemnantJoker(),
+        () => new FirstEchoHeraldJoker(),
+        () => new HeraldOfTragicomedyJoker(),
+        () => new DuststepRipperJoker(),
+        () => new BaronOfSovereignGraceJoker(),
+        () => new BloodstoneDivinerJoker(),
+        () => new SageOfTheShiftingSigilJoker(),
+        () => new IconOfChosenFateJoker(),
+        () => new LittleCrownPageJoker()
     };
 
     public IReadOnlyList<ShopOffer> CurrentOffers => currentOffers;

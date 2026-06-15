@@ -16,6 +16,16 @@ public abstract class JokerBase
     {
     }
 
+    public virtual CardRetriggerEffect GetCardRetriggerEffect(
+        PlayingCard card,
+        int scoringCardIndex,
+        System.Collections.Generic.IReadOnlyList<PlayingCard> scoringCards,
+        JokerRuleContext ruleContext,
+        int jokerSlotIndex)
+    {
+        return null;
+    }
+
     // Jokers should modify intermediate score fields, not finalScore.
     public virtual void ApplyScoreEffect(ScoreContext scoreContext)
     {
@@ -27,6 +37,10 @@ public abstract class JokerBase
     }
 
     public virtual void OnBlindPassed(RoundManager roundManager)
+    {
+    }
+
+    public virtual void OnBlindStarted(System.Collections.Generic.IReadOnlyList<PlayingCard> ownedCards)
     {
     }
 

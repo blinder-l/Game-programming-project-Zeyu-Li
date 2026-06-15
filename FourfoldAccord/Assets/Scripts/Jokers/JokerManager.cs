@@ -83,6 +83,40 @@ public class JokerManager
         }
     }
 
+    public List<CardRetriggerEffect> GetCardRetriggerEffects(
+        PlayingCard card,
+        int scoringCardIndex,
+        IReadOnlyList<PlayingCard> scoringCards,
+        JokerRuleContext ruleContext)
+    {
+        List<CardRetriggerEffect> retriggerEffects = new List<CardRetriggerEffect>();
+
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            CardRetriggerEffect effect = equippedJokers[i]?.GetCardRetriggerEffect(
+                card,
+                scoringCardIndex,
+                scoringCards,
+                ruleContext,
+                i);
+
+            if (effect != null && effect.extraTriggerCount > 0)
+            {
+                retriggerEffects.Add(effect);
+            }
+        }
+
+        return retriggerEffects;
+    }
+
+    public void NotifyBlindStarted(IReadOnlyList<PlayingCard> ownedCards)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnBlindStarted(ownedCards);
+        }
+    }
+
     public void NotifyBlindPassed(RoundManager roundManager)
     {
         for (int i = 0; i < equippedJokers.Count; i++)

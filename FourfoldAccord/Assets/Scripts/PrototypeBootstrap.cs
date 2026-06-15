@@ -197,6 +197,7 @@ public class PrototypeBootstrap : MonoBehaviour
         latestScoreContext = null;
         ResetCashOutForNewBlind();
         ClearSelectedCards();
+        NotifyJokersBlindStarted();
         gameUIController?.SetState(GameUIState.PlayingBlind);
         RefreshGameUI();
 
@@ -780,6 +781,7 @@ public class PrototypeBootstrap : MonoBehaviour
         List<PlayingCard> ownedCardsSnapshot = deckManager != null
             ? deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand)
             : null;
+        List<PlayingCard> heldCardsSnapshot = GetHeldCardsSnapshot(cardsToPlay);
         int currentHandTypePlayCount = GetHandTypePlayCount(pokerHandResult.handType) + 1;
         ScoreContext scoreContext = scoreManager.CalculateScore(
             pokerHandResult,
@@ -787,6 +789,7 @@ public class PrototypeBootstrap : MonoBehaviour
             jokerManager,
             handTypeLevelManager,
             ownedCardsSnapshot,
+            heldCardsSnapshot,
             ruleContext,
             currentHandTypePlayCount);
         latestHandTypeText = scoreContext.handType.ToString();
@@ -839,7 +842,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
             if (scoreEvent.isRetrigger)
             {
-                Debug.Log($"PlayedCard{scoreEvent.playedCardSlotIndex + 1} Red Seal retrigger animation: {scoreEvent.card.GetDisplayName()} +{scoreEvent.chipsAdded}");
+                Debug.Log($"PlayedCard{scoreEvent.playedCardSlotIndex + 1} {scoreEvent.effectSource} retrigger animation: {scoreEvent.card.GetDisplayName()} +{scoreEvent.chipsAdded}");
             }
 
             yield return new WaitForSeconds(CardScoreStepDelay);
@@ -1693,6 +1696,57 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         gameUIController.SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
+    }
+
+    private List<PlayingCard> GetHeldCardsSnapshot(IReadOnlyCollection<PlayingCard> cardsToPlay)
+    {
+        List<PlayingCard> heldCards = new List<PlayingCard>();
+
+        if (handManager == null || handManager.CurrentHand == null)
+        {
+            return heldCards;
+        }
+
+        for (int i = 0; i < handManager.CurrentHand.Count; i++)
+        {
+            PlayingCard card = handManager.CurrentHand[i];
+
+            if (card != null && !ContainsCard(cardsToPlay, card))
+            {
+                heldCards.Add(card);
+            }
+        }
+
+        return heldCards;
+    }
+
+    private void NotifyJokersBlindStarted()
+    {
+        if (jokerManager == null || deckManager == null)
+        {
+            return;
+        }
+
+        List<PlayingCard> ownedCards = deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand);
+        jokerManager.NotifyBlindStarted(ownedCards);
+    }
+
+    private bool ContainsCard(IReadOnlyCollection<PlayingCard> cards, PlayingCard targetCard)
+    {
+        if (cards == null || targetCard == null)
+        {
+            return false;
+        }
+
+        foreach (PlayingCard card in cards)
+        {
+            if (card == targetCard)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
