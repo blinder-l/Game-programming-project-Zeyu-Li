@@ -39,6 +39,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private void Awake()
     {
         EnsureGameUIController();
+        EnsureCardModifierDebugTester();
     }
 
     private void Start()
@@ -91,6 +92,20 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         gameUIController.InitializeRuntimeBindings();
+    }
+
+    private void EnsureCardModifierDebugTester()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        CardModifierDebugTester debugTester = GetComponent<CardModifierDebugTester>();
+
+        if (debugTester == null)
+        {
+            debugTester = gameObject.AddComponent<CardModifierDebugTester>();
+        }
+
+        debugTester.Initialize(this);
+#endif
     }
 
     private void OnDestroy()
@@ -532,15 +547,20 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleHandSortInput()
     {
-        if (Input.GetKeyDown(KeyCode.S))
+        if (!IsShiftHeld() && Input.GetKeyDown(KeyCode.S))
         {
             SortHandBySuitAndRefresh();
         }
 
-        if (Input.GetKeyDown(KeyCode.T))
+        if (!IsShiftHeld() && Input.GetKeyDown(KeyCode.T))
         {
             SortHandByRankAndRefresh();
         }
+    }
+
+    private bool IsShiftHeld()
+    {
+        return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
     }
 
     private void HandleSortBySuitButtonClicked()
@@ -1300,6 +1320,25 @@ public class PrototypeBootstrap : MonoBehaviour
 
         gameUIController.SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
     }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public HandManager GetDebugHandManager()
+    {
+        return handManager;
+    }
+
+    public void RefreshDebugCardModifierDisplay()
+    {
+        if (gameUIController == null)
+        {
+            return;
+        }
+
+        gameUIController.RefreshHand(handManager?.CurrentHand);
+        gameUIController.SetDeckStatsSources(deckManager, handManager);
+        Debug.Log("Card modifier debug display refreshed.");
+    }
+#endif
 
     private string GetHandTypeRankText(PokerHandType handType)
     {

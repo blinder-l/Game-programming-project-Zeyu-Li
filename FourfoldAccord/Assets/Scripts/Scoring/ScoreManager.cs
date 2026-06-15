@@ -141,10 +141,22 @@ public class ScoreManager
 
         for (int i = 0; i < cards.Count; i++)
         {
-            cardChipValues[cards[i]] = GetRankChipValue(cards[i].rank);
+            PlayingCard card = cards[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            cardChipValues[card] = GetCardChipValue(card);
         }
 
         return cardChipValues;
+    }
+
+    private int GetCardChipValue(PlayingCard card)
+    {
+        return GetRankChipValue(card.rank) + card.permanentBonusChips;
     }
 
     private int GetRankChips(Dictionary<PlayingCard, int> cardChipValues)

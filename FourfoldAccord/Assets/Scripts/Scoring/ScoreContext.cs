@@ -52,11 +52,32 @@ public class ScoreContext
         for (int i = 0; i < playedCards.Count; i++)
         {
             PlayingCard card = playedCards[i];
+
+            if (card == null)
+            {
+                builder.AppendLine("Null card: +0 chips");
+                continue;
+            }
+
             int chipValue = cardChipValues.ContainsKey(card) ? cardChipValues[card] : 0;
-            builder.AppendLine($"{card.GetDisplayName()}: +{chipValue} chips");
+
+            if (card != null && card.permanentBonusChips != 0)
+            {
+                int rankChipValue = chipValue - card.permanentBonusChips;
+                builder.AppendLine($"{card.GetDisplayName()}: rank {rankChipValue} + permanent {FormatSignedNumber(card.permanentBonusChips)} = +{chipValue} chips");
+            }
+            else
+            {
+                builder.AppendLine($"{card.GetDisplayName()}: +{chipValue} chips");
+            }
         }
 
         return builder.ToString();
+    }
+
+    private string FormatSignedNumber(int value)
+    {
+        return value > 0 ? $"+{value}" : value.ToString();
     }
 
     public string GetSuitPresenceDebugText()
