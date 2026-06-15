@@ -20,6 +20,11 @@ public class FortuneFamiliarJoker : JokerBase
             scoreContext.triggeredJokerEffectLog.Add($"{Name}: Lucky triggered {scoreContext.luckySuccessfulTriggerCount} time(s), increased to X{FormatMultiplier(xMult)}");
         }
 
+        if (xMult <= 1f)
+        {
+            return;
+        }
+
         scoreContext.mult *= xMult;
         scoreContext.jokerScoreEvents?.Add(new JokerScoreEvent(jokerSlotIndex, $"*{FormatMultiplier(xMult)}", Name, null, 0, 0f, xMult));
         scoreContext.triggeredJokerEffectLog.Add($"{Name} applied: X{FormatMultiplier(xMult)} Mult");

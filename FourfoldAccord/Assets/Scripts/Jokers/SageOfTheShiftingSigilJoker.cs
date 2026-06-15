@@ -49,7 +49,7 @@ public class SageOfTheShiftingSigilJoker : JokerBase
     {
         if (!hasTargetSuit)
         {
-            OnBlindStarted(null);
+            OnBlindStarted((IReadOnlyList<PlayingCard>)null);
         }
     }
 }

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 public class ScoreManager
 {
     private readonly SuitEffectManager suitEffectManager = new SuitEffectManager();
-    private readonly Random random = new Random();
 
     public ScoreContext CalculateScore(PokerHandResult pokerHandResult)
     {
@@ -34,7 +33,8 @@ public class ScoreManager
         IReadOnlyList<PlayingCard> ownedCardsSnapshot = null,
         IReadOnlyList<PlayingCard> heldCardsSnapshot = null,
         JokerRuleContext ruleContext = null,
-        int currentHandTypePlayCount = 0)
+        int currentHandTypePlayCount = 0,
+        IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand = null)
     {
         if (pokerHandResult == null)
         {
@@ -82,6 +82,7 @@ public class ScoreManager
             luckySuccessfulTriggerCount,
             GetOwnedStoneCardCount(ownedCardsSnapshot),
             currentHandTypePlayCount,
+            handTypePlayCountsBeforeHand,
             ruleContext,
             triggeredCardEffectLog,
             new List<string>(),
@@ -198,6 +199,7 @@ public class ScoreManager
                 card,
                 false,
                 "Card",
+                ruleContext,
                 triggeredCardEffectLog,
                 cardScoreEvents,
                 out cardBonusGoldReward,
@@ -260,6 +262,7 @@ public class ScoreManager
                         card,
                         true,
                         retriggerEffect.effectSource,
+                        ruleContext,
                         triggeredCardEffectLog,
                         cardScoreEvents,
                         out retriggerBonusGoldReward,
@@ -281,6 +284,7 @@ public class ScoreManager
         PlayingCard card,
         bool isRetrigger,
         string effectSource,
+        JokerRuleContext ruleContext,
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         out int bonusCardGoldReward,
@@ -316,8 +320,8 @@ public class ScoreManager
 
         if (card.enhancement == CardEnhancement.Lucky)
         {
-            bool triggeredLuckyMult = RollChance(1, 5);
-            bool triggeredLuckyGold = RollChance(1, 15);
+            bool triggeredLuckyMult = ProbabilityUtility.RollChance(1, 5, ruleContext, "Lucky Card Mult", triggeredCardEffectLog.Add);
+            bool triggeredLuckyGold = ProbabilityUtility.RollChance(1, 15, ruleContext, "Lucky Card Money", triggeredCardEffectLog.Add);
             bool triggeredAnyLuckyEffect = triggeredLuckyMult || triggeredLuckyGold;
 
             if (triggeredLuckyMult)
@@ -373,21 +377,6 @@ public class ScoreManager
         }
 
         return stoneCount;
-    }
-
-    private bool RollChance(int numerator, int denominator)
-    {
-        if (numerator <= 0 || denominator <= 0)
-        {
-            return false;
-        }
-
-        if (numerator >= denominator)
-        {
-            return true;
-        }
-
-        return random.Next(denominator) < numerator;
     }
 
     private string FormatPermanentBonus(PlayingCard card)

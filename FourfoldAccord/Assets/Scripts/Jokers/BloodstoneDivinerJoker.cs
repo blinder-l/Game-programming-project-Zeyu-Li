@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using UnityEngine;
-
 public class BloodstoneDivinerJoker : JokerBase
 {
     public override string Name => "Bloodstone Diviner";
@@ -24,7 +21,7 @@ public class BloodstoneDivinerJoker : JokerBase
                 continue;
             }
 
-            if (RollChance(1, 3))
+            if (ProbabilityUtility.RollChance(1, 3, scoreContext.ruleContext, Name, scoreContext.triggeredJokerEffectLog.Add))
             {
                 scoreContext.mult *= 1.5f;
                 scoreContext.jokerScoreEvents?.Add(new JokerScoreEvent(jokerSlotIndex, "*1.5", Name, scoreEvent, 0, 0f, 1.5f));
@@ -35,10 +32,5 @@ public class BloodstoneDivinerJoker : JokerBase
                 scoreContext.triggeredJokerEffectLog.Add($"{Name}: {card.GetDisplayName()} did not trigger");
             }
         }
-    }
-
-    private bool RollChance(int numerator, int denominator)
-    {
-        return numerator > 0 && denominator > 0 && Random.Range(0, denominator) < numerator;
     }
 }

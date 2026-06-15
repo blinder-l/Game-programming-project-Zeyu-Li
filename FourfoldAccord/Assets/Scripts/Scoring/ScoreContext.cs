@@ -104,6 +104,7 @@ public class ScoreContext
     public int luckySuccessfulTriggerCount;
     public int ownedStoneCardCount;
     public int currentHandTypePlayCount;
+    public IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand;
     public JokerRuleContext ruleContext;
     public List<string> triggeredCardEffectLog;
     public List<string> triggeredSuitEffectLog;
@@ -127,6 +128,7 @@ public class ScoreContext
         int luckySuccessfulTriggerCount,
         int ownedStoneCardCount,
         int currentHandTypePlayCount,
+        IReadOnlyDictionary<PokerHandType, int> handTypePlayCountsBeforeHand,
         JokerRuleContext ruleContext,
         List<string> triggeredCardEffectLog,
         List<string> triggeredSuitEffectLog,
@@ -149,6 +151,7 @@ public class ScoreContext
         this.luckySuccessfulTriggerCount = luckySuccessfulTriggerCount;
         this.ownedStoneCardCount = ownedStoneCardCount;
         this.currentHandTypePlayCount = currentHandTypePlayCount;
+        this.handTypePlayCountsBeforeHand = handTypePlayCountsBeforeHand;
         this.ruleContext = ruleContext;
         this.triggeredCardEffectLog = triggeredCardEffectLog;
         this.triggeredSuitEffectLog = triggeredSuitEffectLog;

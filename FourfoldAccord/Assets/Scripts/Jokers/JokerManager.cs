@@ -117,11 +117,27 @@ public class JokerManager
         }
     }
 
+    public void NotifyBlindStarted(JokerRuntimeContext runtimeContext)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnBlindStarted(runtimeContext);
+        }
+    }
+
     public void NotifyBlindPassed(RoundManager roundManager)
     {
         for (int i = 0; i < equippedJokers.Count; i++)
         {
             equippedJokers[i].OnBlindPassed(roundManager);
+        }
+    }
+
+    public void NotifyBlindPassed(JokerRuntimeContext runtimeContext)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnBlindPassed(runtimeContext);
         }
     }
 
@@ -135,6 +151,64 @@ public class JokerManager
         for (int i = 0; i < equippedJokers.Count; i++)
         {
             equippedJokers[i].OnAfterHandScored(scoreContext);
+        }
+    }
+
+    public void NotifyCardsPlayedBeforeRefill(ScoreContext scoreContext, JokerRuntimeContext runtimeContext)
+    {
+        if (scoreContext == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnAfterCardsPlayedBeforeRefill(scoreContext, runtimeContext, i);
+        }
+    }
+
+    public void NotifyBeforeScore(JokerRuntimeContext runtimeContext)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnBeforeScore(runtimeContext, i);
+        }
+    }
+
+    public void NotifyPlayingCardAdded(PlayingCard card, string source)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnPlayingCardAddedToDeck(card, source, i);
+        }
+    }
+
+    public void NotifyPlanetCardUsed(PlanetCard planetCard, PokerHandType targetHandType)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnPlanetCardUsed(planetCard, targetHandType, i);
+        }
+    }
+
+    public void NotifyJokerSold(JokerBase soldJoker)
+    {
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnJokerSold(soldJoker, i);
+        }
+    }
+
+    public void NotifyDiscardAction(JokerDiscardContext discardContext)
+    {
+        if (discardContext == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            equippedJokers[i].OnDiscardAction(discardContext, i);
         }
     }
 

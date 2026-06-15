@@ -31,6 +31,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private bool heldCardEffectsProcessedThisBlind;
     private bool isResolvingPlayedHand;
     private bool hasPreparedDeckForNextBlind;
+    private bool hasProcessedFirstDiscardThisBlind;
     private string latestHandTypeText = "None";
     private string latestHandTypeRankText = "-";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
@@ -481,6 +482,7 @@ public class PrototypeBootstrap : MonoBehaviour
         int sellPrice = Mathf.Max(1, soldJoker.Cost - 2);
         currentGold += sellPrice;
         Debug.Log($"Sold Joker: {soldJoker.Name} for ${sellPrice}. Current gold: {currentGold}");
+        jokerManager.NotifyJokerSold(soldJoker);
 
         gameUIController?.HideJokerSaleButtons();
         RefreshJokerBarUI();
@@ -502,10 +504,18 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        PlanetCard purchasedPlanetCard = offerIndex >= 0 && offerIndex < shopManager.CurrentConsumableOffers.Count
+            ? shopManager.CurrentConsumableOffers[offerIndex].PlanetCard
+            : null;
+
         if (shopManager.TryPurchasePlanetOffer(offerIndex, currentGold, handTypeLevelManager, out string message, out int newGold))
         {
             currentGold = newGold;
             Debug.Log(message);
+            if (purchasedPlanetCard != null)
+            {
+                jokerManager?.NotifyPlanetCardUsed(purchasedPlanetCard, purchasedPlanetCard.targetHandType);
+            }
             RefreshHandTypePreview();
             RefreshGameUI();
             gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
@@ -778,11 +788,14 @@ public class PrototypeBootstrap : MonoBehaviour
 
         JokerRuleContext ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null;
         PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay, ruleContext);
+        JokerRuntimeContext playRuntimeContext = BuildJokerRuntimeContext(cardsToPlay, roundManager.handsRemaining == 4);
+        jokerManager?.NotifyBeforeScore(playRuntimeContext);
         List<PlayingCard> ownedCardsSnapshot = deckManager != null
             ? deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand)
             : null;
         List<PlayingCard> heldCardsSnapshot = GetHeldCardsSnapshot(cardsToPlay);
         int currentHandTypePlayCount = GetHandTypePlayCount(pokerHandResult.handType) + 1;
+        Dictionary<PokerHandType, int> handTypePlayCountsBeforeHand = new Dictionary<PokerHandType, int>(handTypePlayCounts);
         ScoreContext scoreContext = scoreManager.CalculateScore(
             pokerHandResult,
             suitMasteryManager,
@@ -791,14 +804,15 @@ public class PrototypeBootstrap : MonoBehaviour
             ownedCardsSnapshot,
             heldCardsSnapshot,
             ruleContext,
-            currentHandTypePlayCount);
+            currentHandTypePlayCount,
+            handTypePlayCountsBeforeHand);
         latestHandTypeText = scoreContext.handType.ToString();
         latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
-        StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext));
+        StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext, playRuntimeContext));
         return true;
     }
 
-    private IEnumerator PlayScoringSequence(List<PlayingCard> cardsToPlay, ScoreContext scoreContext)
+    private IEnumerator PlayScoringSequence(List<PlayingCard> cardsToPlay, ScoreContext scoreContext, JokerRuntimeContext playRuntimeContext)
     {
         isResolvingPlayedHand = true;
         gameUIController?.SetGameplayInputLocked(true);
@@ -873,6 +887,8 @@ public class PrototypeBootstrap : MonoBehaviour
             yield break;
         }
 
+        ApplyPendingRuntimeCardsToHand(playRuntimeContext);
+        jokerManager?.NotifyCardsPlayedBeforeRefill(scoreContext, playRuntimeContext);
         handManager.FillHand(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         suitGoldThisBlind += scoreContext.goldReward;
@@ -1103,8 +1119,31 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        JokerDiscardContext discardContext = new JokerDiscardContext
+        {
+            selectedCards = new List<PlayingCard>(cardsToDiscard),
+            cardsToDiscard = new List<PlayingCard>(cardsToDiscard),
+            destroyedCards = new List<PlayingCard>(),
+            isFirstDiscardThisBlind = !hasProcessedFirstDiscardThisBlind,
+            ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null,
+            pokerHandEvaluator = pokerHandEvaluator,
+            handTypeLevelManager = handTypeLevelManager,
+            addGold = AddGoldFromJoker
+        };
+
+        jokerManager?.NotifyDiscardAction(discardContext);
+        hasProcessedFirstDiscardThisBlind = true;
+
         roundManager.UseDiscard();
-        List<PlayingCard> discardedCards = handManager.DiscardSelectedCards(deckManager);
+        List<PlayingCard> destroyedCards = handManager.RemoveCardsWithoutDiscard(discardContext.destroyedCards);
+
+        for (int i = 0; i < destroyedCards.Count; i++)
+        {
+            deckManager.MarkDestroyed(destroyedCards[i]);
+        }
+
+        List<PlayingCard> discardedCards = handManager.DiscardCards(discardContext.cardsToDiscard, deckManager);
+        handManager.FillHand(deckManager);
         HandleDiscardedCardSealEffects(discardedCards);
         ClearSelectedCards();
         latestHandTypeText = "None";
@@ -1112,6 +1151,7 @@ public class PrototypeBootstrap : MonoBehaviour
         RefreshGameUI();
 
         Debug.Log($"Discarded {discardedCards.Count} cards");
+        Debug.Log($"Destroyed {destroyedCards.Count} cards");
         LogCurrentState();
     }
 
@@ -1623,6 +1663,7 @@ public class PrototypeBootstrap : MonoBehaviour
         lastCashOutTotal = 0;
         hasClaimedCashOut = false;
         heldCardEffectsProcessedThisBlind = false;
+        hasProcessedFirstDiscardThisBlind = false;
         Debug.Log("CashOut reset for new blind.");
         Debug.Log($"suitGoldThisBlind = {suitGoldThisBlind}");
         Debug.Log($"bonusCardGoldThisBlind = {bonusCardGoldThisBlind}");
@@ -1727,8 +1768,68 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
-        List<PlayingCard> ownedCards = deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand);
-        jokerManager.NotifyBlindStarted(ownedCards);
+        jokerManager.NotifyBlindStarted(BuildJokerRuntimeContext(null, false));
+    }
+
+    private JokerRuntimeContext BuildJokerRuntimeContext(IReadOnlyList<PlayingCard> playedCardsSubmitted, bool isFirstPlayedHandThisBlind)
+    {
+        return new JokerRuntimeContext
+        {
+            deckManager = deckManager,
+            handManager = handManager,
+            pokerHandEvaluator = pokerHandEvaluator,
+            handTypeLevelManager = handTypeLevelManager,
+            ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null,
+            playedCardsSubmitted = playedCardsSubmitted,
+            notifyPlayingCardAdded = NotifyPlayingCardAddedToDeck,
+            addGold = AddGoldFromJoker,
+            isFirstPlayedHandThisBlind = isFirstPlayedHandThisBlind,
+            isBossBlind = runManager != null && runManager.IsBossBlind()
+        };
+    }
+
+    private void NotifyPlayingCardAddedToDeck(PlayingCard card, string source)
+    {
+        jokerManager?.NotifyPlayingCardAdded(card, source);
+        RefreshJokerBarUI();
+    }
+
+    private void ApplyPendingRuntimeCardsToHand(JokerRuntimeContext runtimeContext)
+    {
+        if (runtimeContext == null || runtimeContext.cardsToAddToHandAfterPlayedCardsRemoved == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < runtimeContext.cardsToAddToHandAfterPlayedCardsRemoved.Count; i++)
+        {
+            PlayingCard card = runtimeContext.cardsToAddToHandAfterPlayedCardsRemoved[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            deckManager?.RemoveFromDrawPile(card);
+
+            if (handManager != null && handManager.TryAddCardToHand(card))
+            {
+                Debug.Log($"Added pending Joker-created card to hand: {card.GetDisplayName()}");
+            }
+            else
+            {
+                deckManager?.AddNewOwnedCardToDrawPile(card);
+                Debug.Log($"Could not add pending Joker-created card to hand; returned to draw pile: {card.GetDisplayName()}");
+            }
+        }
+
+        runtimeContext.cardsToAddToHandAfterPlayedCardsRemoved.Clear();
+    }
+
+    private void AddGoldFromJoker(int amount)
+    {
+        currentGold += amount;
+        Debug.Log($"Joker gold changed by {amount}. Current gold: {currentGold}");
     }
 
     private bool ContainsCard(IReadOnlyCollection<PlayingCard> cards, PlayingCard targetCard)
@@ -1818,6 +1919,7 @@ public class PrototypeBootstrap : MonoBehaviour
             Debug.Log("Blind passed.");
             ProcessHeldCardEffectsBeforeCashOut();
             jokerManager.NotifyBlindPassed(roundManager);
+            jokerManager.NotifyBlindPassed(BuildJokerRuntimeContext(null, false));
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
             PrepareDeckAndHandForNextBlindPreview();
             OpenCashOutPanel();

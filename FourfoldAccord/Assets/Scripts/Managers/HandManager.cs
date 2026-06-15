@@ -24,6 +24,18 @@ public class HandManager
         currentHand.AddRange(deckManager.DrawCards(cardsNeeded));
     }
 
+    public bool TryAddCardToHand(PlayingCard card)
+    {
+        if (card == null || currentHand.Count >= HandSizeLimit)
+        {
+            return false;
+        }
+
+        card.isSelected = false;
+        currentHand.Add(card);
+        return true;
+    }
+
     public void ToggleCardSelection(int handIndex)
     {
         if (handIndex < 0 || handIndex >= currentHand.Count)
@@ -82,6 +94,38 @@ public class HandManager
     public List<PlayingCard> DiscardSelectedCards(DeckManager deckManager)
     {
         return RemoveSelectedCards(deckManager, false);
+    }
+
+    public List<PlayingCard> RemoveSelectedCardsWithoutDiscard()
+    {
+        List<PlayingCard> removedCards = new List<PlayingCard>();
+
+        for (int i = currentHand.Count - 1; i >= 0; i--)
+        {
+            PlayingCard card = currentHand[i];
+
+            if (!card.isSelected)
+            {
+                continue;
+            }
+
+            card.isSelected = false;
+            currentHand.RemoveAt(i);
+            removedCards.Add(card);
+        }
+
+        removedCards.Reverse();
+        return removedCards;
+    }
+
+    public List<PlayingCard> RemoveCardsWithoutDiscard(IReadOnlyCollection<PlayingCard> cardsToRemove)
+    {
+        return RemoveSpecificCards(cardsToRemove, null, false, false);
+    }
+
+    public List<PlayingCard> DiscardCards(IReadOnlyCollection<PlayingCard> cardsToDiscard, DeckManager deckManager)
+    {
+        return RemoveSpecificCards(cardsToDiscard, deckManager, false, true);
     }
 
     public void SortHandBySuit()
@@ -155,6 +199,70 @@ public class HandManager
         }
 
         return removedCards;
+    }
+
+    private List<PlayingCard> RemoveSpecificCards(
+        IReadOnlyCollection<PlayingCard> cardsToRemove,
+        DeckManager deckManager,
+        bool wasPlayed,
+        bool addToDiscardPile)
+    {
+        List<PlayingCard> removedCards = new List<PlayingCard>();
+
+        if (cardsToRemove == null)
+        {
+            return removedCards;
+        }
+
+        for (int i = currentHand.Count - 1; i >= 0; i--)
+        {
+            PlayingCard card = currentHand[i];
+
+            if (!ContainsCard(cardsToRemove, card))
+            {
+                continue;
+            }
+
+            if (wasPlayed)
+            {
+                card.timesPlayed++;
+            }
+            else if (addToDiscardPile)
+            {
+                card.timesDiscarded++;
+            }
+
+            card.isSelected = false;
+            currentHand.RemoveAt(i);
+
+            if (addToDiscardPile && deckManager != null)
+            {
+                deckManager.AddToDiscardPile(card);
+            }
+
+            removedCards.Add(card);
+        }
+
+        removedCards.Reverse();
+        return removedCards;
+    }
+
+    private bool ContainsCard(IReadOnlyCollection<PlayingCard> cards, PlayingCard targetCard)
+    {
+        if (cards == null || targetCard == null)
+        {
+            return false;
+        }
+
+        foreach (PlayingCard card in cards)
+        {
+            if (card == targetCard)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Builds a readable list of cards currently in hand for console debugging.

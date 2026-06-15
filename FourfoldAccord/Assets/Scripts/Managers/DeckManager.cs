@@ -6,10 +6,12 @@ public class DeckManager
 {
     private readonly List<PlayingCard> drawPile = new List<PlayingCard>();
     private readonly List<PlayingCard> discardPile = new List<PlayingCard>();
+    private readonly List<PlayingCard> destroyedCards = new List<PlayingCard>();
     private readonly Random random = new Random();
 
     public IReadOnlyList<PlayingCard> DrawPile => drawPile;
     public IReadOnlyList<PlayingCard> DiscardPile => discardPile;
+    public IReadOnlyList<PlayingCard> DestroyedCards => destroyedCards;
     public int DrawPileCount => drawPile.Count;
     public int DiscardPileCount => discardPile.Count;
 
@@ -51,6 +53,7 @@ public class DeckManager
     {
         drawPile.Clear();
         discardPile.Clear();
+        destroyedCards.Clear();
 
         int nextUniqueId = 0;
 
@@ -68,6 +71,7 @@ public class DeckManager
     {
         drawPile.Clear();
         discardPile.Clear();
+        destroyedCards.Clear();
 
         if (ownedCards == null)
         {
@@ -143,6 +147,63 @@ public class DeckManager
         discardPile.Add(card);
     }
 
+    public void AddNewOwnedCardToDrawPile(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        card.isSelected = false;
+        drawPile.Add(card);
+    }
+
+    public bool RemoveFromDrawPile(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return false;
+        }
+
+        return drawPile.Remove(card);
+    }
+
+    public bool RemoveFromDiscardPile(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return false;
+        }
+
+        return discardPile.Remove(card);
+    }
+
+    public void MarkDestroyed(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        RemoveFromDrawPile(card);
+        RemoveFromDiscardPile(card);
+
+        if (!destroyedCards.Contains(card))
+        {
+            destroyedCards.Add(card);
+        }
+    }
+
+    public int GetNextUniqueId(IReadOnlyList<PlayingCard> currentHand)
+    {
+        int maxUniqueId = -1;
+        UpdateMaxUniqueId(drawPile, ref maxUniqueId);
+        UpdateMaxUniqueId(discardPile, ref maxUniqueId);
+        UpdateMaxUniqueId(destroyedCards, ref maxUniqueId);
+        UpdateMaxUniqueId(currentHand, ref maxUniqueId);
+        return maxUniqueId + 1;
+    }
+
     // Builds a readable list of all cards currently in the draw pile for console debugging.
     public string GetDrawPileDebugText()
     {
@@ -184,6 +245,22 @@ public class DeckManager
 
             includedInstanceIds.Add(instanceKey);
             target.Add(card);
+        }
+    }
+
+    private void UpdateMaxUniqueId(IReadOnlyList<PlayingCard> cards, ref int maxUniqueId)
+    {
+        if (cards == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            if (cards[i] != null && cards[i].uniqueId > maxUniqueId)
+            {
+                maxUniqueId = cards[i].uniqueId;
+            }
         }
     }
 }

@@ -5,4 +5,5 @@ public class JokerRuleContext
     public bool hasSplash;
     public bool hasPareidolia;
     public bool hasSmearedJoker;
+    public bool hasOopsAll6s;
 }

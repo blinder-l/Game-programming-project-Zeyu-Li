@@ -33,7 +33,18 @@ public class ShopManager
         () => new BloodstoneDivinerJoker(),
         () => new SageOfTheShiftingSigilJoker(),
         () => new IconOfChosenFateJoker(),
-        () => new LittleCrownPageJoker()
+        () => new LittleCrownPageJoker(),
+        () => new BloodlineScribeJoker(),
+        () => new BrokerOfForfeitJoker(),
+        () => new SealWarrantorJoker(),
+        () => new PhantasmalImprinterJoker(),
+        () => new RadianceVampireJoker(),
+        () => new AugurOfConstellationsJoker(),
+        () => new HarbingerOfSixfoldOmenJoker(),
+        () => new AshenCodexBurnerJoker(),
+        () => new WatcherOfTheDivergentObeliskJoker(),
+        () => new OathkeeperOfTheEmberCampJoker(),
+        () => new JesterOfTheTwinCourtsJoker()
     };
 
     public IReadOnlyList<ShopOffer> CurrentOffers => currentOffers;
