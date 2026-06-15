@@ -39,10 +39,15 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private TMP_Text discardsText;
     [SerializeField] private TMP_Text goldText;
     [SerializeField] private TMP_Text anteNumberText;
+    [SerializeField] private TMP_Text scoreCalculationChipsText;
+    [SerializeField] private TMP_Text scoreCalculationMultText;
     [SerializeField] private Button runInfoButton;
     [SerializeField] private GameObject resolutionInfoArea;
     [SerializeField] private GameObject playedCardsArea;
     [SerializeField] private Image[] playedCardImages;
+    [SerializeField] private CardVisualFeedback[] playedCardFeedbacks;
+    [SerializeField] private PlayedCardEffectView[] playedCardEffectViews;
+    private PlayingCard[] playedCardSlotCards;
     [SerializeField] private HandCardView[] playedCardViews;
     [SerializeField] private TMP_Text resolutionInfoText;
 
@@ -60,11 +65,12 @@ public class GameUIController : MonoBehaviour
 
     public GameUIState CurrentState { get; private set; }
     public bool IsDeckStatsOpen => deckStatsUIController != null && deckStatsUIController.IsDeckStatsOpen;
-    public bool CanAcceptGameplayInput => CurrentState == GameUIState.PlayingBlind && !IsDeckStatsOpen;
+    public bool CanAcceptGameplayInput => CurrentState == GameUIState.PlayingBlind && !IsDeckStatsOpen && !isGameplayInputLocked;
     public bool CanUseCashOut => CurrentState == GameUIState.CashOut && !IsDeckStatsOpen;
     public bool CanUseShop => CurrentState == GameUIState.Shop && !IsDeckStatsOpen;
 
     private bool hasInitialized;
+    private bool isGameplayInputLocked;
 
     private void Awake()
     {
@@ -106,6 +112,11 @@ public class GameUIController : MonoBehaviour
         Debug.Log($"UI state changed: {newState}");
         deckStatsUIController?.CloseDeckStatsForStateChange();
         HideTooltipForStateChange();
+
+        if (newState != GameUIState.PlayingBlind)
+        {
+            isGameplayInputLocked = false;
+        }
 
         SetActiveIfAssigned(playStateRoot, newState == GameUIState.PlayingBlind || newState == GameUIState.RunFailed);
         SetActiveIfAssigned(cashOutPanel, newState == GameUIState.CashOut);
@@ -170,6 +181,61 @@ public class GameUIController : MonoBehaviour
                 cardView.Clear();
             }
         }
+    }
+
+    public void RefreshHandWithTemporarilyHiddenCards(
+        IReadOnlyList<PlayingCard> currentHand,
+        IReadOnlyCollection<PlayingCard> hiddenCards)
+    {
+        ResolveCardSpriteDatabaseIfNeeded();
+        EnsureHandCardsBound();
+
+        if (handCardViews == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < handCardViews.Length; i++)
+        {
+            HandCardView cardView = handCardViews[i];
+
+            if (cardView == null)
+            {
+                continue;
+            }
+
+            if (currentHand != null && i < currentHand.Count)
+            {
+                PlayingCard card = currentHand[i];
+
+                if (ContainsCard(hiddenCards, card))
+                {
+                    cardView.ShowEmptySlot();
+                }
+                else
+                {
+                    cardView.SetCard(i, card, cardSpriteDatabase, HandleHandCardClicked);
+                }
+            }
+            else
+            {
+                cardView.Clear();
+            }
+        }
+    }
+
+    public void RefreshScoreCalculation(int chips, float mult)
+    {
+        SetText(scoreCalculationChipsText, chips.ToString());
+        SetText(scoreCalculationMultText, FormatMult(mult));
+        Debug.Log($"Score calculation UI updated: chips = {chips}, mult = {FormatMult(mult)}");
+    }
+
+    public void SetGameplayInputLocked(bool isLocked)
+    {
+        isGameplayInputLocked = isLocked;
+        SetActionButtonsInteractable(CanAcceptGameplayInput);
+        Debug.Log($"Gameplay input locked: {isGameplayInputLocked}");
     }
 
     public void RefreshJokerBar(IReadOnlyList<JokerBase> equippedJokers)
@@ -338,15 +404,20 @@ public class GameUIController : MonoBehaviour
 
             if (playedCards != null && i < playedCards.Count)
             {
+                playedCardSlotCards[i] = playedCards[i];
                 cardImage.gameObject.SetActive(true);
                 cardImage.enabled = true;
                 cardImage.sprite = cardSpriteDatabase != null ? cardSpriteDatabase.GetSprite(playedCards[i]) : null;
                 cardImage.raycastTarget = false;
+                SetPlayedCardVisualContent(i, cardImage.sprite != null);
                 displayedCount++;
             }
             else
             {
+                playedCardSlotCards[i] = null;
                 cardImage.sprite = null;
+                cardImage.enabled = false;
+                SetPlayedCardVisualContent(i, false);
                 cardImage.gameObject.SetActive(false);
             }
         }
@@ -354,29 +425,108 @@ public class GameUIController : MonoBehaviour
         Debug.Log($"Played cards UI updated: {displayedCount} cards");
     }
 
+    public List<PlayingCard> ShowPendingPlayedCards(IReadOnlyList<PlayingCard> playedCards)
+    {
+        List<PlayingCard> sortedCards = GetCardsSortedForPlayedArea(playedCards);
+        RefreshPlayedCards(sortedCards);
+        ClearPlayedCardEffects();
+        return sortedCards;
+    }
+
+    public void PlayCardChipEffect(int slotIndex, PlayingCard card, int chipValue)
+    {
+        EnsurePlayedCardsBound();
+        EnsureResolutionInfoBound();
+
+        if (!IsValidPlayedCardSlot(slotIndex))
+        {
+            Debug.LogWarning($"Cannot play card chip effect: invalid played card slot {slotIndex}.");
+            return;
+        }
+
+        PlayingCard slotCard = playedCardSlotCards != null ? playedCardSlotCards[slotIndex] : null;
+
+        if (slotCard != card)
+        {
+            Debug.LogWarning($"Cannot play card chip effect: PlayedCard{slotIndex + 1} contains {slotCard}, but requested effect for {card}.");
+            return;
+        }
+
+        if (playedCardFeedbacks != null && slotIndex >= 0 && slotIndex < playedCardFeedbacks.Length && playedCardFeedbacks[slotIndex] != null)
+        {
+            playedCardFeedbacks[slotIndex].PlayScorePulse();
+        }
+
+        if (playedCardEffectViews != null && slotIndex >= 0 && slotIndex < playedCardEffectViews.Length && playedCardEffectViews[slotIndex] != null)
+        {
+            playedCardEffectViews[slotIndex].PlayChipEffect(chipValue);
+        }
+
+        Debug.Log($"PlayedCard{slotIndex + 1} scored {card.GetDisplayName()}; PlayedCardEffect{slotIndex + 1}: +{chipValue}");
+    }
+
+    public void ClearPlayedCardEffects()
+    {
+        EnsureResolutionInfoBound();
+
+        if (playedCardEffectViews == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < playedCardEffectViews.Length; i++)
+        {
+            if (playedCardEffectViews[i] != null)
+            {
+                playedCardEffectViews[i].ClearImmediate();
+            }
+        }
+    }
+
+    public void ClearPlayedCards()
+    {
+        EnsurePlayedCardsBound();
+
+        if (playedCardImages == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < playedCardImages.Length; i++)
+        {
+            Image cardImage = playedCardImages[i];
+
+            if (cardImage == null)
+            {
+                continue;
+            }
+
+            cardImage.sprite = null;
+            cardImage.enabled = false;
+            if (playedCardSlotCards != null && i < playedCardSlotCards.Length)
+            {
+                playedCardSlotCards[i] = null;
+            }
+            SetPlayedCardVisualContent(i, false);
+        }
+
+        Debug.Log("Played cards UI cleared");
+    }
+
     public void RefreshResolutionInfo(ScoreContext scoreContext)
     {
         EnsureResolutionInfoBound();
 
-        if (scoreContext == null)
+        if (resolutionInfoText != null)
         {
-            SetText(resolutionInfoText, "No hand played yet.");
-            Debug.Log("Resolution info updated");
-            return;
+            resolutionInfoText.text = string.Empty;
         }
 
-        string resolutionText =
-            $"Hand Type: {scoreContext.handType}\n" +
-            $"Base Chips: {scoreContext.baseChips}\n" +
-            $"Card Chips: {scoreContext.rankChips}\n" +
-            $"Total Chips: {scoreContext.chips}\n" +
-            $"Mult: {scoreContext.mult}\n" +
-            $"Final Score: {scoreContext.finalScore}\n\n" +
-            $"Suit Effects:\n{scoreContext.GetSuitEffectDebugText()}\n\n" +
-            $"Joker Effects:\n{scoreContext.GetJokerEffectDebugText()}\n\n" +
-            $"Gold Reward: {scoreContext.goldReward}";
+        if (scoreContext == null)
+        {
+            ClearPlayedCardEffects();
+        }
 
-        SetText(resolutionInfoText, resolutionText);
         Debug.Log("Resolution info updated");
     }
 
@@ -538,6 +688,7 @@ public class GameUIController : MonoBehaviour
 
         goldText = BindTextInRoot(leftPanelRoot, "GoldNumberText", "GoldNumberText");
         anteNumberText = BindTextInRoot(leftPanelRoot, "AnteNumberText", "AnteNumberText");
+        BindScoreCalculationUI(leftPanelRoot);
         runInfoButton = BindOptionalButtonInRoot(leftPanelRoot, "RunInfoButton", "RunInfoButton");
 
         if (runInfoButton != null)
@@ -547,6 +698,22 @@ public class GameUIController : MonoBehaviour
         }
 
         Debug.Log("Bound left status UI");
+    }
+
+    private void BindScoreCalculationUI(Transform leftPanelRoot)
+    {
+        Transform scoreCalculationRoot = FindChildByTrimmedName(leftPanelRoot, "ScoreCalculationModule");
+
+        if (scoreCalculationRoot == null)
+        {
+            Debug.LogError("Failed to bind ScoreCalculationModule");
+            return;
+        }
+
+        scoreCalculationChipsText = BindTextInRoot(scoreCalculationRoot, "ChipsText", "ScoreCalculation ChipsText");
+        scoreCalculationMultText = BindTextInRoot(scoreCalculationRoot, "MultText", "ScoreCalculation MultText");
+        RefreshScoreCalculation(0, 0f);
+        Debug.Log("Bound score calculation UI");
     }
 
     private void BindJokerBarUI()
@@ -714,6 +881,8 @@ public class GameUIController : MonoBehaviour
 
         Debug.Log("Bound PlayedCardsArea");
         playedCardImages = new Image[5];
+        playedCardFeedbacks = new CardVisualFeedback[5];
+        playedCardSlotCards = new PlayingCard[5];
 
         for (int i = 0; i < playedCardImages.Length; i++)
         {
@@ -726,7 +895,7 @@ public class GameUIController : MonoBehaviour
                 continue;
             }
 
-            Image cardImage = cardTransform.GetComponent<Image>();
+            Image cardImage = GetOrCreatePlayedCardVisualImage(cardTransform);
 
             if (cardImage == null)
             {
@@ -736,7 +905,18 @@ public class GameUIController : MonoBehaviour
 
             cardImage.raycastTarget = false;
             playedCardImages[i] = cardImage;
-            Debug.Log($"Bound {cardName}");
+
+            CardVisualFeedback visualFeedback = cardTransform.GetComponent<CardVisualFeedback>();
+
+            if (visualFeedback == null)
+            {
+                visualFeedback = cardTransform.gameObject.AddComponent<CardVisualFeedback>();
+            }
+
+            visualFeedback.SetVisualRoot(cardImage.transform as RectTransform);
+            visualFeedback.SetHasVisualContent(false);
+            playedCardFeedbacks[i] = visualFeedback;
+            Debug.Log($"Bound {cardName}: {GetFullPath(cardTransform)}");
         }
 
         Debug.Log("Bound played cards UI");
@@ -744,13 +924,13 @@ public class GameUIController : MonoBehaviour
 
     private void EnsurePlayedCardsBound()
     {
-        if (playedCardImages != null && playedCardImages.Length == 5)
+        if (playedCardImages != null && playedCardImages.Length == 5 && playedCardFeedbacks != null && playedCardFeedbacks.Length == 5)
         {
             bool hasAllCards = true;
 
             for (int i = 0; i < playedCardImages.Length; i++)
             {
-                if (playedCardImages[i] == null)
+                if (playedCardImages[i] == null || playedCardFeedbacks[i] == null)
                 {
                     hasAllCards = false;
                     break;
@@ -780,32 +960,102 @@ public class GameUIController : MonoBehaviour
         Debug.Log("Bound ResolutionInfoArea");
         resolutionInfoText = resolutionInfoArea.GetComponent<TMP_Text>();
 
-        if (resolutionInfoText == null)
+        if (resolutionInfoText != null)
         {
-            resolutionInfoText = resolutionInfoArea.GetComponentInChildren<TMP_Text>(true);
+            resolutionInfoText.raycastTarget = false;
+            resolutionInfoText.text = string.Empty;
+            Debug.Log("Bound ResolutionInfoText");
         }
 
-        if (resolutionInfoText == null)
+        playedCardEffectViews = new PlayedCardEffectView[5];
+
+        for (int i = 0; i < playedCardEffectViews.Length; i++)
         {
-            resolutionInfoText = CreateResolutionInfoText(resolutionInfoArea.transform);
+            string effectName = $"PlayedCardEffect{i + 1}";
+            GameObject effectObject = FindGameObjectIncludingInactive(resolutionInfoArea.transform, effectName, null);
+
+            if (effectObject == null)
+            {
+                Debug.LogError($"Failed to bind {effectName}");
+                continue;
+            }
+
+            effectObject.SetActive(true);
+            PlayedCardEffectView effectView = effectObject.GetComponent<PlayedCardEffectView>();
+
+            if (effectView == null)
+            {
+                effectView = effectObject.AddComponent<PlayedCardEffectView>();
+            }
+
+            effectView.ClearImmediate();
+            playedCardEffectViews[i] = effectView;
+            Debug.Log($"Bound {effectName}: {GetFullPath(effectObject.transform)} at {effectView.BaseAnchoredPosition}");
         }
 
-        if (resolutionInfoText == null)
-        {
-            Debug.LogError("Failed to bind ResolutionInfoText");
-            return;
-        }
-
-        resolutionInfoText.raycastTarget = false;
-        Debug.Log("Bound ResolutionInfoText");
         Debug.Log("Bound resolution info UI");
+    }
+
+    private Image GetOrCreatePlayedCardVisualImage(Transform cardTransform)
+    {
+        if (cardTransform == null)
+        {
+            return null;
+        }
+
+        Image rootImage = cardTransform.GetComponent<Image>();
+
+        if (rootImage != null)
+        {
+            rootImage.sprite = null;
+            rootImage.color = new Color(1f, 1f, 1f, 0.01f);
+            rootImage.raycastTarget = false;
+        }
+
+        Transform visualTransform = cardTransform.Find("CardVisual");
+        RectTransform visualRect = visualTransform as RectTransform;
+
+        if (visualRect == null)
+        {
+            GameObject visualObject = new GameObject("CardVisual", typeof(RectTransform));
+            visualObject.transform.SetParent(cardTransform, false);
+            visualRect = visualObject.GetComponent<RectTransform>();
+            visualRect.anchorMin = Vector2.zero;
+            visualRect.anchorMax = Vector2.one;
+            visualRect.offsetMin = Vector2.zero;
+            visualRect.offsetMax = Vector2.zero;
+        }
+
+        Image visualImage = visualRect.GetComponent<Image>();
+
+        if (visualImage == null)
+        {
+            visualImage = visualRect.gameObject.AddComponent<Image>();
+        }
+
+        visualImage.raycastTarget = false;
+        return visualImage;
     }
 
     private void EnsureResolutionInfoBound()
     {
-        if (resolutionInfoText != null)
+        if (playedCardEffectViews != null && playedCardEffectViews.Length == 5)
         {
-            return;
+            bool hasAllEffects = true;
+
+            for (int i = 0; i < playedCardEffectViews.Length; i++)
+            {
+                if (playedCardEffectViews[i] == null)
+                {
+                    hasAllEffects = false;
+                    break;
+                }
+            }
+
+            if (hasAllEffects)
+            {
+                return;
+            }
         }
 
         BindResolutionInfoUI();
@@ -1205,6 +1455,11 @@ public class GameUIController : MonoBehaviour
             return $"Cannot {action}: deck view is open.";
         }
 
+        if (isGameplayInputLocked)
+        {
+            return $"Cannot {action}: hand scoring is resolving.";
+        }
+
         return $"Cannot {action}: current state is {CurrentState}.";
     }
 
@@ -1518,6 +1773,86 @@ public class GameUIController : MonoBehaviour
         }
 
         button.interactable = isInteractable;
+    }
+
+    private List<PlayingCard> GetCardsSortedForPlayedArea(IReadOnlyList<PlayingCard> cards)
+    {
+        List<PlayingCard> sortedCards = cards != null ? new List<PlayingCard>(cards) : new List<PlayingCard>();
+        sortedCards.Sort((firstCard, secondCard) =>
+        {
+            int rankComparison = secondCard.rank.CompareTo(firstCard.rank);
+
+            if (rankComparison != 0)
+            {
+                return rankComparison;
+            }
+
+            return GetSuitSortValue(firstCard.suit).CompareTo(GetSuitSortValue(secondCard.suit));
+        });
+
+        return sortedCards;
+    }
+
+    private int GetSuitSortValue(Suit suit)
+    {
+        switch (suit)
+        {
+            case Suit.Hearts:
+                return 0;
+            case Suit.Spades:
+                return 1;
+            case Suit.Diamonds:
+                return 2;
+            default:
+                return 3;
+        }
+    }
+
+    private void SetPlayedCardVisualContent(int slotIndex, bool hasVisualContent)
+    {
+        if (playedCardFeedbacks == null || slotIndex < 0 || slotIndex >= playedCardFeedbacks.Length)
+        {
+            return;
+        }
+
+        if (playedCardFeedbacks[slotIndex] != null)
+        {
+            playedCardFeedbacks[slotIndex].SetHasVisualContent(hasVisualContent);
+        }
+    }
+
+    private bool IsValidPlayedCardSlot(int slotIndex)
+    {
+        return playedCardSlotCards != null
+            && playedCardFeedbacks != null
+            && playedCardEffectViews != null
+            && slotIndex >= 0
+            && slotIndex < playedCardSlotCards.Length
+            && slotIndex < playedCardFeedbacks.Length
+            && slotIndex < playedCardEffectViews.Length;
+    }
+
+    private bool ContainsCard(IReadOnlyCollection<PlayingCard> cards, PlayingCard targetCard)
+    {
+        if (cards == null || targetCard == null)
+        {
+            return false;
+        }
+
+        foreach (PlayingCard card in cards)
+        {
+            if (card == targetCard)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string FormatMult(float mult)
+    {
+        return Math.Abs(mult % 1f) < 0.001f ? ((int)Math.Round(mult)).ToString() : mult.ToString("0.##");
     }
 
     private void SetText(TMP_Text targetText, string value)

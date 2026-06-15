@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ public class PrototypeBootstrap : MonoBehaviour
 {
     private const int StartingGold = 10;
     private const int MaxSelectedCards = 5;
+    private const float CardScoreStepDelay = 0.7f;
+    private const float FinalScoreHoldDelay = 0.45f;
 
     [SerializeField] private GameUIController gameUIController;
 
@@ -24,6 +27,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private int suitGoldThisBlind;
     private int lastCashOutTotal;
     private bool hasClaimedCashOut;
+    private bool isResolvingPlayedHand;
     private string latestHandTypeText = "None";
     private string latestHandTypeRankText = "-";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
@@ -667,6 +671,12 @@ public class PrototypeBootstrap : MonoBehaviour
             return false;
         }
 
+        if (isResolvingPlayedHand)
+        {
+            Debug.Log("Cannot play: hand scoring is already resolving.");
+            return false;
+        }
+
         if (!TryGetCardsAtCurrentHandIndices(handIndices, out List<PlayingCard> cardsToPlay))
         {
             return false;
@@ -678,15 +688,58 @@ public class PrototypeBootstrap : MonoBehaviour
         ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager, handTypeLevelManager);
         latestHandTypeText = scoreContext.handType.ToString();
         latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
+        StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext));
+        return true;
+    }
 
-        List<PlayingCard> playedCards = handManager.PlaySelectedCards(deckManager);
+    private IEnumerator PlayScoringSequence(List<PlayingCard> cardsToPlay, ScoreContext scoreContext)
+    {
+        isResolvingPlayedHand = true;
+        gameUIController?.SetGameplayInputLocked(true);
+        gameUIController?.RefreshHandWithTemporarilyHiddenCards(handManager?.CurrentHand, cardsToPlay);
+
+        List<PlayingCard> displayedCards = gameUIController != null
+            ? gameUIController.ShowPendingPlayedCards(cardsToPlay)
+            : new List<PlayingCard>(cardsToPlay);
+
+        latestPlayedCards = displayedCards;
+        latestScoreContext = null;
+        gameUIController?.RefreshScoreCalculation(scoreContext.baseChips, scoreContext.mult);
+
+        int displayedChips = scoreContext.baseChips;
+
+        for (int i = 0; i < displayedCards.Count; i++)
+        {
+            PlayingCard card = displayedCards[i];
+
+            if (scoreContext.cardChipValues == null || !scoreContext.cardChipValues.ContainsKey(card))
+            {
+                Debug.Log($"PlayedCard{i + 1} skipped non-scoring card: {card.GetDisplayName()}; PlayedCardEffect{i + 1} stays hidden.");
+                continue;
+            }
+
+            int chipValue = scoreContext.cardChipValues[card];
+            displayedChips += chipValue;
+            gameUIController?.PlayCardChipEffect(i, card, chipValue);
+            gameUIController?.RefreshScoreCalculation(displayedChips, scoreContext.mult);
+            yield return new WaitForSeconds(CardScoreStepDelay);
+        }
+
+        gameUIController?.RefreshScoreCalculation(scoreContext.chips, scoreContext.mult);
+        yield return new WaitForSeconds(FinalScoreHoldDelay);
+
+        List<PlayingCard> playedCards = handManager.PlaySelectedCardsWithoutRefill(deckManager);
 
         if (playedCards.Count != cardsToPlay.Count)
         {
-            Debug.LogError($"Cannot play: expected to play {cardsToPlay.Count} cards, but HandManager played {playedCards.Count}.");
-            return false;
+            Debug.LogError($"Cannot finish play: expected to play {cardsToPlay.Count} cards, but HandManager played {playedCards.Count}.");
+            gameUIController?.SetGameplayInputLocked(false);
+            isResolvingPlayedHand = false;
+            RefreshGameUI();
+            yield break;
         }
 
+        handManager.FillHand(deckManager);
         roundManager.ApplyPlayedHandScore(scoreContext.finalScore);
         suitGoldThisBlind += scoreContext.goldReward;
 
@@ -699,14 +752,20 @@ public class PrototypeBootstrap : MonoBehaviour
 
         List<Suit> gainedXpSuits = suitMasteryManager.AddXpForScoringSuits(scoreContext.suitCounts);
         IncrementHandTypePlayCount(scoreContext.handType);
-        latestPlayedCards = playedCards;
+        latestPlayedCards = new List<PlayingCard>();
         latestScoreContext = scoreContext;
         ClearSelectedCards();
+        latestHandTypeText = "None";
+        latestHandTypeRankText = "-";
+        gameUIController?.RefreshScoreCalculation(0, 0f);
+        gameUIController?.ClearPlayedCards();
+        gameUIController?.ClearPlayedCardEffects();
+        gameUIController?.SetGameplayInputLocked(false);
+        isResolvingPlayedHand = false;
         RefreshGameUI();
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
         LogRoundEndIfNeeded();
-        return true;
     }
 
     private void TryDiscardSelectedCards()
@@ -791,6 +850,11 @@ public class PrototypeBootstrap : MonoBehaviour
         PruneSelectedCards();
         SyncSelectedCardFlags();
         Debug.Log($"RefreshHandUI: hand count = {GetCurrentHandCountForLog()}, selected count = {selectedCards.Count}");
+        if (!isResolvingPlayedHand && selectedCards.Count == 0)
+        {
+            gameUIController.RefreshScoreCalculation(0, 0f);
+        }
+
         gameUIController.SetDeckStatsSources(deckManager, handManager);
         RefreshRunInfoSources();
         RefreshJokerBarUI();
@@ -1093,6 +1157,11 @@ public class PrototypeBootstrap : MonoBehaviour
             return $"Cannot {action}: deck view is open.";
         }
 
+        if (isResolvingPlayedHand)
+        {
+            return $"Cannot {action}: hand scoring is resolving.";
+        }
+
         return $"Cannot {action}: current state is {GetCurrentUIState()}.";
     }
 
@@ -1176,17 +1245,22 @@ public class PrototypeBootstrap : MonoBehaviour
         {
             latestHandTypeText = "None";
             latestHandTypeRankText = "-";
+            gameUIController?.RefreshScoreCalculation(0, 0f);
         }
         else if (pokerHandEvaluator == null)
         {
             latestHandTypeText = "None";
             latestHandTypeRankText = "-";
+            gameUIController?.RefreshScoreCalculation(0, 0f);
         }
         else
         {
             PokerHandResult previewResult = pokerHandEvaluator.Evaluate(cardsToPreview);
             latestHandTypeText = previewResult.handType.ToString();
             latestHandTypeRankText = GetHandTypeRankText(previewResult.handType);
+            gameUIController?.RefreshScoreCalculation(
+                handTypeLevelManager.GetCurrentBaseChips(previewResult.handType),
+                handTypeLevelManager.GetCurrentBaseMult(previewResult.handType));
         }
 
         gameUIController?.RefreshHandTypeText(latestHandTypeText, latestHandTypeRankText);

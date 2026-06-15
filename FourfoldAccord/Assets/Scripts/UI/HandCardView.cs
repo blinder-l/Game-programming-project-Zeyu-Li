@@ -95,6 +95,32 @@ public class HandCardView : MonoBehaviour
         gameObject.SetActive(false);
     }
 
+    public void ShowEmptySlot()
+    {
+        ResolveReferences();
+        boundCard = null;
+        clickedHandler = null;
+        hasCard = false;
+        gameObject.SetActive(true);
+        SetButtonInteractable(false);
+
+        if (cardImage != null)
+        {
+            cardImage.sprite = null;
+            cardImage.enabled = false;
+        }
+
+        if (cardNameText != null)
+        {
+            cardNameText.text = string.Empty;
+            cardNameText.gameObject.SetActive(false);
+        }
+
+        visualFeedback?.SetHasVisualContent(false);
+        visualFeedback?.ResetVisualImmediate();
+        SetSelectedVisual(false);
+    }
+
     public void RefreshBasePosition()
     {
         ResolveReferences();

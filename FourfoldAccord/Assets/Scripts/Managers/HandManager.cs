@@ -74,6 +74,11 @@ public class HandManager
         return RemoveSelectedCards(deckManager, true);
     }
 
+    public List<PlayingCard> PlaySelectedCardsWithoutRefill(DeckManager deckManager)
+    {
+        return RemoveSelectedCards(deckManager, true, false);
+    }
+
     public List<PlayingCard> DiscardSelectedCards(DeckManager deckManager)
     {
         return RemoveSelectedCards(deckManager, false);
@@ -111,6 +116,11 @@ public class HandManager
 
     private List<PlayingCard> RemoveSelectedCards(DeckManager deckManager, bool wasPlayed)
     {
+        return RemoveSelectedCards(deckManager, wasPlayed, true);
+    }
+
+    private List<PlayingCard> RemoveSelectedCards(DeckManager deckManager, bool wasPlayed, bool refillHand)
+    {
         List<PlayingCard> removedCards = new List<PlayingCard>();
 
         for (int i = currentHand.Count - 1; i >= 0; i--)
@@ -138,7 +148,12 @@ public class HandManager
         }
 
         removedCards.Reverse();
-        FillHand(deckManager);
+
+        if (refillHand)
+        {
+            FillHand(deckManager);
+        }
+
         return removedCards;
     }
 

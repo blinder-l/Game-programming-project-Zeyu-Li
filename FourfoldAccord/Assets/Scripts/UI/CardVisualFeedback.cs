@@ -13,8 +13,11 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     [SerializeField] private float selectShakeDuration = 0.14f;
     [SerializeField] private float hoverShakeMagnitude = 2f;
     [SerializeField] private float selectShakeMagnitude = 4f;
+    [SerializeField] private float scoreShakeMagnitude = 6f;
     [SerializeField] private float hoverPulseScale = 1.1f;
     [SerializeField] private float hoverPulseDuration = 0.12f;
+    [SerializeField] private float scorePulseScale = 1.18f;
+    [SerializeField] private float scorePulseDuration = 0.45f;
 
     private Vector2 baseAnchoredPosition;
     private Vector2 targetOffset;
@@ -25,10 +28,12 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
     private bool hasVisualContent;
     private bool isShaking;
     private bool isPulsing;
+    private bool isScorePulsing;
     private float shakeTimer;
     private float shakeDuration;
     private float shakeMagnitude;
     private float pulseTimer;
+    private float scorePulseTimer;
 
     private void Awake()
     {
@@ -52,6 +57,7 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
 
         UpdateShakeOffset();
         float pulseMultiplier = UpdatePulseMultiplier();
+        pulseMultiplier *= UpdateScorePulseMultiplier();
 
         Vector2 desiredPosition = baseAnchoredPosition + targetOffset + shakeOffset;
         visualRoot.anchoredPosition = Vector2.Lerp(
@@ -113,13 +119,27 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
         }
     }
 
+    public void PlayScorePulse()
+    {
+        if (!HasValidVisualContent())
+        {
+            return;
+        }
+
+        StartShake(scorePulseDuration, scoreShakeMagnitude);
+        isScorePulsing = true;
+        scorePulseTimer = 0f;
+    }
+
     public void ResetVisualImmediate()
     {
         isSelected = false;
         isShaking = false;
         isPulsing = false;
+        isScorePulsing = false;
         shakeTimer = 0f;
         pulseTimer = 0f;
+        scorePulseTimer = 0f;
         shakeOffset = Vector2.zero;
         targetOffset = Vector2.zero;
         targetScale = Vector3.one * normalScale;
@@ -238,6 +258,28 @@ public class CardVisualFeedback : MonoBehaviour, IPointerEnterHandler, IPointerE
         if (progress >= 1f)
         {
             isPulsing = false;
+            return 1f;
+        }
+
+        return multiplier;
+    }
+
+    private float UpdateScorePulseMultiplier()
+    {
+        if (!isScorePulsing)
+        {
+            return 1f;
+        }
+
+        scorePulseTimer += Time.unscaledDeltaTime;
+        float duration = Mathf.Max(0.01f, scorePulseDuration);
+        float progress = Mathf.Clamp01(scorePulseTimer / duration);
+        float pulseAmount = Mathf.Sin(progress * Mathf.PI);
+        float multiplier = Mathf.Lerp(1f, scorePulseScale, pulseAmount);
+
+        if (progress >= 1f)
+        {
+            isScorePulsing = false;
             return 1f;
         }
 
