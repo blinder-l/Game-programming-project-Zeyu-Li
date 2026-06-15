@@ -9,6 +9,8 @@ public class CardTooltipController : MonoBehaviour
     [SerializeField] private GameObject tooltipPanel;
     [SerializeField] private TMP_Text tooltipNameText;
     [SerializeField] private TMP_Text tooltipEffectText;
+    [SerializeField] private TMP_Text specificCardCurrentEffectText;
+    [SerializeField] private TMP_Text specificPlayCardEffectText;
 
     private RectTransform tooltipRectTransform;
     private RectTransform canvasRectTransform;
@@ -32,6 +34,8 @@ public class CardTooltipController : MonoBehaviour
         Debug.Log("Bound CardTooltipPanel");
         tooltipNameText = BindText("TooltipNameText");
         tooltipEffectText = BindText("TooltipEffectText");
+        specificCardCurrentEffectText = BindOptionalText("SpecificCardCurrentEffectText");
+        specificPlayCardEffectText = BindOptionalText("SpecificPlayCardEffectText");
 
         DisableTooltipRaycasts();
         HideTooltip();
@@ -41,6 +45,16 @@ public class CardTooltipController : MonoBehaviour
 
     public void ShowTooltip(string displayName, string effectText, RectTransform anchor)
     {
+        ShowTooltip(displayName, effectText, string.Empty, string.Empty, anchor);
+    }
+
+    public void ShowTooltip(
+        string displayName,
+        string effectText,
+        string specificCurrentEffectText,
+        string specificPlayCardEffectTextValue,
+        RectTransform anchor)
+    {
         if (!isInitialized)
         {
             Debug.LogError("Cannot show tooltip: CardTooltipController not initialized");
@@ -48,9 +62,15 @@ public class CardTooltipController : MonoBehaviour
         }
 
         string safeDisplayName = string.IsNullOrWhiteSpace(displayName) ? "Unknown" : displayName;
-        string safeEffectText = string.IsNullOrWhiteSpace(effectText) ? "No effect." : effectText;
+        bool hasSpecificText =
+            !string.IsNullOrWhiteSpace(specificCurrentEffectText) ||
+            !string.IsNullOrWhiteSpace(specificPlayCardEffectTextValue);
+        string safeEffectText = string.IsNullOrWhiteSpace(effectText) && !hasSpecificText ? "No effect." : effectText;
         tooltipNameText.text = safeDisplayName;
         tooltipEffectText.text = safeEffectText;
+        tooltipEffectText.gameObject.SetActive(!string.IsNullOrWhiteSpace(safeEffectText));
+        SetOptionalText(specificCardCurrentEffectText, specificCurrentEffectText);
+        SetOptionalText(specificPlayCardEffectText, specificPlayCardEffectTextValue);
         tooltipPanel.SetActive(true);
         tooltipPanel.transform.SetAsLastSibling();
         PositionTooltip(anchor);
@@ -83,6 +103,36 @@ public class CardTooltipController : MonoBehaviour
 
         Debug.LogError($"Failed to bind {objectName}");
         return null;
+    }
+
+    private TMP_Text BindOptionalText(string objectName)
+    {
+        TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+
+        for (int i = 0; i < texts.Length; i++)
+        {
+            if (texts[i].name == objectName)
+            {
+                texts[i].raycastTarget = false;
+                Debug.Log($"Bound {objectName}");
+                return texts[i];
+            }
+        }
+
+        Debug.LogWarning($"Optional tooltip text not found: {objectName}");
+        return null;
+    }
+
+    private void SetOptionalText(TMP_Text text, string value)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        bool hasValue = !string.IsNullOrWhiteSpace(value);
+        text.text = hasValue ? value : string.Empty;
+        text.gameObject.SetActive(hasValue);
     }
 
     private void PositionTooltip(RectTransform anchor)

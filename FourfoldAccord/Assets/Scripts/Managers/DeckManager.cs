@@ -18,6 +18,18 @@ public class DeckManager
         return new List<PlayingCard>(drawPile);
     }
 
+    public List<PlayingCard> GetAllOwnedCardsSnapshot(IReadOnlyList<PlayingCard> currentHand)
+    {
+        List<PlayingCard> ownedCards = new List<PlayingCard>();
+        HashSet<string> includedInstanceIds = new HashSet<string>();
+
+        AddUniqueCardsToSnapshot(ownedCards, includedInstanceIds, drawPile);
+        AddUniqueCardsToSnapshot(ownedCards, includedInstanceIds, discardPile);
+        AddUniqueCardsToSnapshot(ownedCards, includedInstanceIds, currentHand);
+
+        return ownedCards;
+    }
+
     public List<PlayingCard> GetStandardDeckSnapshot()
     {
         List<PlayingCard> standardDeck = new List<PlayingCard>();
@@ -49,6 +61,40 @@ public class DeckManager
                 drawPile.Add(new PlayingCard(nextUniqueId, suit, rank));
                 nextUniqueId++;
             }
+        }
+    }
+
+    public void LoadOwnedCardsAsDrawPile(IReadOnlyList<PlayingCard> ownedCards)
+    {
+        drawPile.Clear();
+        discardPile.Clear();
+
+        if (ownedCards == null)
+        {
+            return;
+        }
+
+        HashSet<string> includedInstanceIds = new HashSet<string>();
+
+        for (int i = 0; i < ownedCards.Count; i++)
+        {
+            PlayingCard card = ownedCards[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            string instanceKey = string.IsNullOrEmpty(card.instanceId) ? card.uniqueId.ToString() : card.instanceId;
+
+            if (includedInstanceIds.Contains(instanceKey))
+            {
+                continue;
+            }
+
+            card.isSelected = false;
+            includedInstanceIds.Add(instanceKey);
+            drawPile.Add(card);
         }
     }
 
@@ -108,5 +154,36 @@ public class DeckManager
         }
 
         return builder.ToString();
+    }
+
+    private void AddUniqueCardsToSnapshot(
+        List<PlayingCard> target,
+        HashSet<string> includedInstanceIds,
+        IReadOnlyList<PlayingCard> source)
+    {
+        if (target == null || includedInstanceIds == null || source == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            PlayingCard card = source[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            string instanceKey = string.IsNullOrEmpty(card.instanceId) ? card.uniqueId.ToString() : card.instanceId;
+
+            if (includedInstanceIds.Contains(instanceKey))
+            {
+                continue;
+            }
+
+            includedInstanceIds.Add(instanceKey);
+            target.Add(card);
+        }
     }
 }

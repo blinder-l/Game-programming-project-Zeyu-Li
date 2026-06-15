@@ -23,6 +23,21 @@ public class ShopOfferView : MonoBehaviour
 
     public void Bind(ShopOffer offer, int index, Action<int> onClicked)
     {
+        Bind(offer, index, onClicked, null);
+    }
+
+    public void Bind(ShopOffer offer, int index, Action<int> onClicked, JokerSpriteDatabase spriteDatabase)
+    {
+        Bind(offer, index, onClicked, spriteDatabase, null);
+    }
+
+    public void Bind(
+        ShopOffer offer,
+        int index,
+        Action<int> onClicked,
+        JokerSpriteDatabase spriteDatabase,
+        JokerEffectContext effectContext)
+    {
         ResolveReferences();
         offerIndex = index;
         clickedHandler = onClicked;
@@ -40,8 +55,9 @@ public class ShopOfferView : MonoBehaviour
         }
 
         SetText($"{offer.Joker.Name}\n${offer.Joker.Cost}\n{offer.Joker.Description}");
-        UpdateTooltip(offer.Joker.Name, $"{offer.Joker.Description}\n\nCost: ${offer.Joker.Cost}");
-        visualFeedback?.SetHasVisualContent(true);
+        SetSprite(spriteDatabase != null ? spriteDatabase.GetSprite(offer.Joker) : null);
+        UpdateTooltip(offer.Joker.Name, $"{offer.Joker.Description}\n\nCost: ${offer.Joker.Cost}", string.Empty, string.Empty);
+        visualFeedback?.SetHasVisualContent(cardVisualImage != null && cardVisualImage.enabled && cardVisualImage.sprite != null);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, {offer.Joker.Name}");
         SetInteractable(true);
     }
@@ -67,7 +83,7 @@ public class ShopOfferView : MonoBehaviour
         PlanetCard planetCard = offer.PlanetCard;
         SetText($"{planetCard.Name}\n${planetCard.cost}\n{planetCard.targetHandType}");
         SetSprite(spriteDatabase != null ? spriteDatabase.GetSprite(planetCard) : null);
-        UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}");
+        UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}", string.Empty, string.Empty);
         visualFeedback?.SetHasVisualContent(true);
         Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {planetCard.Name}");
         SetInteractable(true);
@@ -78,7 +94,7 @@ public class ShopOfferView : MonoBehaviour
         ResolveReferences();
         SetText("Empty");
         SetSprite(null);
-        UpdateTooltip("Empty", "No offer available.");
+        UpdateTooltip("Empty", "No offer available.", string.Empty, string.Empty);
         visualFeedback?.SetHasVisualContent(false);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Empty");
         SetInteractable(false);
@@ -89,7 +105,7 @@ public class ShopOfferView : MonoBehaviour
         ResolveReferences();
         SetText("Sold");
         SetSprite(null);
-        UpdateTooltip("Sold", "This offer has already been purchased.");
+        UpdateTooltip("Sold", "This offer has already been purchased.", string.Empty, string.Empty);
         visualFeedback?.SetHasVisualContent(false);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Sold");
         SetInteractable(false);
@@ -100,7 +116,7 @@ public class ShopOfferView : MonoBehaviour
         ResolveReferences();
         SetText(viewText);
         SetSprite(null);
-        UpdateTooltip(displayName, effectText);
+        UpdateTooltip(displayName, effectText, string.Empty, string.Empty);
         clickedHandler = _ => onClicked?.Invoke();
         visualFeedback?.SetHasVisualContent(true);
         SetInteractable(true);
@@ -306,6 +322,15 @@ public class ShopOfferView : MonoBehaviour
 
     private void UpdateTooltip(string displayName, string effectText)
     {
-        tooltipTrigger?.SetTooltip(displayName, effectText);
+        UpdateTooltip(displayName, effectText, string.Empty, string.Empty);
+    }
+
+    private void UpdateTooltip(
+        string displayName,
+        string effectText,
+        string specificCurrentEffectText,
+        string specificPlayCardEffectText)
+    {
+        tooltipTrigger?.SetTooltip(displayName, effectText, specificCurrentEffectText, specificPlayCardEffectText);
     }
 }

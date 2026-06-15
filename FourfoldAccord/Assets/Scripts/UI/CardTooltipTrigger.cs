@@ -6,6 +6,8 @@ public class CardTooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerE
 {
     [SerializeField] private string displayName = "Unknown";
     [SerializeField] private string effectText = "No effect.";
+    [SerializeField] private string specificCurrentEffectText = string.Empty;
+    [SerializeField] private string specificPlayCardEffectText = string.Empty;
 
     private CardTooltipController tooltipController;
     private RectTransform rectTransform;
@@ -17,8 +19,22 @@ public class CardTooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerE
 
     public void SetTooltip(string newDisplayName, string newEffectText)
     {
+        SetTooltip(newDisplayName, newEffectText, string.Empty, string.Empty);
+    }
+
+    public void SetTooltip(
+        string newDisplayName,
+        string newEffectText,
+        string newSpecificCurrentEffectText,
+        string newSpecificPlayCardEffectText)
+    {
         displayName = string.IsNullOrWhiteSpace(newDisplayName) ? "Unknown" : newDisplayName;
-        effectText = string.IsNullOrWhiteSpace(newEffectText) ? "No effect." : newEffectText;
+        bool hasSpecificText =
+            !string.IsNullOrWhiteSpace(newSpecificCurrentEffectText) ||
+            !string.IsNullOrWhiteSpace(newSpecificPlayCardEffectText);
+        effectText = string.IsNullOrWhiteSpace(newEffectText) && !hasSpecificText ? "No effect." : newEffectText;
+        specificCurrentEffectText = string.IsNullOrWhiteSpace(newSpecificCurrentEffectText) ? string.Empty : newSpecificCurrentEffectText;
+        specificPlayCardEffectText = string.IsNullOrWhiteSpace(newSpecificPlayCardEffectText) ? string.Empty : newSpecificPlayCardEffectText;
         ResolveReferences();
     }
 
@@ -30,7 +46,7 @@ public class CardTooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerE
     public void OnPointerEnter(PointerEventData eventData)
     {
         ResolveReferences();
-        tooltipController?.ShowTooltip(displayName, effectText, rectTransform);
+        tooltipController?.ShowTooltip(displayName, effectText, specificCurrentEffectText, specificPlayCardEffectText, rectTransform);
     }
 
     public void OnPointerExit(PointerEventData eventData)

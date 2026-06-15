@@ -6,6 +6,11 @@ public class PokerHandEvaluator
 {
     public PokerHandResult Evaluate(List<PlayingCard> playedCards)
     {
+        return Evaluate(playedCards, null);
+    }
+
+    public PokerHandResult Evaluate(List<PlayingCard> playedCards, JokerRuleContext ruleContext)
+    {
         if (playedCards == null || playedCards.Count == 0)
         {
             return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard>());
@@ -23,12 +28,13 @@ public class PokerHandEvaluator
             Debug.Log($"Poker hand evaluation ignored {stoneCards.Count} Stone Card(s)");
         }
 
-        PokerHandResult result = EvaluateRankSuitCards(rankSuitCards);
+        PokerHandResult result = EvaluateRankSuitCards(rankSuitCards, ruleContext);
         AddStoneCardsToScoringCards(result, stoneCards);
+        ApplySplashScoringCards(result, playedCards, ruleContext);
         return result;
     }
 
-    private PokerHandResult EvaluateRankSuitCards(List<PlayingCard> playedCards)
+    private PokerHandResult EvaluateRankSuitCards(List<PlayingCard> playedCards, JokerRuleContext ruleContext)
     {
         if (playedCards == null || playedCards.Count == 0)
         {
@@ -40,12 +46,13 @@ public class PokerHandEvaluator
             .OrderByDescending(group => group.Count)
             .ThenByDescending(group => group[0].rank)
             .ToList();
-        bool isFlush = IsFlush(playedCards);
-        bool isStraight = IsStraight(playedCards);
+        List<PlayingCard> straightFlushCards = GetStraightFlushCards(playedCards, ruleContext);
+        List<PlayingCard> flushCards = GetFlushCards(playedCards, ruleContext);
+        List<PlayingCard> straightCards = GetStraightCards(playedCards, ruleContext);
 
-        if (isFlush && isStraight)
+        if (straightFlushCards.Count > 0)
         {
-            return new PokerHandResult(PokerHandType.StraightFlush, new List<PlayingCard>(playedCards));
+            return new PokerHandResult(PokerHandType.StraightFlush, straightFlushCards);
         }
 
         List<PlayingCard> fourOfAKind = rankGroups.FirstOrDefault(group => group.Count == 4);
@@ -65,14 +72,14 @@ public class PokerHandEvaluator
             return new PokerHandResult(PokerHandType.FullHouse, fullHouseCards);
         }
 
-        if (isFlush)
+        if (flushCards.Count > 0)
         {
-            return new PokerHandResult(PokerHandType.Flush, new List<PlayingCard>(playedCards));
+            return new PokerHandResult(PokerHandType.Flush, flushCards);
         }
 
-        if (isStraight)
+        if (straightCards.Count > 0)
         {
-            return new PokerHandResult(PokerHandType.Straight, new List<PlayingCard>(playedCards));
+            return new PokerHandResult(PokerHandType.Straight, straightCards);
         }
 
         if (threeOfAKind != null)
@@ -104,6 +111,21 @@ public class PokerHandEvaluator
         return new PokerHandResult(PokerHandType.HighCard, new List<PlayingCard> { highestCard });
     }
 
+    private void ApplySplashScoringCards(PokerHandResult result, List<PlayingCard> playedCards, JokerRuleContext ruleContext)
+    {
+        if (result == null || playedCards == null || ruleContext == null || !ruleContext.hasSplash)
+        {
+            return;
+        }
+
+        if (result.scoringCards == null)
+        {
+            result.scoringCards = new List<PlayingCard>();
+        }
+
+        AddUniqueCards(result.scoringCards, playedCards);
+    }
+
     private void AddStoneCardsToScoringCards(PokerHandResult result, List<PlayingCard> stoneCards)
     {
         if (result == null || stoneCards == null || stoneCards.Count == 0)
@@ -116,7 +138,57 @@ public class PokerHandEvaluator
             result.scoringCards = new List<PlayingCard>();
         }
 
-        result.scoringCards.AddRange(stoneCards);
+        AddUniqueCards(result.scoringCards, stoneCards);
+    }
+
+    private void AddUniqueCards(List<PlayingCard> targetCards, List<PlayingCard> cardsToAdd)
+    {
+        if (targetCards == null || cardsToAdd == null)
+        {
+            return;
+        }
+
+        HashSet<string> existingKeys = new HashSet<string>();
+
+        for (int i = 0; i < targetCards.Count; i++)
+        {
+            existingKeys.Add(GetCardInstanceKey(targetCards[i]));
+        }
+
+        for (int i = 0; i < cardsToAdd.Count; i++)
+        {
+            PlayingCard card = cardsToAdd[i];
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            string key = GetCardInstanceKey(card);
+
+            if (existingKeys.Contains(key))
+            {
+                continue;
+            }
+
+            targetCards.Add(card);
+            existingKeys.Add(key);
+        }
+    }
+
+    private string GetCardInstanceKey(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrEmpty(card.instanceId))
+        {
+            return card.instanceId;
+        }
+
+        return card.uniqueId.ToString();
     }
 
     private Dictionary<Rank, List<PlayingCard>> GroupCardsByRank(List<PlayingCard> cards)
@@ -138,44 +210,151 @@ public class PokerHandEvaluator
         return cardsByRank;
     }
 
-    private bool IsFlush(List<PlayingCard> cards)
+    private List<PlayingCard> GetFlushCards(List<PlayingCard> cards, JokerRuleContext ruleContext)
     {
-        if (cards.Count != 5)
+        int requiredCount = GetStraightOrFlushRequirement(ruleContext);
+
+        if (cards.Count < requiredCount)
         {
-            return false;
+            return new List<PlayingCard>();
         }
 
-        Suit firstSuit = cards[0].suit;
+        List<PlayingCard> bestFlushCards = new List<PlayingCard>();
 
-        for (int i = 1; i < cards.Count; i++)
+        foreach (Suit suit in System.Enum.GetValues(typeof(Suit)))
         {
-            if (cards[i].suit != firstSuit)
+            List<PlayingCard> matchingCards = cards
+                .Where(card => CardTraitUtility.GetEffectiveSuits(card, ruleContext).Contains(suit))
+                .OrderByDescending(card => card.rank)
+                .ToList();
+
+            if (matchingCards.Count >= requiredCount && matchingCards.Count > bestFlushCards.Count)
             {
-                return false;
+                bestFlushCards = matchingCards;
             }
         }
 
-        return true;
+        return bestFlushCards.Count >= requiredCount ? bestFlushCards : new List<PlayingCard>();
     }
 
-    private bool IsStraight(List<PlayingCard> cards)
+    private List<PlayingCard> GetStraightCards(List<PlayingCard> cards, JokerRuleContext ruleContext)
     {
-        if (cards.Count != 5)
+        int requiredCount = GetStraightOrFlushRequirement(ruleContext);
+
+        if (cards.Count < requiredCount)
         {
-            return false;
+            return new List<PlayingCard>();
         }
 
-        List<int> rankValues = cards
-            .Select(card => (int)card.rank)
-            .Distinct()
-            .OrderBy(value => value)
+        List<PlayingCard> distinctRankCards = cards
+            .GroupBy(card => card.rank)
+            .Select(group => group.OrderByDescending(card => card.suit).First())
+            .OrderBy(card => (int)card.rank)
             .ToList();
 
-        if (rankValues.Count != 5)
+        if (distinctRankCards.Count < requiredCount)
         {
-            return false;
+            return new List<PlayingCard>();
         }
 
-        return rankValues[4] - rankValues[0] == 4;
+        List<PlayingCard> bestCards = FindBestStraightCards(distinctRankCards, requiredCount, ruleContext);
+
+        if (requiredCount == 4)
+        {
+            List<PlayingCard> fiveCardStraight = FindBestStraightCards(distinctRankCards, 5, ruleContext);
+
+            if (fiveCardStraight.Count == 5)
+            {
+                return fiveCardStraight;
+            }
+        }
+
+        return bestCards;
+    }
+
+    private List<PlayingCard> GetStraightFlushCards(List<PlayingCard> cards, JokerRuleContext ruleContext)
+    {
+        int requiredCount = GetStraightOrFlushRequirement(ruleContext);
+
+        if (cards.Count < requiredCount)
+        {
+            return new List<PlayingCard>();
+        }
+
+        List<PlayingCard> bestStraightFlushCards = new List<PlayingCard>();
+
+        foreach (Suit suit in System.Enum.GetValues(typeof(Suit)))
+        {
+            List<PlayingCard> matchingCards = cards
+                .Where(card => CardTraitUtility.GetEffectiveSuits(card, ruleContext).Contains(suit))
+                .ToList();
+            List<PlayingCard> straightCards = GetStraightCards(matchingCards, ruleContext);
+
+            if (straightCards.Count > bestStraightFlushCards.Count)
+            {
+                bestStraightFlushCards = straightCards;
+            }
+        }
+
+        return bestStraightFlushCards.Count >= requiredCount ? bestStraightFlushCards : new List<PlayingCard>();
+    }
+
+    private List<PlayingCard> FindBestStraightCards(
+        List<PlayingCard> distinctRankCards,
+        int requiredCount,
+        JokerRuleContext ruleContext)
+    {
+        if (distinctRankCards == null || distinctRankCards.Count < requiredCount)
+        {
+            return new List<PlayingCard>();
+        }
+
+        int allowedGap = ruleContext != null && ruleContext.hasShortcut ? 2 : 1;
+        List<PlayingCard> bestCards = new List<PlayingCard>();
+
+        for (int startIndex = 0; startIndex < distinctRankCards.Count; startIndex++)
+        {
+            List<PlayingCard> candidateCards = new List<PlayingCard> { distinctRankCards[startIndex] };
+            int previousRankValue = (int)distinctRankCards[startIndex].rank;
+
+            for (int nextIndex = startIndex + 1; nextIndex < distinctRankCards.Count; nextIndex++)
+            {
+                int nextRankValue = (int)distinctRankCards[nextIndex].rank;
+                int gap = nextRankValue - previousRankValue;
+
+                if (gap < 1)
+                {
+                    continue;
+                }
+
+                if (gap > allowedGap)
+                {
+                    break;
+                }
+
+                candidateCards.Add(distinctRankCards[nextIndex]);
+                previousRankValue = nextRankValue;
+
+                if (candidateCards.Count == requiredCount)
+                {
+                    break;
+                }
+            }
+
+            if (candidateCards.Count == requiredCount &&
+                (bestCards.Count == 0 || candidateCards.Last().rank > bestCards.Last().rank))
+            {
+                bestCards = candidateCards;
+            }
+        }
+
+        return bestCards
+            .OrderByDescending(card => card.rank)
+            .ToList();
+    }
+
+    private int GetStraightOrFlushRequirement(JokerRuleContext ruleContext)
+    {
+        return ruleContext != null && ruleContext.hasFourFingers ? 4 : 5;
     }
 }

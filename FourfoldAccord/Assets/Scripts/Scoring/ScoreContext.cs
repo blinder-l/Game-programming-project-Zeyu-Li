@@ -5,14 +5,65 @@ using System.Text;
 public class CardScoreEvent
 {
     public PlayingCard card;
+    public int playedCardSlotIndex;
+    public int chipsAdded;
     public int chipValue;
+    public int multAdded;
     public bool isRetrigger;
+    public string effectText;
+    public string effectSource;
 
     public CardScoreEvent(PlayingCard card, int chipValue, bool isRetrigger)
+        : this(card, -1, chipValue, 0, isRetrigger, $"+{chipValue}", isRetrigger ? "Red Seal" : "Card")
+    {
+    }
+
+    public CardScoreEvent(
+        PlayingCard card,
+        int playedCardSlotIndex,
+        int chipsAdded,
+        int multAdded,
+        bool isRetrigger,
+        string effectText,
+        string effectSource)
     {
         this.card = card;
-        this.chipValue = chipValue;
+        this.playedCardSlotIndex = playedCardSlotIndex;
+        this.chipsAdded = chipsAdded;
+        chipValue = chipsAdded;
+        this.multAdded = multAdded;
         this.isRetrigger = isRetrigger;
+        this.effectText = effectText;
+        this.effectSource = effectSource;
+    }
+}
+
+public class JokerScoreEvent
+{
+    public int jokerSlotIndex;
+    public string effectText;
+    public string effectSource;
+    public CardScoreEvent triggerAfterCardScoreEvent;
+    public int chipsDelta;
+    public float multAdd;
+    public float multMultiplier;
+
+    public JokerScoreEvent(
+        int jokerSlotIndex,
+        string effectText,
+        string effectSource,
+        CardScoreEvent triggerAfterCardScoreEvent = null,
+        int chipsDelta = 0,
+        float multAdd = 0f,
+        float multMultiplier = 1f)
+    {
+        this.jokerSlotIndex = jokerSlotIndex;
+        this.effectText = effectText;
+        this.effectSource = effectSource;
+        this.triggerAfterCardScoreEvent = triggerAfterCardScoreEvent;
+        this.chipsDelta = chipsDelta;
+        this.multAdd = multAdd;
+        this.multMultiplier = multMultiplier;
     }
 }
 
@@ -24,12 +75,19 @@ public class ScoreContext
     public int rankChips;
     public int chips;
     public float mult;
+    public int chipsBeforeJokers;
+    public float multBeforeJokers;
     public int finalScore;
     public Dictionary<PlayingCard, int> cardChipValues;
     public List<CardScoreEvent> cardScoreEvents;
+    public List<JokerScoreEvent> jokerScoreEvents;
     public Dictionary<Suit, int> suitCounts;
     public int goldReward;
     public int bonusCardGoldReward;
+    public int luckySuccessfulTriggerCount;
+    public int ownedStoneCardCount;
+    public int currentHandTypePlayCount;
+    public JokerRuleContext ruleContext;
     public List<string> triggeredCardEffectLog;
     public List<string> triggeredSuitEffectLog;
     public List<string> triggeredJokerEffectLog;
@@ -44,9 +102,14 @@ public class ScoreContext
         int finalScore,
         Dictionary<PlayingCard, int> cardChipValues,
         List<CardScoreEvent> cardScoreEvents,
+        List<JokerScoreEvent> jokerScoreEvents,
         Dictionary<Suit, int> suitCounts,
         int goldReward,
         int bonusCardGoldReward,
+        int luckySuccessfulTriggerCount,
+        int ownedStoneCardCount,
+        int currentHandTypePlayCount,
+        JokerRuleContext ruleContext,
         List<string> triggeredCardEffectLog,
         List<string> triggeredSuitEffectLog,
         List<string> triggeredJokerEffectLog)
@@ -60,9 +123,14 @@ public class ScoreContext
         this.finalScore = finalScore;
         this.cardChipValues = cardChipValues;
         this.cardScoreEvents = cardScoreEvents;
+        this.jokerScoreEvents = jokerScoreEvents;
         this.suitCounts = suitCounts;
         this.goldReward = goldReward;
         this.bonusCardGoldReward = bonusCardGoldReward;
+        this.luckySuccessfulTriggerCount = luckySuccessfulTriggerCount;
+        this.ownedStoneCardCount = ownedStoneCardCount;
+        this.currentHandTypePlayCount = currentHandTypePlayCount;
+        this.ruleContext = ruleContext;
         this.triggeredCardEffectLog = triggeredCardEffectLog;
         this.triggeredSuitEffectLog = triggeredSuitEffectLog;
         this.triggeredJokerEffectLog = triggeredJokerEffectLog;

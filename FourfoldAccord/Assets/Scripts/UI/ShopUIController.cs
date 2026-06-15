@@ -15,7 +15,9 @@ public class ShopUIController : MonoBehaviour
     private ShopOfferView consumableOfferView1;
     private ShopOfferView consumableOfferView2;
     private CardTooltipController tooltipController;
+    private JokerSpriteDatabase jokerSpriteDatabase;
     private PlanetSpriteDatabase planetSpriteDatabase;
+    private JokerEffectContext jokerEffectContext = new JokerEffectContext();
     private Func<bool> canUseShopInput;
     private Func<string, string> getBlockedMessage;
 
@@ -33,6 +35,7 @@ public class ShopUIController : MonoBehaviour
         }
 
         BindShopPanel(canvasRoot);
+        ResolveJokerSpriteDatabase();
         ResolvePlanetSpriteDatabase();
         BindActionButtons(canvasRoot);
         BindJokerOffers(canvasRoot);
@@ -70,6 +73,8 @@ public class ShopUIController : MonoBehaviour
 
     public void RefreshOffers(IReadOnlyList<ShopOffer> offers)
     {
+        ResolveJokerSpriteDatabase();
+
         if (jokerOfferViews == null)
         {
             return;
@@ -87,7 +92,7 @@ public class ShopUIController : MonoBehaviour
             if (offers != null && i < offers.Count)
             {
                 offerView.SetTooltipController(tooltipController);
-                offerView.Bind(offers[i], i, HandleJokerOfferClicked);
+                offerView.Bind(offers[i], i, HandleJokerOfferClicked, jokerSpriteDatabase, jokerEffectContext);
             }
             else
             {
@@ -142,6 +147,14 @@ public class ShopUIController : MonoBehaviour
         voucherOfferView?.SetTooltipController(tooltipController);
         consumableOfferView1?.SetTooltipController(tooltipController);
         consumableOfferView2?.SetTooltipController(tooltipController);
+    }
+
+    public void SetJokerTooltipContext(JokerEffectContext context)
+    {
+        if (context != null)
+        {
+            jokerEffectContext = context;
+        }
     }
 
     public void SetInputGuard(Func<bool> canUseInput, Func<string, string> blockedMessageGetter)
@@ -423,5 +436,20 @@ public class ShopUIController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private void ResolveJokerSpriteDatabase()
+    {
+        if (jokerSpriteDatabase != null)
+        {
+            return;
+        }
+
+        jokerSpriteDatabase = FindFirstObjectByType<JokerSpriteDatabase>();
+
+        if (jokerSpriteDatabase == null)
+        {
+            jokerSpriteDatabase = gameObject.AddComponent<JokerSpriteDatabase>();
+        }
     }
 }

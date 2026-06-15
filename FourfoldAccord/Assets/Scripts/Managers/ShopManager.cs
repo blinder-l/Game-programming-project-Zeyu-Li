@@ -12,6 +12,21 @@ public class ShopManager
     private readonly List<ShopOffer> currentOffers = new List<ShopOffer>();
     private readonly List<PlanetShopOffer> currentConsumableOffers = new List<PlanetShopOffer>();
     private readonly Random random = new Random();
+    private readonly List<Func<JokerBase>> jokerFactories = new List<Func<JokerBase>>
+    {
+        () => new WaymarkPilgrimJoker(),
+        () => new GildedMaskbearerJoker(),
+        () => new StoneboundEffigierJoker(),
+        () => new FortuneFamiliarJoker(),
+        () => new ArbiterOfFourSealsJoker(),
+        () => new PathfinderOfTheHiddenRouteJoker(),
+        () => new HeraldOfTheFullTideJoker(),
+        () => new MasqueraderOfAHundredFacesJoker(),
+        () => new SigilSmearerJoker(),
+        () => new WitnessOfTheFirstExposureJoker(),
+        () => new RiderOfTheLongRouteJoker(),
+        () => new PriestOfTheSupernovaRemnantJoker()
+    };
 
     public IReadOnlyList<ShopOffer> CurrentOffers => currentOffers;
     public IReadOnlyList<ShopOffer> ShopOptions => currentOffers;
@@ -19,12 +34,21 @@ public class ShopManager
 
     public void GenerateOffers()
     {
+        GenerateOffers(null);
+    }
+
+    public void GenerateOffers(JokerManager jokerManager)
+    {
         currentOffers.Clear();
         currentConsumableOffers.Clear();
 
-        for (int i = 0; i < ShopOptionCount; i++)
+        List<Func<JokerBase>> availableFactories = GetAvailableJokerFactories(jokerManager);
+
+        for (int i = 0; i < ShopOptionCount && availableFactories.Count > 0; i++)
         {
-            currentOffers.Add(new ShopOffer(CreateRandomJoker()));
+            int factoryIndex = random.Next(availableFactories.Count);
+            currentOffers.Add(new ShopOffer(availableFactories[factoryIndex]()));
+            availableFactories.RemoveAt(factoryIndex);
         }
 
         for (int i = 0; i < ConsumableOfferCount; i++)
@@ -39,6 +63,11 @@ public class ShopManager
     public void GenerateShopOptions()
     {
         GenerateOffers();
+    }
+
+    public void GenerateShopOptions(JokerManager jokerManager)
+    {
+        GenerateOffers(jokerManager);
     }
 
     public JokerBase GetOption(int optionIndex)
@@ -97,6 +126,12 @@ public class ShopManager
             return false;
         }
 
+        if (HasEquippedJoker(jokerManager, offer.Joker.Name))
+        {
+            message = $"Cannot purchase: {offer.Joker.Name} is already equipped";
+            return false;
+        }
+
         if (currentGold < offer.Joker.Cost)
         {
             message = $"Cannot purchase: not enough gold. Cost {offer.Joker.Cost}, current gold {currentGold}";
@@ -117,6 +152,11 @@ public class ShopManager
 
     public bool TryReroll(int currentGold, out string message, out int newGold)
     {
+        return TryReroll(currentGold, null, out message, out newGold);
+    }
+
+    public bool TryReroll(int currentGold, JokerManager jokerManager, out string message, out int newGold)
+    {
         newGold = currentGold;
 
         if (currentGold < RerollCost)
@@ -126,7 +166,7 @@ public class ShopManager
         }
 
         newGold = currentGold - RerollCost;
-        GenerateOffers();
+        GenerateOffers(jokerManager);
         message = $"Shop rerolled. Cost {RerollCost}, remaining gold {newGold}";
         return true;
     }
@@ -209,23 +249,47 @@ public class ShopManager
 
     private JokerBase CreateRandomJoker()
     {
-        int jokerType = random.Next(6);
+        int jokerType = random.Next(jokerFactories.Count);
+        return jokerFactories[jokerType]();
+    }
 
-        switch (jokerType)
+    private List<Func<JokerBase>> GetAvailableJokerFactories(JokerManager jokerManager)
+    {
+        List<Func<JokerBase>> availableFactories = new List<Func<JokerBase>>();
+
+        for (int i = 0; i < jokerFactories.Count; i++)
         {
-            case 0:
-                return new SuitRetriggerJoker(Suit.Hearts);
-            case 1:
-                return new SuitRetriggerJoker(Suit.Diamonds);
-            case 2:
-                return new SuitRetriggerJoker(Suit.Clubs);
-            case 3:
-                return new SuitRetriggerJoker(Suit.Spades);
-            case 4:
-                return new HighRiskMultiplierJoker();
-            default:
-                return new StoredDiscardMultiplierJoker();
+            JokerBase previewJoker = jokerFactories[i]();
+
+            if (previewJoker == null || HasEquippedJoker(jokerManager, previewJoker.Name))
+            {
+                continue;
+            }
+
+            availableFactories.Add(jokerFactories[i]);
         }
+
+        return availableFactories;
+    }
+
+    private bool HasEquippedJoker(JokerManager jokerManager, string jokerName)
+    {
+        if (jokerManager == null || string.IsNullOrEmpty(jokerName))
+        {
+            return false;
+        }
+
+        IReadOnlyList<JokerBase> equippedJokers = jokerManager.EquippedJokers;
+
+        for (int i = 0; i < equippedJokers.Count; i++)
+        {
+            if (equippedJokers[i] != null && string.Equals(equippedJokers[i].Name, jokerName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private PlanetCard CreateRandomPlanetCard()

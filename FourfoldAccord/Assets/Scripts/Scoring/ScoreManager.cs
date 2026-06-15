@@ -30,7 +30,10 @@ public class ScoreManager
         PokerHandResult pokerHandResult,
         SuitMasteryManager suitMasteryManager,
         JokerManager jokerManager,
-        HandTypeLevelManager handTypeLevelManager)
+        HandTypeLevelManager handTypeLevelManager,
+        IReadOnlyList<PlayingCard> ownedCardsSnapshot = null,
+        JokerRuleContext ruleContext = null,
+        int currentHandTypePlayCount = 0)
     {
         if (pokerHandResult == null)
         {
@@ -41,12 +44,14 @@ public class ScoreManager
         List<string> triggeredCardEffectLog = new List<string>();
         List<CardScoreEvent> cardScoreEvents = new List<CardScoreEvent>();
         int bonusCardGoldReward = 0;
+        int luckySuccessfulTriggerCount = 0;
         float cardEffectMultBonus = 0f;
         Dictionary<PlayingCard, int> cardChipValues = GetCardChipValues(
             scoringCards,
             triggeredCardEffectLog,
             cardScoreEvents,
             out bonusCardGoldReward,
+            out luckySuccessfulTriggerCount,
             out cardEffectMultBonus);
         Dictionary<Suit, int> suitCounts = GetSuitCounts(scoringCards);
         int baseChips = GetBaseChips(pokerHandResult.handType, handTypeLevelManager);
@@ -64,14 +69,21 @@ public class ScoreManager
             0,
             cardChipValues,
             cardScoreEvents,
+            new List<JokerScoreEvent>(),
             suitCounts,
             0,
             bonusCardGoldReward,
+            luckySuccessfulTriggerCount,
+            GetOwnedStoneCardCount(ownedCardsSnapshot),
+            currentHandTypePlayCount,
+            ruleContext,
             triggeredCardEffectLog,
             new List<string>(),
             new List<string>());
 
         suitEffectManager.ApplySuitEffects(scoreContext, suitMasteryManager);
+        scoreContext.chipsBeforeJokers = scoreContext.chips;
+        scoreContext.multBeforeJokers = scoreContext.mult;
         jokerManager?.ApplyScoreJokers(scoreContext);
         scoreContext.RecalculateFinalScore();
 
@@ -153,10 +165,12 @@ public class ScoreManager
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         out int bonusCardGoldReward,
+        out int luckySuccessfulTriggerCount,
         out float multBonus)
     {
         Dictionary<PlayingCard, int> cardChipValues = new Dictionary<PlayingCard, int>();
         bonusCardGoldReward = 0;
+        luckySuccessfulTriggerCount = 0;
         multBonus = 0f;
 
         for (int i = 0; i < cards.Count; i++)
@@ -169,6 +183,7 @@ public class ScoreManager
             }
 
             int cardBonusGoldReward;
+            int cardLuckySuccessfulTriggerCount;
             float cardMultBonus;
             int cardChipValue = ScoreSingleCard(
                 card,
@@ -177,6 +192,7 @@ public class ScoreManager
                 triggeredCardEffectLog,
                 cardScoreEvents,
                 out cardBonusGoldReward,
+                out cardLuckySuccessfulTriggerCount,
                 out cardMultBonus);
 
             if (cardChipValues.ContainsKey(card))
@@ -189,6 +205,7 @@ public class ScoreManager
             }
 
             bonusCardGoldReward += cardBonusGoldReward;
+            luckySuccessfulTriggerCount += cardLuckySuccessfulTriggerCount;
             multBonus += cardMultBonus;
         }
 
@@ -202,9 +219,11 @@ public class ScoreManager
         List<string> triggeredCardEffectLog,
         List<CardScoreEvent> cardScoreEvents,
         out int bonusCardGoldReward,
+        out int luckySuccessfulTriggerCount,
         out float multBonus)
     {
         bonusCardGoldReward = 0;
+        luckySuccessfulTriggerCount = 0;
         multBonus = 0f;
 
         int cardChips;
@@ -221,12 +240,20 @@ public class ScoreManager
             triggeredCardEffectLog.Add($"{card.GetDisplayName()}: rank chips {rankChipValue}{FormatPermanentBonus(card)} = {cardChips}");
         }
 
-        cardScoreEvents.Add(new CardScoreEvent(card, cardChips, isRetrigger));
+        cardScoreEvents.Add(new CardScoreEvent(
+            card,
+            -1,
+            cardChips,
+            0,
+            isRetrigger,
+            $"+{cardChips}",
+            isRetrigger ? "Red Seal" : "Card"));
 
         if (card.enhancement == CardEnhancement.Lucky)
         {
             bool triggeredLuckyMult = RollChance(1, 5);
             bool triggeredLuckyGold = RollChance(1, 15);
+            bool triggeredAnyLuckyEffect = triggeredLuckyMult || triggeredLuckyGold;
 
             if (triggeredLuckyMult)
             {
@@ -247,6 +274,11 @@ public class ScoreManager
             {
                 triggeredCardEffectLog.Add($"{card.GetDisplayName()}: Lucky Money did not trigger");
             }
+
+            if (triggeredAnyLuckyEffect)
+            {
+                luckySuccessfulTriggerCount++;
+            }
         }
 
         if (card.seal == CardSeal.Gold)
@@ -262,6 +294,7 @@ public class ScoreManager
                 triggeredCardEffectLog.Add($"{card.GetDisplayName()}: Red Seal retriggered once");
 
                 int retriggerBonusGoldReward;
+                int retriggerLuckySuccessfulTriggerCount;
                 float retriggerMultBonus;
                 cardChips += ScoreSingleCard(
                     card,
@@ -270,8 +303,10 @@ public class ScoreManager
                     triggeredCardEffectLog,
                     cardScoreEvents,
                     out retriggerBonusGoldReward,
+                    out retriggerLuckySuccessfulTriggerCount,
                     out retriggerMultBonus);
                 bonusCardGoldReward += retriggerBonusGoldReward;
+                luckySuccessfulTriggerCount += retriggerLuckySuccessfulTriggerCount;
                 multBonus += retriggerMultBonus;
             }
             else
@@ -281,6 +316,26 @@ public class ScoreManager
         }
 
         return cardChips;
+    }
+
+    private int GetOwnedStoneCardCount(IReadOnlyList<PlayingCard> ownedCardsSnapshot)
+    {
+        if (ownedCardsSnapshot == null)
+        {
+            return 0;
+        }
+
+        int stoneCount = 0;
+
+        for (int i = 0; i < ownedCardsSnapshot.Count; i++)
+        {
+            if (ownedCardsSnapshot[i] != null && ownedCardsSnapshot[i].enhancement == CardEnhancement.Stone)
+            {
+                stoneCount++;
+            }
+        }
+
+        return stoneCount;
     }
 
     private bool RollChance(int numerator, int denominator)

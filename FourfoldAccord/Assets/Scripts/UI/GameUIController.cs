@@ -23,8 +23,10 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private RunInfoUIController runInfoUIController;
     [SerializeField] private CardTooltipController cardTooltipController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
+    [SerializeField] private JokerSpriteDatabase jokerSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
+    [SerializeField] private PlayedCardEffectView[] jokerEffectViews;
     [SerializeField] private HandCardView[] handCardViews;
     [SerializeField] private Button playButton;
     [SerializeField] private Button discardButton;
@@ -71,6 +73,7 @@ public class GameUIController : MonoBehaviour
 
     private bool hasInitialized;
     private bool isGameplayInputLocked;
+    private JokerEffectContext jokerEffectContext = new JokerEffectContext();
 
     private void Awake()
     {
@@ -92,6 +95,7 @@ public class GameUIController : MonoBehaviour
         BindResolutionInfoUI();
         BindCardTooltipController();
         BindJokerBarUI();
+        ClearTopConsumableSlots();
         BindHandCards();
         DisableKnownBackgroundRaycasts();
         BindActionButtons();
@@ -241,6 +245,7 @@ public class GameUIController : MonoBehaviour
     public void RefreshJokerBar(IReadOnlyList<JokerBase> equippedJokers)
     {
         EnsureJokerSlotsBound();
+        ResolveJokerSpriteDatabaseIfNeeded();
 
         if (jokerSlotViews == null)
         {
@@ -260,10 +265,25 @@ public class GameUIController : MonoBehaviour
             }
 
             JokerBase joker = equippedJokers != null && i < equippedJokers.Count ? equippedJokers[i] : null;
-            slotView.SetJoker(joker);
+            slotView.SetJoker(joker, jokerSpriteDatabase, jokerEffectContext);
         }
 
         Debug.Log($"Joker bar updated: {equippedCount} equipped jokers");
+    }
+
+    public void SetJokerTooltipContext(int ownedStoneCardCount)
+    {
+        if (jokerEffectContext == null)
+        {
+            jokerEffectContext = new JokerEffectContext();
+        }
+
+        jokerEffectContext.ownedStoneCardCount = ownedStoneCardCount;
+
+        if (shopUIController != null)
+        {
+            shopUIController.SetJokerTooltipContext(jokerEffectContext);
+        }
     }
 
     public void SetDeckStatsSources(DeckManager deckManager, HandManager handManager)
@@ -432,10 +452,31 @@ public class GameUIController : MonoBehaviour
         List<PlayingCard> sortedCards = GetCardsSortedForPlayedArea(playedCards);
         RefreshPlayedCards(sortedCards);
         ClearPlayedCardEffects();
+        ClearJokerEffects();
         return sortedCards;
     }
 
     public void PlayCardChipEffect(int slotIndex, PlayingCard card, int chipValue)
+    {
+        PlayCardChipEffect(slotIndex, card, chipValue, $"+{chipValue}");
+    }
+
+    public void PlayCardScoreEvent(CardScoreEvent scoreEvent)
+    {
+        if (scoreEvent == null)
+        {
+            Debug.LogWarning("Cannot play card score event: event is null.");
+            return;
+        }
+
+        PlayCardChipEffect(
+            scoreEvent.playedCardSlotIndex,
+            scoreEvent.card,
+            scoreEvent.chipsAdded,
+            string.IsNullOrEmpty(scoreEvent.effectText) ? $"+{scoreEvent.chipsAdded}" : scoreEvent.effectText);
+    }
+
+    public void PlayCardChipEffect(int slotIndex, PlayingCard card, int chipValue, string effectText)
     {
         EnsurePlayedCardsBound();
         EnsureResolutionInfoBound();
@@ -461,10 +502,42 @@ public class GameUIController : MonoBehaviour
 
         if (playedCardEffectViews != null && slotIndex >= 0 && slotIndex < playedCardEffectViews.Length && playedCardEffectViews[slotIndex] != null)
         {
-            playedCardEffectViews[slotIndex].PlayChipEffect(chipValue);
+            playedCardEffectViews[slotIndex].PlayEffect(effectText);
         }
 
-        Debug.Log($"PlayedCard{slotIndex + 1} scored {card.GetDisplayName()}; PlayedCardEffect{slotIndex + 1}: +{chipValue}");
+        Debug.Log($"PlayedCard{slotIndex + 1} scored {card.GetDisplayName()}; PlayedCardEffect{slotIndex + 1}: {effectText}");
+    }
+
+    public void PlayJokerScoreEvent(JokerScoreEvent scoreEvent)
+    {
+        EnsureJokerSlotsBound();
+        EnsureJokerEffectsBound();
+
+        if (scoreEvent == null)
+        {
+            Debug.LogWarning("Cannot play Joker score event: event is null.");
+            return;
+        }
+
+        int slotIndex = scoreEvent.jokerSlotIndex;
+
+        if (slotIndex < 0 || slotIndex >= 5)
+        {
+            Debug.LogWarning($"Cannot play Joker score event: invalid Joker slot {slotIndex}.");
+            return;
+        }
+
+        if (jokerSlotViews != null && slotIndex < jokerSlotViews.Length && jokerSlotViews[slotIndex] != null)
+        {
+            jokerSlotViews[slotIndex].PlayScorePulse();
+        }
+
+        if (jokerEffectViews != null && slotIndex < jokerEffectViews.Length && jokerEffectViews[slotIndex] != null)
+        {
+            string effectText = string.IsNullOrEmpty(scoreEvent.effectText) ? "!" : scoreEvent.effectText;
+            jokerEffectViews[slotIndex].PlayEffect(effectText);
+            Debug.Log($"JokerSlot{slotIndex + 1} triggered {scoreEvent.effectSource}; JokerEffect{slotIndex + 1}: {effectText}");
+        }
     }
 
     public void ClearPlayedCardEffects()
@@ -482,6 +555,21 @@ public class GameUIController : MonoBehaviour
             {
                 playedCardEffectViews[i].ClearImmediate();
             }
+        }
+    }
+
+    public void ClearJokerEffects()
+    {
+        EnsureJokerEffectsBound();
+
+        if (jokerEffectViews == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < jokerEffectViews.Length; i++)
+        {
+            jokerEffectViews[i]?.ClearImmediate();
         }
     }
 
@@ -702,6 +790,21 @@ public class GameUIController : MonoBehaviour
         Debug.Log("Bound left status UI");
     }
 
+    private void ResolveJokerSpriteDatabaseIfNeeded()
+    {
+        if (jokerSpriteDatabase != null)
+        {
+            return;
+        }
+
+        jokerSpriteDatabase = FindFirstObjectByType<JokerSpriteDatabase>();
+
+        if (jokerSpriteDatabase == null)
+        {
+            jokerSpriteDatabase = gameObject.AddComponent<JokerSpriteDatabase>();
+        }
+    }
+
     private void BindScoreCalculationUI(Transform leftPanelRoot)
     {
         Transform scoreCalculationRoot = FindChildByTrimmedName(leftPanelRoot, "ScoreCalculationModule");
@@ -754,6 +857,58 @@ public class GameUIController : MonoBehaviour
             jokerSlotViews[i] = slotView;
             Debug.Log($"Bound {slotName}");
         }
+
+        BindJokerEffectsUI();
+    }
+
+    private void ClearTopConsumableSlots()
+    {
+        GameObject containerObject = GameObject.Find("Canvas/TopJokerBar/ConsumableSlotsContainer");
+
+        if (containerObject == null)
+        {
+            return;
+        }
+
+        for (int i = 1; i <= 2; i++)
+        {
+            Transform slotTransform = containerObject.transform.Find($"ConsumableSlot{i}");
+
+            if (slotTransform == null)
+            {
+                continue;
+            }
+
+            ClearEmptyTopCardSlot(slotTransform.gameObject);
+            Debug.Log($"Cleared empty ConsumableSlot{i}");
+        }
+    }
+
+    private void ClearEmptyTopCardSlot(GameObject slotObject)
+    {
+        if (slotObject == null)
+        {
+            return;
+        }
+
+        Image[] images = slotObject.GetComponentsInChildren<Image>(true);
+
+        for (int i = 0; i < images.Length; i++)
+        {
+            images[i].sprite = null;
+            Color color = images[i].color;
+            color.a = 0f;
+            images[i].color = color;
+            images[i].raycastTarget = false;
+        }
+
+        TMP_Text[] texts = slotObject.GetComponentsInChildren<TMP_Text>(true);
+
+        for (int i = 0; i < texts.Length; i++)
+        {
+            texts[i].text = string.Empty;
+            texts[i].raycastTarget = false;
+        }
     }
 
     private void EnsureJokerSlotsBound()
@@ -778,6 +933,71 @@ public class GameUIController : MonoBehaviour
         }
 
         BindJokerBarUI();
+        BindJokerEffectsUI();
+    }
+
+    private void EnsureJokerEffectsBound()
+    {
+        if (jokerEffectViews != null && jokerEffectViews.Length == 5)
+        {
+            bool hasAllEffects = true;
+
+            for (int i = 0; i < jokerEffectViews.Length; i++)
+            {
+                if (jokerEffectViews[i] == null)
+                {
+                    hasAllEffects = false;
+                    break;
+                }
+            }
+
+            if (hasAllEffects)
+            {
+                return;
+            }
+        }
+
+        BindJokerEffectsUI();
+    }
+
+    private void BindJokerEffectsUI()
+    {
+        Canvas canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        GameObject effectArea = canvas != null
+            ? FindGameObjectIncludingInactive(canvas.transform, "JokerResolutionInfoArea", null)
+            : GameObject.Find("Canvas/TopJokerBar/JokerResolutionInfoArea");
+
+        if (effectArea == null)
+        {
+            Debug.LogWarning("Failed to find TopJokerBar/JokerResolutionInfoArea");
+            return;
+        }
+
+        jokerEffectViews = new PlayedCardEffectView[5];
+
+        for (int i = 0; i < jokerEffectViews.Length; i++)
+        {
+            string effectName = $"JokerEffect{i + 1}";
+            GameObject effectObject = FindGameObjectIncludingInactive(effectArea.transform, effectName, null);
+
+            if (effectObject == null)
+            {
+                Debug.LogWarning($"Failed to bind {effectName}");
+                continue;
+            }
+
+            effectObject.SetActive(true);
+            PlayedCardEffectView effectView = effectObject.GetComponent<PlayedCardEffectView>();
+
+            if (effectView == null)
+            {
+                effectView = effectObject.AddComponent<PlayedCardEffectView>();
+            }
+
+            effectView.ClearImmediate();
+            jokerEffectViews[i] = effectView;
+            Debug.Log($"Bound {effectName}: {GetFullPath(effectObject.transform)} at {effectView.BaseAnchoredPosition}");
+        }
     }
 
     private TMP_Text BindText(string relativePath, string label)
@@ -1308,6 +1528,7 @@ public class GameUIController : MonoBehaviour
         shopUIController.Initialize(canvas.transform);
         shopUIController.SetInputGuard(() => CanUseShop, GetShopBlockedMessage);
         shopUIController.SetTooltipController(cardTooltipController);
+        shopUIController.SetJokerTooltipContext(jokerEffectContext);
         shopUIController.JokerOfferClicked -= HandleShopJokerOfferClicked;
         shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
         shopUIController.ConsumableOfferClicked -= HandleShopConsumableOfferClicked;

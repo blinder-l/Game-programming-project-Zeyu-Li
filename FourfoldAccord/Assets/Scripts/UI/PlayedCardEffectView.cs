@@ -55,6 +55,11 @@ public class PlayedCardEffectView : MonoBehaviour
 
     public void PlayChipEffect(int chipValue)
     {
+        PlayEffect($"+{chipValue}");
+    }
+
+    public void PlayEffect(string displayText)
+    {
         ResolveReferences();
 
         if (effectText == null)
@@ -63,10 +68,12 @@ public class PlayedCardEffectView : MonoBehaviour
             return;
         }
 
-        effectText.text = $"+{chipValue}";
+        isPlaying = false;
+        timer = 0f;
+        effectText.gameObject.SetActive(true);
+        effectText.text = displayText;
         RestoreBasePosition();
         SetAlpha(1f);
-        timer = 0f;
         isPlaying = true;
     }
 

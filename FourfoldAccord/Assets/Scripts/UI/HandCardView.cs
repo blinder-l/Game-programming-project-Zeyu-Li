@@ -12,6 +12,7 @@ public class HandCardView : MonoBehaviour
     [SerializeField] private Color selectedTint = new Color(1f, 0.9f, 0.35f, 1f);
     [SerializeField] private RectTransform cardVisualRoot;
     [SerializeField] private CardVisualFeedback visualFeedback;
+    [SerializeField] private CardTooltipTrigger tooltipTrigger;
 
     private PlayingCard boundCard;
     private Action<PlayingCard> clickedHandler;
@@ -73,6 +74,7 @@ public class HandCardView : MonoBehaviour
         }
 
         visualFeedback?.SetHasVisualContent(cardSprite != null);
+        UpdatePlayingCardTooltip(card);
         SetSelectedVisual(card.isSelected);
     }
 
@@ -91,6 +93,7 @@ public class HandCardView : MonoBehaviour
 
         visualFeedback?.SetHasVisualContent(false);
         visualFeedback?.ResetVisualImmediate();
+        tooltipTrigger?.SetTooltip("Empty", "No card.", string.Empty, string.Empty);
         SetSelectedVisual(false);
         gameObject.SetActive(false);
     }
@@ -118,6 +121,7 @@ public class HandCardView : MonoBehaviour
 
         visualFeedback?.SetHasVisualContent(false);
         visualFeedback?.ResetVisualImmediate();
+        tooltipTrigger?.SetTooltip("Empty", "No card.", string.Empty, string.Empty);
         SetSelectedVisual(false);
     }
 
@@ -179,6 +183,16 @@ public class HandCardView : MonoBehaviour
         if (visualFeedback != null)
         {
             visualFeedback.SetVisualRoot(cardVisualRoot);
+        }
+
+        if (tooltipTrigger == null)
+        {
+            tooltipTrigger = GetComponent<CardTooltipTrigger>();
+        }
+
+        if (tooltipTrigger == null)
+        {
+            tooltipTrigger = gameObject.AddComponent<CardTooltipTrigger>();
         }
 
         if (cardNameText != null)
@@ -250,5 +264,188 @@ public class HandCardView : MonoBehaviour
         }
 
         visualFeedback?.SetSelected(isSelected);
+    }
+
+    private void UpdatePlayingCardTooltip(PlayingCard card)
+    {
+        if (tooltipTrigger == null || card == null)
+        {
+            return;
+        }
+
+        tooltipTrigger.SetTooltip(
+            GetModifierNameText(card),
+            string.Empty,
+            string.Empty,
+            GetModifierEffectText(card));
+    }
+
+    private string GetModifierNameText(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return "Unknown Card";
+        }
+
+        string modifierName = string.Empty;
+
+        if (card.enhancement != CardEnhancement.None)
+        {
+            modifierName = GetEnhancementDisplayName(card.enhancement);
+        }
+
+        if (card.seal != CardSeal.None)
+        {
+            modifierName = AppendTooltipPart(modifierName, GetSealDisplayName(card.seal));
+        }
+
+        if (card.permanentBonusChips != 0)
+        {
+            modifierName = AppendTooltipPart(modifierName, $"{FormatSignedNumber(card.permanentBonusChips)} Chips");
+        }
+
+        if (card.isDebuffed)
+        {
+            modifierName = AppendTooltipPart(modifierName, "Debuffed");
+        }
+
+        return string.IsNullOrEmpty(modifierName) ? "Normal Card" : modifierName;
+    }
+
+    private string GetModifierEffectText(PlayingCard card)
+    {
+        if (card == null)
+        {
+            return "No card.";
+        }
+
+        string effectText = string.Empty;
+
+        if (card.enhancement != CardEnhancement.None)
+        {
+            effectText = AppendTooltipLine(effectText, GetEnhancementEffectText(card.enhancement));
+        }
+
+        if (card.seal != CardSeal.None)
+        {
+            effectText = AppendTooltipLine(effectText, GetSealEffectText(card.seal));
+        }
+
+        if (card.permanentBonusChips != 0)
+        {
+            effectText = AppendTooltipLine(effectText, $"Adds {FormatSignedNumber(card.permanentBonusChips)} Chips when scored.");
+        }
+
+        if (card.isDebuffed)
+        {
+            effectText = AppendTooltipLine(effectText, "Debuffed: special effects may be disabled.");
+        }
+
+        return string.IsNullOrEmpty(effectText) ? "No special effects." : effectText;
+    }
+
+    private string GetEnhancementDisplayName(CardEnhancement enhancement)
+    {
+        switch (enhancement)
+        {
+            case CardEnhancement.Gold:
+                return "Gold Card";
+            case CardEnhancement.Stone:
+                return "Stone Card";
+            case CardEnhancement.Lucky:
+                return "Lucky Card";
+            case CardEnhancement.Bonus:
+                return "Bonus Card";
+            case CardEnhancement.Mult:
+                return "Mult Card";
+            case CardEnhancement.Wild:
+                return "Wild Card";
+            case CardEnhancement.Glass:
+                return "Glass Card";
+            case CardEnhancement.Steel:
+                return "Steel Card";
+            default:
+                return "Normal Card";
+        }
+    }
+
+    private string GetEnhancementEffectText(CardEnhancement enhancement)
+    {
+        switch (enhancement)
+        {
+            case CardEnhancement.Gold:
+                return "Held at Cash Out: +$3.";
+            case CardEnhancement.Stone:
+                return "No rank or suit. Scores +50 Chips.";
+            case CardEnhancement.Lucky:
+                return "When scored: 1/5 +20 Mult, 1/15 +$20.";
+            case CardEnhancement.Bonus:
+            case CardEnhancement.Mult:
+            case CardEnhancement.Wild:
+            case CardEnhancement.Glass:
+            case CardEnhancement.Steel:
+                return "Reserved effect; not active yet.";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private string GetSealDisplayName(CardSeal seal)
+    {
+        switch (seal)
+        {
+            case CardSeal.Gold:
+                return "Gold Seal";
+            case CardSeal.Red:
+                return "Red Seal";
+            case CardSeal.Blue:
+                return "Blue Seal";
+            case CardSeal.Purple:
+                return "Purple Seal";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private string GetSealEffectText(CardSeal seal)
+    {
+        switch (seal)
+        {
+            case CardSeal.Gold:
+                return "When scored: +$3.";
+            case CardSeal.Red:
+                return "When scored: retrigger this card once.";
+            case CardSeal.Blue:
+                return "Held at Cash Out: would create a Planet card.";
+            case CardSeal.Purple:
+                return "When discarded: would create a Tarot card.";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private string AppendTooltipPart(string currentText, string nextPart)
+    {
+        if (string.IsNullOrWhiteSpace(nextPart))
+        {
+            return currentText;
+        }
+
+        return string.IsNullOrEmpty(currentText) ? nextPart : $"{currentText} / {nextPart}";
+    }
+
+    private string AppendTooltipLine(string currentText, string nextLine)
+    {
+        if (string.IsNullOrWhiteSpace(nextLine))
+        {
+            return currentText;
+        }
+
+        return string.IsNullOrEmpty(currentText) ? nextLine : $"{currentText}\n{nextLine}";
+    }
+
+    private string FormatSignedNumber(int value)
+    {
+        return value > 0 ? $"+{value}" : value.ToString();
     }
 }

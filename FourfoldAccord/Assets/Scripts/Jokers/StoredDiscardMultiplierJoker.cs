@@ -8,7 +8,7 @@ public class StoredDiscardMultiplierJoker : JokerBase
     public override string Description => $"Mult x{storedMultiplier}; gains remaining discards when a Blind is passed.";
     public override int Cost => 7;
 
-    public override void ApplyScoreEffect(ScoreContext scoreContext)
+    public override void ApplyScoreEffect(ScoreContext scoreContext, int jokerSlotIndex)
     {
         if (scoreContext == null)
         {
@@ -16,6 +16,7 @@ public class StoredDiscardMultiplierJoker : JokerBase
         }
 
         scoreContext.mult *= storedMultiplier;
+        scoreContext.jokerScoreEvents?.Add(new JokerScoreEvent(jokerSlotIndex, $"*{storedMultiplier}", Name, null, 0, 0f, storedMultiplier));
         scoreContext.triggeredJokerEffectLog.Add($"{Name}: mult x{storedMultiplier}");
     }
 

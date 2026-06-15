@@ -72,7 +72,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         Debug.Log("Prototype started");
-        Debug.Log("Controls: 1-8 select cards, S sort by suit, T sort by rank, P play selected cards, D discard selected cards, Shop: 1-3 buy, R reroll, N leave, F1-F4 equip suit retrigger Jokers, F5 equip high risk Joker, F6 equip stored discard Joker");
+        Debug.Log("Controls: 1-8 select cards, S sort by suit, T sort by rank, P play selected cards, D discard selected cards, Shop: 1-4 buy, R reroll, N leave");
         StartCurrentBlind();
     }
 
@@ -214,7 +214,24 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void PrepareDeckAndHandForNextBlindPreview()
     {
-        BuildFreshDeckAndHand();
+        List<PlayingCard> ownedCards = deckManager != null
+            ? deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand)
+            : new List<PlayingCard>();
+
+        if (ownedCards.Count == 0)
+        {
+            BuildFreshDeckAndHand();
+        }
+        else
+        {
+            deckManager = new DeckManager();
+            deckManager.LoadOwnedCardsAsDrawPile(ownedCards);
+            deckManager.Shuffle();
+
+            handManager = new HandManager();
+            handManager.FillHand(deckManager);
+        }
+
         hasPreparedDeckForNextBlind = true;
         ClearSelectedCards();
         gameUIController?.SetDeckStatsSources(deckManager, handManager);
@@ -233,7 +250,7 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         isInShop = true;
         Debug.Log("Entering Shop state.");
-        shopManager.GenerateOffers();
+        shopManager.GenerateOffers(jokerManager);
         gameUIController?.SetState(GameUIState.Shop);
         gameUIController?.ShowShop(shopManager.CurrentOffers, shopManager.CurrentConsumableOffers);
 
@@ -323,7 +340,7 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
-        if (shopManager.TryReroll(currentGold, out string message, out int newGold))
+        if (shopManager.TryReroll(currentGold, jokerManager, out string message, out int newGold))
         {
             currentGold = newGold;
             RefreshGameUI();
@@ -617,35 +634,30 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void HandleJokerDebugInput()
     {
-        if (Input.GetKeyDown(KeyCode.F1))
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
         {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Hearts));
-        }
+            if (Input.GetKeyDown(KeyCode.H))
+            {
+                TryEquipDebugJoker(new WaymarkPilgrimJoker());
+            }
 
-        if (Input.GetKeyDown(KeyCode.F2))
-        {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Spades));
-        }
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                TryEquipDebugJoker(new GildedMaskbearerJoker());
+            }
 
-        if (Input.GetKeyDown(KeyCode.F3))
-        {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Diamonds));
-        }
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                TryEquipDebugJoker(new StoneboundEffigierJoker());
+            }
 
-        if (Input.GetKeyDown(KeyCode.F4))
-        {
-            TryEquipDebugJoker(new SuitRetriggerJoker(Suit.Clubs));
+            if (Input.GetKeyDown(KeyCode.K))
+            {
+                TryEquipDebugJoker(new FortuneFamiliarJoker());
+            }
         }
-
-        if (Input.GetKeyDown(KeyCode.F5))
-        {
-            TryEquipDebugJoker(new HighRiskMultiplierJoker());
-        }
-
-        if (Input.GetKeyDown(KeyCode.F6))
-        {
-            TryEquipDebugJoker(new StoredDiscardMultiplierJoker());
-        }
+#endif
     }
 
     private void TryEquipDebugJoker(JokerBase joker)
@@ -730,8 +742,20 @@ public class PrototypeBootstrap : MonoBehaviour
 
         SetCurrentHandSelectionByIndices(handIndices);
 
-        PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay);
-        ScoreContext scoreContext = scoreManager.CalculateScore(pokerHandResult, suitMasteryManager, jokerManager, handTypeLevelManager);
+        JokerRuleContext ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null;
+        PokerHandResult pokerHandResult = pokerHandEvaluator.Evaluate(cardsToPlay, ruleContext);
+        List<PlayingCard> ownedCardsSnapshot = deckManager != null
+            ? deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand)
+            : null;
+        int currentHandTypePlayCount = GetHandTypePlayCount(pokerHandResult.handType) + 1;
+        ScoreContext scoreContext = scoreManager.CalculateScore(
+            pokerHandResult,
+            suitMasteryManager,
+            jokerManager,
+            handTypeLevelManager,
+            ownedCardsSnapshot,
+            ruleContext,
+            currentHandTypePlayCount);
         latestHandTypeText = scoreContext.handType.ToString();
         latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
         StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext));
@@ -749,37 +773,55 @@ public class PrototypeBootstrap : MonoBehaviour
             : new List<PlayingCard>(cardsToPlay);
 
         latestPlayedCards = displayedCards;
+        AssignCardScoreEventSlots(scoreContext, displayedCards);
         latestScoreContext = null;
-        gameUIController?.RefreshScoreCalculation(scoreContext.baseChips, scoreContext.mult);
+        float displayedMult = scoreContext.multBeforeJokers > 0f ? scoreContext.multBeforeJokers : scoreContext.mult;
+        gameUIController?.RefreshScoreCalculation(scoreContext.baseChips, displayedMult);
 
         int displayedChips = scoreContext.baseChips;
+        List<CardScoreEvent> orderedScoreEvents = GetOrderedScoreEventsForDisplayedCards(scoreContext, displayedCards);
+        HashSet<JokerScoreEvent> playedJokerScoreEvents = new HashSet<JokerScoreEvent>();
 
         for (int i = 0; i < displayedCards.Count; i++)
         {
             PlayingCard card = displayedCards[i];
-            List<CardScoreEvent> scoreEvents = GetScoreEventsForDisplayedCard(scoreContext, card);
-
-            if (scoreEvents.Count == 0)
+            if (!HasScoreEventForSlot(orderedScoreEvents, i))
             {
                 Debug.Log($"PlayedCard{i + 1} skipped non-scoring card: {card.GetDisplayName()}; PlayedCardEffect{i + 1} stays hidden.");
+            }
+        }
+
+        for (int i = 0; i < orderedScoreEvents.Count; i++)
+        {
+            CardScoreEvent scoreEvent = orderedScoreEvents[i];
+
+            if (scoreEvent == null || scoreEvent.card == null)
+            {
                 continue;
             }
 
-            for (int eventIndex = 0; eventIndex < scoreEvents.Count; eventIndex++)
+            displayedChips += scoreEvent.chipsAdded;
+            gameUIController?.PlayCardScoreEvent(scoreEvent);
+            gameUIController?.RefreshScoreCalculation(displayedChips, displayedMult);
+
+            if (scoreEvent.isRetrigger)
             {
-                CardScoreEvent scoreEvent = scoreEvents[eventIndex];
-                displayedChips += scoreEvent.chipValue;
-                gameUIController?.PlayCardChipEffect(i, card, scoreEvent.chipValue);
-                gameUIController?.RefreshScoreCalculation(displayedChips, scoreContext.mult);
-
-                if (scoreEvent.isRetrigger)
-                {
-                    Debug.Log($"PlayedCard{i + 1} Red Seal retrigger animation: {card.GetDisplayName()} +{scoreEvent.chipValue}");
-                }
-
-                yield return new WaitForSeconds(CardScoreStepDelay);
+                Debug.Log($"PlayedCard{scoreEvent.playedCardSlotIndex + 1} Red Seal retrigger animation: {scoreEvent.card.GetDisplayName()} +{scoreEvent.chipsAdded}");
             }
+
+            yield return new WaitForSeconds(CardScoreStepDelay);
+
+            yield return PlayJokerScoreEventsForCardEvent(
+                scoreContext,
+                scoreEvent,
+                playedJokerScoreEvents,
+                jokerScoreEvent => ApplyJokerScoreEventToDisplay(jokerScoreEvent, ref displayedChips, ref displayedMult));
         }
+
+        yield return PlayUnanchoredJokerScoreEvents(
+            scoreContext,
+            playedJokerScoreEvents,
+            jokerScoreEvent => ApplyJokerScoreEventToDisplay(jokerScoreEvent, ref displayedChips, ref displayedMult));
 
         gameUIController?.RefreshScoreCalculation(scoreContext.chips, scoreContext.mult);
         yield return new WaitForSeconds(FinalScoreHoldDelay);
@@ -829,29 +871,183 @@ public class PrototypeBootstrap : MonoBehaviour
         RefreshGameUI();
 
         LogPlayedHandResolution(playedCards, scoreContext, gainedXpSuits);
+        jokerManager.NotifyHandScored(scoreContext);
+        RefreshJokerBarUI();
         LogRoundEndIfNeeded();
     }
 
-    private List<CardScoreEvent> GetScoreEventsForDisplayedCard(ScoreContext scoreContext, PlayingCard card)
+    private void AssignCardScoreEventSlots(ScoreContext scoreContext, List<PlayingCard> displayedCards)
     {
-        List<CardScoreEvent> matchingEvents = new List<CardScoreEvent>();
-
-        if (scoreContext == null || scoreContext.cardScoreEvents == null || card == null)
+        if (scoreContext == null || scoreContext.cardScoreEvents == null || displayedCards == null)
         {
-            return matchingEvents;
+            return;
         }
 
         for (int i = 0; i < scoreContext.cardScoreEvents.Count; i++)
         {
             CardScoreEvent scoreEvent = scoreContext.cardScoreEvents[i];
 
-            if (scoreEvent != null && scoreEvent.card == card)
+            if (scoreEvent == null || scoreEvent.card == null)
             {
-                matchingEvents.Add(scoreEvent);
+                continue;
+            }
+
+            scoreEvent.playedCardSlotIndex = GetDisplayedCardSlotIndex(displayedCards, scoreEvent.card);
+            scoreEvent.chipsAdded = scoreEvent.chipValue;
+
+            if (string.IsNullOrEmpty(scoreEvent.effectText))
+            {
+                scoreEvent.effectText = $"+{scoreEvent.chipsAdded}";
+            }
+
+            if (string.IsNullOrEmpty(scoreEvent.effectSource))
+            {
+                scoreEvent.effectSource = scoreEvent.isRetrigger ? "Red Seal" : "Card";
+            }
+        }
+    }
+
+    private int GetDisplayedCardSlotIndex(List<PlayingCard> displayedCards, PlayingCard card)
+    {
+        if (displayedCards == null || card == null)
+        {
+            return -1;
+        }
+
+        for (int i = 0; i < displayedCards.Count; i++)
+        {
+            if (displayedCards[i] == card)
+            {
+                return i;
             }
         }
 
-        return matchingEvents;
+        return -1;
+    }
+
+    private List<CardScoreEvent> GetOrderedScoreEventsForDisplayedCards(ScoreContext scoreContext, List<PlayingCard> displayedCards)
+    {
+        List<CardScoreEvent> orderedEvents = new List<CardScoreEvent>();
+
+        if (scoreContext == null || scoreContext.cardScoreEvents == null || displayedCards == null)
+        {
+            return orderedEvents;
+        }
+
+        for (int slotIndex = 0; slotIndex < displayedCards.Count; slotIndex++)
+        {
+            for (int eventIndex = 0; eventIndex < scoreContext.cardScoreEvents.Count; eventIndex++)
+            {
+                CardScoreEvent scoreEvent = scoreContext.cardScoreEvents[eventIndex];
+
+                if (scoreEvent != null && scoreEvent.playedCardSlotIndex == slotIndex)
+                {
+                    orderedEvents.Add(scoreEvent);
+                }
+            }
+        }
+
+        return orderedEvents;
+    }
+
+    private bool HasScoreEventForSlot(List<CardScoreEvent> scoreEvents, int slotIndex)
+    {
+        if (scoreEvents == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < scoreEvents.Count; i++)
+        {
+            if (scoreEvents[i] != null && scoreEvents[i].playedCardSlotIndex == slotIndex)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IEnumerator PlayJokerScoreEventsForCardEvent(
+        ScoreContext scoreContext,
+        CardScoreEvent triggerEvent,
+        HashSet<JokerScoreEvent> playedJokerScoreEvents,
+        Action<JokerScoreEvent> applyDisplayChange)
+    {
+        if (scoreContext == null || scoreContext.jokerScoreEvents == null || triggerEvent == null)
+        {
+            yield break;
+        }
+
+        for (int i = 0; i < scoreContext.jokerScoreEvents.Count; i++)
+        {
+            JokerScoreEvent jokerScoreEvent = scoreContext.jokerScoreEvents[i];
+
+            if (jokerScoreEvent == null ||
+                jokerScoreEvent.triggerAfterCardScoreEvent != triggerEvent ||
+                playedJokerScoreEvents.Contains(jokerScoreEvent))
+            {
+                continue;
+            }
+
+            playedJokerScoreEvents.Add(jokerScoreEvent);
+            gameUIController?.PlayJokerScoreEvent(jokerScoreEvent);
+            applyDisplayChange?.Invoke(jokerScoreEvent);
+            yield return new WaitForSeconds(CardScoreStepDelay);
+        }
+    }
+
+    private IEnumerator PlayUnanchoredJokerScoreEvents(
+        ScoreContext scoreContext,
+        HashSet<JokerScoreEvent> playedJokerScoreEvents,
+        Action<JokerScoreEvent> applyDisplayChange)
+    {
+        if (scoreContext == null || scoreContext.jokerScoreEvents == null)
+        {
+            yield break;
+        }
+
+        for (int i = 0; i < scoreContext.jokerScoreEvents.Count; i++)
+        {
+            JokerScoreEvent jokerScoreEvent = scoreContext.jokerScoreEvents[i];
+
+            if (jokerScoreEvent == null ||
+                jokerScoreEvent.triggerAfterCardScoreEvent != null ||
+                playedJokerScoreEvents.Contains(jokerScoreEvent))
+            {
+                continue;
+            }
+
+            playedJokerScoreEvents.Add(jokerScoreEvent);
+            gameUIController?.PlayJokerScoreEvent(jokerScoreEvent);
+            applyDisplayChange?.Invoke(jokerScoreEvent);
+            yield return new WaitForSeconds(CardScoreStepDelay);
+        }
+    }
+
+    private void ApplyJokerScoreEventToDisplay(JokerScoreEvent jokerScoreEvent, ref int displayedChips, ref float displayedMult)
+    {
+        if (jokerScoreEvent == null)
+        {
+            return;
+        }
+
+        if (jokerScoreEvent.chipsDelta != 0)
+        {
+            displayedChips += jokerScoreEvent.chipsDelta;
+        }
+
+        if (Math.Abs(jokerScoreEvent.multAdd) > 0.0001f)
+        {
+            displayedMult += jokerScoreEvent.multAdd;
+        }
+
+        if (Math.Abs(jokerScoreEvent.multMultiplier - 1f) > 0.0001f)
+        {
+            displayedMult *= jokerScoreEvent.multMultiplier;
+        }
+
+        gameUIController?.RefreshScoreCalculation(displayedChips, displayedMult);
     }
 
     private void TryDiscardSelectedCards()
@@ -1015,6 +1211,7 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         gameUIController.SetDeckStatsSources(deckManager, handManager);
+        gameUIController.SetJokerTooltipContext(GetOwnedStoneCardCount());
         RefreshRunInfoSources();
         RefreshJokerBarUI();
         gameUIController.RefreshHand(handManager?.CurrentHand);
@@ -1358,7 +1555,29 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        gameUIController.SetJokerTooltipContext(GetOwnedStoneCardCount());
         gameUIController.RefreshJokerBar(jokerManager.EquippedJokers);
+    }
+
+    private int GetOwnedStoneCardCount()
+    {
+        if (deckManager == null)
+        {
+            return 0;
+        }
+
+        List<PlayingCard> ownedCards = deckManager.GetAllOwnedCardsSnapshot(handManager?.CurrentHand);
+        int stoneCount = 0;
+
+        for (int i = 0; i < ownedCards.Count; i++)
+        {
+            if (ownedCards[i] != null && ownedCards[i].enhancement == CardEnhancement.Stone)
+            {
+                stoneCount++;
+            }
+        }
+
+        return stoneCount;
     }
 
     private void ResetCashOutForNewBlind()
@@ -1420,7 +1639,8 @@ public class PrototypeBootstrap : MonoBehaviour
         }
         else
         {
-            PokerHandResult previewResult = pokerHandEvaluator.Evaluate(cardsToPreview);
+            JokerRuleContext ruleContext = jokerManager != null ? jokerManager.BuildRuleContext() : null;
+            PokerHandResult previewResult = pokerHandEvaluator.Evaluate(cardsToPreview, ruleContext);
             latestHandTypeText = previewResult.handType.ToString();
             latestHandTypeRankText = GetHandTypeRankText(previewResult.handType);
             gameUIController?.RefreshScoreCalculation(
@@ -1457,6 +1677,8 @@ public class PrototypeBootstrap : MonoBehaviour
 
         gameUIController.RefreshHand(handManager?.CurrentHand);
         gameUIController.SetDeckStatsSources(deckManager, handManager);
+        gameUIController.SetJokerTooltipContext(GetOwnedStoneCardCount());
+        RefreshJokerBarUI();
         Debug.Log("Card modifier debug display refreshed.");
     }
 #endif
@@ -1490,6 +1712,16 @@ public class PrototypeBootstrap : MonoBehaviour
 
         handTypePlayCounts[handType]++;
         Debug.Log($"Hand type play count updated: {handType} = {handTypePlayCounts[handType]}");
+    }
+
+    private int GetHandTypePlayCount(PokerHandType handType)
+    {
+        if (!handTypePlayCounts.ContainsKey(handType))
+        {
+            return 0;
+        }
+
+        return handTypePlayCounts[handType];
     }
 
     private void LogRoundEndIfNeeded()

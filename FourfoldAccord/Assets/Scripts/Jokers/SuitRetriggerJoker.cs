@@ -13,7 +13,7 @@ public class SuitRetriggerJoker : JokerBase
         this.targetSuit = targetSuit;
     }
 
-    public override void ApplyScoreEffect(ScoreContext scoreContext)
+    public override void ApplyScoreEffect(ScoreContext scoreContext, int jokerSlotIndex)
     {
         if (scoreContext == null || scoreContext.cardChipValues == null)
         {
@@ -41,6 +41,7 @@ public class SuitRetriggerJoker : JokerBase
         }
 
         scoreContext.chips += bonusChips;
+        scoreContext.jokerScoreEvents?.Add(new JokerScoreEvent(jokerSlotIndex, $"+{bonusChips}", Name, null, bonusChips));
         scoreContext.triggeredJokerEffectLog.Add($"{Name}: retriggered {retriggeredCardCount} card(s) for +{bonusChips} chips");
     }
 }

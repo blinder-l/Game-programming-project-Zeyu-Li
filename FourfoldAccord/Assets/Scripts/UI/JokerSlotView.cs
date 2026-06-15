@@ -8,6 +8,8 @@ public class JokerSlotView : MonoBehaviour
     [SerializeField] private CardTooltipTrigger tooltipTrigger;
     [SerializeField] private RectTransform cardVisualRoot;
     [SerializeField] private CardVisualFeedback visualFeedback;
+    [SerializeField] private Image cardVisualImage;
+    [SerializeField] private Image slotImage;
 
     private void Awake()
     {
@@ -16,6 +18,16 @@ public class JokerSlotView : MonoBehaviour
 
     public void SetJoker(JokerBase joker)
     {
+        SetJoker(joker, null);
+    }
+
+    public void SetJoker(JokerBase joker, JokerSpriteDatabase spriteDatabase)
+    {
+        SetJoker(joker, spriteDatabase, null);
+    }
+
+    public void SetJoker(JokerBase joker, JokerSpriteDatabase spriteDatabase, JokerEffectContext effectContext)
+    {
         ResolveReferences();
 
         if (jokerNameText == null)
@@ -23,11 +35,16 @@ public class JokerSlotView : MonoBehaviour
             return;
         }
 
-        jokerNameText.text = joker != null ? joker.Name : "Empty";
+        jokerNameText.text = string.Empty;
+        jokerNameText.gameObject.SetActive(false);
+        Sprite jokerSprite = spriteDatabase != null ? spriteDatabase.GetSprite(joker) : null;
+        SetSprite(jokerSprite);
         string tooltipName = joker != null ? joker.Name : "Empty Joker Slot";
         string tooltipEffect = joker != null ? joker.Description : "No Joker equipped.";
-        tooltipTrigger?.SetTooltip(tooltipName, tooltipEffect);
-        visualFeedback?.SetHasVisualContent(joker != null);
+        string tooltipCurrentEffect = joker != null ? joker.GetCurrentEffectText(effectContext) : string.Empty;
+        tooltipTrigger?.SetTooltip(tooltipName, tooltipEffect, tooltipCurrentEffect, string.Empty);
+        visualFeedback?.SetHasVisualContent(jokerSprite != null);
+        SetSlotRootVisible(joker != null);
         Debug.Log($"JokerSlot tooltip updated: {tooltipName}");
     }
 
@@ -37,9 +54,16 @@ public class JokerSlotView : MonoBehaviour
         tooltipTrigger?.SetTooltipController(tooltipController);
     }
 
+    public void PlayScorePulse()
+    {
+        ResolveReferences();
+        visualFeedback?.PlayScorePulse();
+    }
+
     private void ResolveReferences()
     {
         EnsureCardVisualRoot();
+        EnsureCardVisualImage();
 
         if (jokerNameText == null)
         {
@@ -57,7 +81,7 @@ public class JokerSlotView : MonoBehaviour
             MoveTextIntoCardVisual(jokerNameText);
         }
 
-        Image slotImage = GetComponent<Image>();
+        slotImage = GetComponent<Image>();
 
         if (slotImage == null)
         {
@@ -158,5 +182,59 @@ public class JokerSlotView : MonoBehaviour
         text.color = Color.white;
         text.text = "Empty";
         return text;
+    }
+
+    private void EnsureCardVisualImage()
+    {
+        if (cardVisualRoot == null)
+        {
+            return;
+        }
+
+        if (cardVisualImage == null)
+        {
+            cardVisualImage = cardVisualRoot.GetComponent<Image>();
+        }
+
+        if (cardVisualImage == null)
+        {
+            cardVisualImage = cardVisualRoot.gameObject.AddComponent<Image>();
+        }
+
+        cardVisualImage.raycastTarget = false;
+    }
+
+    private void SetSprite(Sprite sprite)
+    {
+        if (cardVisualImage == null)
+        {
+            return;
+        }
+
+        cardVisualImage.sprite = sprite;
+        cardVisualImage.enabled = sprite != null;
+        cardVisualImage.color = Color.white;
+        cardVisualImage.raycastTarget = false;
+    }
+
+    private void SetSlotRootVisible(bool hasJoker)
+    {
+        if (slotImage != null)
+        {
+            Color color = slotImage.color;
+            color.a = hasJoker ? 0.01f : 0f;
+            slotImage.color = color;
+            slotImage.raycastTarget = hasJoker;
+        }
+
+        if (tooltipTrigger != null)
+        {
+            tooltipTrigger.enabled = hasJoker;
+        }
+
+        if (cardVisualRoot != null)
+        {
+            cardVisualRoot.gameObject.SetActive(hasJoker);
+        }
     }
 }
