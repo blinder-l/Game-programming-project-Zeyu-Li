@@ -7,6 +7,7 @@ public class PrototypeBootstrap : MonoBehaviour
 {
     private const int StartingGold = 10;
     private const int MaxSelectedCards = 5;
+    private const int VictoryAnte = 6;
     private const float CardScoreStepDelay = 0.7f;
     private const float FinalScoreHoldDelay = 0.45f;
 
@@ -34,6 +35,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private bool isResolvingPlayedHand;
     private bool hasPreparedDeckForNextBlind;
     private bool hasProcessedFirstDiscardThisBlind;
+    private bool hasShownGameResult;
     private string latestHandTypeText = "None";
     private string latestHandTypeRankText = "-";
     private List<PlayingCard> latestPlayedCards = new List<PlayingCard>();
@@ -41,6 +43,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private readonly List<PlayingCard> selectedCards = new List<PlayingCard>();
     private readonly SpellCard[] heldSpellCards = new SpellCard[2];
     private readonly Dictionary<PokerHandType, int> handTypePlayCounts = new Dictionary<PokerHandType, int>();
+    private readonly GameResultStats runResultStats = new GameResultStats();
 
     private void Awake()
     {
@@ -62,6 +65,8 @@ public class PrototypeBootstrap : MonoBehaviour
         InitializeHandTypePlayCounts();
         jokerManager = new JokerManager();
         currentGold = StartingGold;
+        runResultStats.Reset();
+        hasShownGameResult = false;
 
         if (gameUIController != null)
         {
@@ -77,6 +82,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked += HandleRunInfoButtonClicked;
+            gameUIController.ExitButtonClicked += HandleExitButtonClicked;
             gameUIController.JokerSaleButtonClicked += HandleJokerSaleButtonClicked;
             gameUIController.ConsumableUseButtonClicked += HandleConsumableUseButtonClicked;
         }
@@ -136,6 +142,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked -= HandleRunInfoButtonClicked;
+            gameUIController.ExitButtonClicked -= HandleExitButtonClicked;
             gameUIController.JokerSaleButtonClicked -= HandleJokerSaleButtonClicked;
             gameUIController.ConsumableUseButtonClicked -= HandleConsumableUseButtonClicked;
         }
@@ -143,6 +150,11 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void Update()
     {
+        if (hasShownGameResult)
+        {
+            return;
+        }
+
         GameUIState currentState = GetCurrentUIState();
 
         if (currentState == GameUIState.RunFailed)
@@ -354,6 +366,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (shopManager.TryPurchaseOffer(optionIndex, currentGold, jokerManager, out string message, out int newGold))
         {
             currentGold = newGold;
+            runResultStats.RecordPurchasedCard();
             RefreshJokerBarUI();
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
@@ -377,6 +390,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (shopManager.TryReroll(currentGold, jokerManager, edictManager, out string message, out int newGold))
         {
             currentGold = newGold;
+            runResultStats.RecordReroll();
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
             gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
@@ -500,6 +514,12 @@ public class PrototypeBootstrap : MonoBehaviour
         RefreshRunInfoSources();
     }
 
+    private void HandleExitButtonClicked()
+    {
+        Debug.Log("Exit requested by player.");
+        ShowGameResult(GameResultType.Retreat);
+    }
+
     private void HandleJokerSaleButtonClicked(int slotIndex)
     {
         if (jokerManager == null)
@@ -620,6 +640,7 @@ public class PrototypeBootstrap : MonoBehaviour
             out int newGold))
         {
             currentGold = newGold;
+            runResultStats.RecordPurchasedCard();
             ApplyEdictRuntimeEffects();
             RefreshHandTypePreview();
             RefreshGameUI();
@@ -650,6 +671,7 @@ public class PrototypeBootstrap : MonoBehaviour
         if (shopManager.TryPurchasePlanetOffer(offerIndex, currentGold, handTypeLevelManager, out string message, out int newGold))
         {
             currentGold = newGold;
+            runResultStats.RecordPurchasedCard();
             Debug.Log(message);
             if (purchasedPlanetCard != null)
             {
@@ -685,6 +707,7 @@ public class PrototypeBootstrap : MonoBehaviour
             out int newGold))
         {
             currentGold = newGold;
+            runResultStats.RecordPurchasedCard();
 
             if (!TryAddHeldSpellCard(purchasedSpellCard))
             {
@@ -1095,6 +1118,7 @@ public class PrototypeBootstrap : MonoBehaviour
             yield break;
         }
 
+        runResultStats.RecordPlayedHand(scoreContext.handType, scoreContext.finalScore, playedCards.Count);
         ApplyPendingRuntimeCardsToHand(playRuntimeContext);
         jokerManager?.NotifyCardsPlayedBeforeRefill(scoreContext, playRuntimeContext);
         handManager.FillHand(deckManager);
@@ -1352,6 +1376,7 @@ public class PrototypeBootstrap : MonoBehaviour
 
         List<PlayingCard> discardedCards = handManager.DiscardCards(discardContext.cardsToDiscard, deckManager);
         handManager.FillHand(deckManager);
+        runResultStats.RecordDiscardedCards(discardedCards.Count);
         HandleDiscardedCardSealEffects(discardedCards);
         ClearSelectedCards();
         latestHandTypeText = "None";
@@ -2362,6 +2387,11 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void LogRoundEndIfNeeded()
     {
+        if (hasShownGameResult)
+        {
+            return;
+        }
+
         if (roundManager.HasPassedBlind)
         {
             Debug.Log("Blind passed.");
@@ -2369,14 +2399,69 @@ public class PrototypeBootstrap : MonoBehaviour
             jokerManager.NotifyBlindPassed(roundManager);
             jokerManager.NotifyBlindPassed(BuildJokerRuntimeContext(null, false));
             Debug.Log($"Jokers after Blind passed:\n{jokerManager.GetJokerListDebugText()}");
+
+            if (HasWonRun())
+            {
+                ShowGameResult(GameResultType.Victory);
+                return;
+            }
+
             PrepareDeckAndHandForNextBlindPreview();
             OpenCashOutPanel();
         }
         else if (roundManager.HasFailedBlind)
         {
-            gameUIController?.SetState(GameUIState.RunFailed);
             Debug.Log("Blind failed.");
+            gameUIController?.SetState(GameUIState.RunFailed);
+            ShowGameResult(GameResultType.Defeat);
         }
+    }
+
+    private bool HasWonRun()
+    {
+        return runManager != null
+            && roundManager != null
+            && roundManager.HasPassedBlind
+            && runManager.IsBossBlind()
+            && runManager.GetAnteNumber() >= VictoryAnte;
+    }
+
+    private void ShowGameResult(GameResultType resultType)
+    {
+        if (hasShownGameResult)
+        {
+            return;
+        }
+
+        hasShownGameResult = true;
+        isResolvingPlayedHand = false;
+        CaptureGameResultSnapshot();
+        gameUIController?.ShowGameResult(resultType, runResultStats);
+        Debug.Log($"Game result shown: {resultType}");
+    }
+
+    private void CaptureGameResultSnapshot()
+    {
+        if (runManager != null)
+        {
+            runResultStats.anteNumber = runManager.GetAnteNumber();
+            runResultStats.lastBlindName = GetCurrentBlindResultName();
+        }
+        else
+        {
+            runResultStats.anteNumber = 1;
+            runResultStats.lastBlindName = "Unknown";
+        }
+    }
+
+    private string GetCurrentBlindResultName()
+    {
+        if (bossBlindManager != null && bossBlindManager.IsActive && !string.IsNullOrWhiteSpace(bossBlindManager.CurrentDisplayName))
+        {
+            return bossBlindManager.CurrentDisplayName;
+        }
+
+        return runManager != null ? runManager.GetBlindDisplayName() : "Unknown";
     }
 
     private bool IsRoundOver()

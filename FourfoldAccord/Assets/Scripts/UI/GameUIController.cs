@@ -15,12 +15,14 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GameObject deckStatsPanel;
     [SerializeField] private GameObject currentHandStatsPanel;
     [SerializeField] private GameObject cardTooltipPanel;
+    [SerializeField] private GameObject gameResultPanel;
     [SerializeField] private GameObject actionButtonsContainer;
     [SerializeField] private Transform jokerSlotsContainer;
     [SerializeField] private DeckStatsUIController deckStatsUIController;
     [SerializeField] private CashOutUIController cashOutUIController;
     [SerializeField] private ShopUIController shopUIController;
     [SerializeField] private RunInfoUIController runInfoUIController;
+    [SerializeField] private GameResultUIController gameResultUIController;
     [SerializeField] private CardTooltipController cardTooltipController;
     [SerializeField] private CardSpriteDatabase cardSpriteDatabase;
     [SerializeField] private CardModifierSpriteDatabase cardModifierSpriteDatabase;
@@ -53,6 +55,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private TMP_Text scoreCalculationChipsText;
     [SerializeField] private TMP_Text scoreCalculationMultText;
     [SerializeField] private Button runInfoButton;
+    [SerializeField] private Button exitButton;
     [SerializeField] private GameObject resolutionInfoArea;
     [SerializeField] private GameObject playedCardsArea;
     [SerializeField] private Image[] playedCardImages;
@@ -75,6 +78,7 @@ public class GameUIController : MonoBehaviour
     public event Action ShopRerollButtonClicked;
     public event Action ShopNextBlindButtonClicked;
     public event Action RunInfoButtonClicked;
+    public event Action ExitButtonClicked;
     public event Action<int> JokerSaleButtonClicked;
     public event Action<int> ConsumableSlotClicked;
     public event Action<int> ConsumableUseButtonClicked;
@@ -122,6 +126,7 @@ public class GameUIController : MonoBehaviour
         BindCashOutController();
         BindShopController();
         BindRunInfoController();
+        BindGameResultController();
         EnsurePointerInputSupport();
         LogPlayButtonDiagnostics();
         SetState(GameUIState.PlayingBlind);
@@ -414,6 +419,20 @@ public class GameUIController : MonoBehaviour
 
         runInfoUIController?.SetDataSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts, purchasedEdicts);
         runInfoUIController?.Refresh();
+    }
+
+    public void ShowGameResult(GameResultType resultType, GameResultStats stats)
+    {
+        if (gameResultUIController == null)
+        {
+            BindGameResultController();
+        }
+
+        SetGameplayInputLocked(true);
+        HideJokerSaleButtons();
+        HideConsumableUseButtons();
+        cardTooltipController?.HideTooltip();
+        gameResultUIController?.Show(resultType, stats);
     }
 
     public void ShowCashOut(
@@ -896,6 +915,7 @@ public class GameUIController : MonoBehaviour
         deckStatsPanel = FindGameObjectIncludingInactive(canvasRoot, "DeckStatsPanel", deckStatsPanel);
         currentHandStatsPanel = FindGameObjectIncludingInactive(canvasRoot, "CurrentHandStatsPanel", currentHandStatsPanel);
         cardTooltipPanel = FindGameObjectIncludingInactive(canvasRoot, "CardTooltipPanel", cardTooltipPanel);
+        gameResultPanel = FindGameObjectIncludingInactive(canvasRoot, "GameResultPanel", gameResultPanel);
         actionButtonsContainer = FindGameObjectByPath("Canvas/PlayStateRoot/BottomHandArea/ActionButtonsContainer", actionButtonsContainer);
     }
 
@@ -935,11 +955,18 @@ public class GameUIController : MonoBehaviour
         anteNumberText = BindTextInRoot(leftPanelRoot, "AnteNumberText", "AnteNumberText");
         BindScoreCalculationUI(leftPanelRoot);
         runInfoButton = BindOptionalButtonInRoot(leftPanelRoot, "RunInfoButton", "RunInfoButton");
+        exitButton = BindOptionalButtonInRoot(leftPanelRoot, "ExitButton", "ExitButton");
 
         if (runInfoButton != null)
         {
             runInfoButton.onClick.RemoveAllListeners();
             runInfoButton.onClick.AddListener(HandleRunInfoButtonClicked);
+        }
+
+        if (exitButton != null)
+        {
+            exitButton.onClick.RemoveAllListeners();
+            exitButton.onClick.AddListener(HandleExitButtonClicked);
         }
 
         Debug.Log("Bound left status UI");
@@ -1954,6 +1981,29 @@ public class GameUIController : MonoBehaviour
         runInfoUIController.SetTooltipController(cardTooltipController);
     }
 
+    private void BindGameResultController()
+    {
+        if (gameResultUIController == null)
+        {
+            gameResultUIController = GetComponent<GameResultUIController>();
+        }
+
+        if (gameResultUIController == null)
+        {
+            gameResultUIController = gameObject.AddComponent<GameResultUIController>();
+        }
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+
+        if (canvas == null)
+        {
+            Debug.LogError("Failed to bind GameResultUIController: Canvas not found");
+            return;
+        }
+
+        gameResultUIController.Initialize(canvas.transform);
+    }
+
     private void HandleShopJokerOfferClicked(int index)
     {
         if (!CanUseShop)
@@ -2296,6 +2346,12 @@ public class GameUIController : MonoBehaviour
         }
 
         runInfoUIController.ShowDefault();
+    }
+
+    private void HandleExitButtonClicked()
+    {
+        Debug.Log("UI ExitButton clicked");
+        ExitButtonClicked?.Invoke();
     }
 
     private void BindCardTooltipController()
