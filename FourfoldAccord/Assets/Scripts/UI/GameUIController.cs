@@ -26,6 +26,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private CardModifierSpriteDatabase cardModifierSpriteDatabase;
     [SerializeField] private JokerSpriteDatabase jokerSpriteDatabase;
     [SerializeField] private SpellSpriteDatabase spellSpriteDatabase;
+    [SerializeField] private EdictSpriteDatabase edictSpriteDatabase;
     [SerializeField] private Transform handSlotsContainer;
     [SerializeField] private JokerSlotView[] jokerSlotViews;
     [SerializeField] private ConsumableSlotView[] consumableSlotViews;
@@ -70,6 +71,7 @@ public class GameUIController : MonoBehaviour
     public event Action CashOutButtonClicked;
     public event Action<int> ShopJokerOfferClicked;
     public event Action<int> ShopConsumableOfferClicked;
+    public event Action ShopEdictOfferClicked;
     public event Action ShopRerollButtonClicked;
     public event Action ShopNextBlindButtonClicked;
     public event Action RunInfoButtonClicked;
@@ -396,12 +398,21 @@ public class GameUIController : MonoBehaviour
         SuitMasteryManager suitMasteryManager,
         IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts)
     {
+        SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts, null);
+    }
+
+    public void SetRunInfoSources(
+        HandTypeLevelManager handTypeLevelManager,
+        SuitMasteryManager suitMasteryManager,
+        IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts,
+        IReadOnlyList<EdictCard> purchasedEdicts)
+    {
         if (runInfoUIController == null)
         {
             BindRunInfoController();
         }
 
-        runInfoUIController?.SetDataSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
+        runInfoUIController?.SetDataSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts, purchasedEdicts);
         runInfoUIController?.Refresh();
     }
 
@@ -443,12 +454,20 @@ public class GameUIController : MonoBehaviour
 
     public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
+        ShowShop(offers, consumableOffers, null);
+    }
+
+    public void ShowShop(
+        IReadOnlyList<ShopOffer> offers,
+        IReadOnlyList<ConsumableShopOffer> consumableOffers,
+        EdictShopOffer edictOffer)
+    {
         if (shopUIController == null)
         {
             BindShopController();
         }
 
-        shopUIController?.ShowShop(offers, consumableOffers);
+        shopUIController?.ShowShop(offers, consumableOffers, edictOffer);
     }
 
     public void RefreshShopOffers(IReadOnlyList<ShopOffer> offers)
@@ -459,6 +478,21 @@ public class GameUIController : MonoBehaviour
     public void RefreshShopConsumableOffers(IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
         shopUIController?.RefreshConsumableOffers(consumableOffers);
+    }
+
+    public void RefreshShopEdictOffer(EdictShopOffer edictOffer)
+    {
+        shopUIController?.RefreshEdictOffer(edictOffer);
+    }
+
+    public void SetShopPriceDiscount(int discount)
+    {
+        if (shopUIController == null)
+        {
+            BindShopController();
+        }
+
+        shopUIController?.SetShopPriceDiscount(discount);
     }
 
     public void RefreshBlindStatus(
@@ -1888,6 +1922,8 @@ public class GameUIController : MonoBehaviour
         shopUIController.JokerOfferClicked += HandleShopJokerOfferClicked;
         shopUIController.ConsumableOfferClicked -= HandleShopConsumableOfferClicked;
         shopUIController.ConsumableOfferClicked += HandleShopConsumableOfferClicked;
+        shopUIController.EdictOfferClicked -= HandleShopEdictOfferClicked;
+        shopUIController.EdictOfferClicked += HandleShopEdictOfferClicked;
         shopUIController.RerollButtonClicked -= HandleShopRerollButtonClicked;
         shopUIController.RerollButtonClicked += HandleShopRerollButtonClicked;
         shopUIController.NextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
@@ -1915,6 +1951,7 @@ public class GameUIController : MonoBehaviour
         }
 
         runInfoUIController.Initialize(canvas.transform);
+        runInfoUIController.SetTooltipController(cardTooltipController);
     }
 
     private void HandleShopJokerOfferClicked(int index)
@@ -1937,6 +1974,17 @@ public class GameUIController : MonoBehaviour
         }
 
         ShopConsumableOfferClicked?.Invoke(index);
+    }
+
+    private void HandleShopEdictOfferClicked()
+    {
+        if (!CanUseShop)
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        ShopEdictOfferClicked?.Invoke();
     }
 
     private void HandleShopRerollButtonClicked()

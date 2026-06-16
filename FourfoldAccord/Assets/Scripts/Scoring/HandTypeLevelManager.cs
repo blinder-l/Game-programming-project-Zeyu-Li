@@ -7,6 +7,8 @@ public class HandTypeLevelManager
     private readonly Dictionary<PokerHandType, int> handTypeLevels = new Dictionary<PokerHandType, int>();
     private readonly Dictionary<PokerHandType, HandTypeLevelDefinition> definitions = new Dictionary<PokerHandType, HandTypeLevelDefinition>();
 
+    public int GlobalBaseChipsBonus { get; set; }
+
     public HandTypeLevelManager()
     {
         InitializeDefinitions();
@@ -25,7 +27,7 @@ public class HandTypeLevelManager
     public int GetCurrentBaseChips(PokerHandType handType)
     {
         HandTypeLevelDefinition definition = GetDefinition(handType);
-        return definition.levelOneChips + ((GetLevel(handType) - 1) * definition.chipsPerLevel);
+        return definition.levelOneChips + ((GetLevel(handType) - 1) * definition.chipsPerLevel) + GlobalBaseChipsBonus;
     }
 
     public float GetCurrentBaseMult(PokerHandType handType)

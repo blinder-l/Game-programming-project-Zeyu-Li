@@ -20,6 +20,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private RunManager runManager;
     private ShopManager shopManager;
     private BossBlindManager bossBlindManager;
+    private EdictManager edictManager;
     private SuitMasteryManager suitMasteryManager;
     private HandTypeLevelManager handTypeLevelManager;
     private JokerManager jokerManager;
@@ -54,8 +55,10 @@ public class PrototypeBootstrap : MonoBehaviour
         runManager = new RunManager();
         shopManager = new ShopManager();
         bossBlindManager = new BossBlindManager();
+        edictManager = new EdictManager();
         suitMasteryManager = new SuitMasteryManager();
         handTypeLevelManager = new HandTypeLevelManager();
+        ApplyEdictRuntimeEffects();
         InitializeHandTypePlayCounts();
         jokerManager = new JokerManager();
         currentGold = StartingGold;
@@ -70,6 +73,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.CashOutButtonClicked += HandleCashOutButtonClicked;
             gameUIController.ShopJokerOfferClicked += HandleShopJokerOfferClicked;
             gameUIController.ShopConsumableOfferClicked += HandleShopConsumableOfferClicked;
+            gameUIController.ShopEdictOfferClicked += HandleShopEdictOfferClicked;
             gameUIController.ShopRerollButtonClicked += HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked += HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked += HandleRunInfoButtonClicked;
@@ -128,6 +132,7 @@ public class PrototypeBootstrap : MonoBehaviour
             gameUIController.CashOutButtonClicked -= HandleCashOutButtonClicked;
             gameUIController.ShopJokerOfferClicked -= HandleShopJokerOfferClicked;
             gameUIController.ShopConsumableOfferClicked -= HandleShopConsumableOfferClicked;
+            gameUIController.ShopEdictOfferClicked -= HandleShopEdictOfferClicked;
             gameUIController.ShopRerollButtonClicked -= HandleShopRerollButtonClicked;
             gameUIController.ShopNextBlindButtonClicked -= HandleShopNextBlindButtonClicked;
             gameUIController.RunInfoButtonClicked -= HandleRunInfoButtonClicked;
@@ -204,8 +209,8 @@ public class PrototypeBootstrap : MonoBehaviour
 
         int baseTargetScore = runManager.GetCurrentTargetScore();
         int targetScore = bossBlindManager.GetTargetScore(baseTargetScore);
-        int startingHands = bossBlindManager.GetStartingHands(4);
-        int startingDiscards = bossBlindManager.GetStartingDiscards(3);
+        int startingHands = bossBlindManager.GetStartingHands(4 + GetAdditionalHandsPerBlind());
+        int startingDiscards = bossBlindManager.GetStartingDiscards(3 + GetAdditionalDiscardsPerBlind());
         roundManager = new RoundManager(targetScore, startingHands, startingDiscards);
         isInShop = false;
         latestHandTypeText = "None";
@@ -276,9 +281,11 @@ public class PrototypeBootstrap : MonoBehaviour
     {
         isInShop = true;
         Debug.Log("Entering Shop state.");
-        shopManager.GenerateOffers(jokerManager);
+        ApplyEdictRuntimeEffects();
+        shopManager.GenerateOffers(jokerManager, edictManager);
+        gameUIController?.SetShopPriceDiscount(GetShopPriceDiscount());
         gameUIController?.SetState(GameUIState.Shop);
-        gameUIController?.ShowShop(shopManager.CurrentOffers, shopManager.CurrentConsumableOffers);
+        gameUIController?.ShowShop(shopManager.CurrentOffers, shopManager.CurrentConsumableOffers, shopManager.CurrentEdictOffer);
 
         Debug.Log("=== Shop ===");
         Debug.Log("Shop UI updated.");
@@ -351,6 +358,7 @@ public class PrototypeBootstrap : MonoBehaviour
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
             gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+            gameUIController?.RefreshShopEdictOffer(shopManager.CurrentEdictOffer);
         }
 
         Debug.Log(message);
@@ -366,12 +374,13 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
-        if (shopManager.TryReroll(currentGold, jokerManager, out string message, out int newGold))
+        if (shopManager.TryReroll(currentGold, jokerManager, edictManager, out string message, out int newGold))
         {
             currentGold = newGold;
             RefreshGameUI();
             gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
             gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+            gameUIController?.RefreshShopEdictOffer(shopManager.CurrentEdictOffer);
         }
 
         Debug.Log(message);
@@ -469,6 +478,11 @@ public class PrototypeBootstrap : MonoBehaviour
     private void HandleShopConsumableOfferClicked(int offerIndex)
     {
         TryBuyConsumableOffer(offerIndex);
+    }
+
+    private void HandleShopEdictOfferClicked()
+    {
+        TryBuyEdictOffer();
     }
 
     private void HandleShopRerollButtonClicked()
@@ -588,6 +602,37 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         Debug.Log("Cannot purchase consumable: offer has no card.");
+    }
+
+    private void TryBuyEdictOffer()
+    {
+        if (!CanUseShop())
+        {
+            Debug.Log(GetShopBlockedMessage("purchase"));
+            return;
+        }
+
+        if (shopManager.TryPurchaseEdictOffer(
+            currentGold,
+            edictManager,
+            out EdictCard purchasedEdict,
+            out string message,
+            out int newGold))
+        {
+            currentGold = newGold;
+            ApplyEdictRuntimeEffects();
+            RefreshHandTypePreview();
+            RefreshGameUI();
+            gameUIController?.SetShopPriceDiscount(GetShopPriceDiscount());
+            gameUIController?.RefreshShopOffers(shopManager.CurrentOffers);
+            gameUIController?.RefreshShopConsumableOffers(shopManager.CurrentConsumableOffers);
+            gameUIController?.RefreshShopEdictOffer(shopManager.CurrentEdictOffer);
+            Debug.Log($"Edict effect active: {purchasedEdict.Name}");
+        }
+
+        Debug.Log(message);
+        Debug.Log("Shop UI updated.");
+        LogShopState();
     }
 
     private void TryBuyPlanetOffer(int offerIndex)
@@ -713,6 +758,7 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
+        ApplyEdictRuntimeEffects();
         PruneSelectedCards();
 
         if (selectedCards.Contains(card))
@@ -2028,8 +2074,8 @@ public class PrototypeBootstrap : MonoBehaviour
 
     private void OpenCashOutPanel()
     {
-        int fixedBlindReward = runManager.GetFixedBlindReward();
-        int interest = Mathf.Min(currentGold / 5, 5);
+        int fixedBlindReward = runManager.GetFixedBlindReward() + GetFixedBlindRewardBonus();
+        int interest = Mathf.Min(currentGold / 5, 5 + GetInterestCapBonus());
         int discardBonus = roundManager.discardsRemaining;
         lastCashOutTotal = fixedBlindReward + suitGoldThisBlind + bonusCardGoldThisBlind + interest + discardBonus;
 
@@ -2091,7 +2137,54 @@ public class PrototypeBootstrap : MonoBehaviour
             return;
         }
 
-        gameUIController.SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts);
+        gameUIController.SetRunInfoSources(handTypeLevelManager, suitMasteryManager, handTypePlayCounts, edictManager?.PurchasedEdicts);
+    }
+
+    private void ApplyEdictRuntimeEffects()
+    {
+        int shopDiscount = GetShopPriceDiscount();
+
+        if (shopManager != null)
+        {
+            shopManager.SetShopPriceDiscount(shopDiscount);
+        }
+
+        if (handTypeLevelManager != null)
+        {
+            handTypeLevelManager.GlobalBaseChipsBonus = GetHandTypeBaseChipsBonus();
+        }
+
+        gameUIController?.SetShopPriceDiscount(shopDiscount);
+    }
+
+    private int GetAdditionalHandsPerBlind()
+    {
+        return edictManager != null ? edictManager.AdditionalHandsPerBlind : 0;
+    }
+
+    private int GetAdditionalDiscardsPerBlind()
+    {
+        return edictManager != null ? edictManager.AdditionalDiscardsPerBlind : 0;
+    }
+
+    private int GetShopPriceDiscount()
+    {
+        return edictManager != null ? edictManager.ShopPriceDiscount : 0;
+    }
+
+    private int GetInterestCapBonus()
+    {
+        return edictManager != null ? edictManager.InterestCapBonus : 0;
+    }
+
+    private int GetFixedBlindRewardBonus()
+    {
+        return edictManager != null ? edictManager.FixedBlindRewardBonus : 0;
+    }
+
+    private int GetHandTypeBaseChipsBonus()
+    {
+        return edictManager != null ? edictManager.HandTypeBaseChipsBonus : 0;
     }
 
     private List<PlayingCard> GetHeldCardsSnapshot(IReadOnlyCollection<PlayingCard> cardsToPlay)

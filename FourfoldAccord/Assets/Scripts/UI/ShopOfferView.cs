@@ -38,6 +38,17 @@ public class ShopOfferView : MonoBehaviour
         JokerSpriteDatabase spriteDatabase,
         JokerEffectContext effectContext)
     {
+        Bind(offer, index, onClicked, spriteDatabase, effectContext, 0);
+    }
+
+    public void Bind(
+        ShopOffer offer,
+        int index,
+        Action<int> onClicked,
+        JokerSpriteDatabase spriteDatabase,
+        JokerEffectContext effectContext,
+        int priceDiscount)
+    {
         ResolveReferences();
         offerIndex = index;
         clickedHandler = onClicked;
@@ -54,9 +65,10 @@ public class ShopOfferView : MonoBehaviour
             return;
         }
 
-        SetText($"{offer.Joker.Name}\n${offer.Joker.Cost}\n{offer.Joker.Description}");
+        int cost = offer.GetCost(priceDiscount);
+        SetText($"{offer.Joker.Name}\n${cost}\n{offer.Joker.Description}");
         SetSprite(spriteDatabase != null ? spriteDatabase.GetSprite(offer.Joker) : null);
-        UpdateTooltip(offer.Joker.Name, $"{offer.Joker.Description}\n\nCost: ${offer.Joker.Cost}", string.Empty, string.Empty);
+        UpdateTooltip(offer.Joker.Name, $"{offer.Joker.Description}\n\nCost: ${cost}", string.Empty, string.Empty);
         visualFeedback?.SetHasVisualContent(cardVisualImage != null && cardVisualImage.enabled && cardVisualImage.sprite != null);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, {offer.Joker.Name}");
         SetInteractable(true);
@@ -68,6 +80,17 @@ public class ShopOfferView : MonoBehaviour
         Action<int> onClicked,
         PlanetSpriteDatabase planetSpriteDatabase,
         SpellSpriteDatabase spellSpriteDatabase)
+    {
+        BindConsumable(offer, index, onClicked, planetSpriteDatabase, spellSpriteDatabase, 0);
+    }
+
+    public void BindConsumable(
+        ConsumableShopOffer offer,
+        int index,
+        Action<int> onClicked,
+        PlanetSpriteDatabase planetSpriteDatabase,
+        SpellSpriteDatabase spellSpriteDatabase,
+        int priceDiscount)
     {
         ResolveReferences();
         offerIndex = index;
@@ -88,17 +111,19 @@ public class ShopOfferView : MonoBehaviour
         if (offer.IsPlanet)
         {
             PlanetCard planetCard = offer.PlanetCard;
-            SetText($"{planetCard.Name}\n${planetCard.cost}\n{planetCard.targetHandType}");
+            int cost = offer.GetCost(priceDiscount);
+            SetText($"{planetCard.Name}\n${cost}\n{planetCard.targetHandType}");
             SetSprite(planetSpriteDatabase != null ? planetSpriteDatabase.GetSprite(planetCard) : null);
-            UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${planetCard.cost}", string.Empty, string.Empty);
+            UpdateTooltip(planetCard.Name, $"{planetCard.Description}\n\nCost: ${cost}", string.Empty, string.Empty);
             Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {planetCard.Name}");
         }
         else if (offer.IsSpell)
         {
             SpellCard spellCard = offer.SpellCard;
-            SetText($"{spellCard.Name}\n${spellCard.cost}\nSpell");
+            int cost = offer.GetCost(priceDiscount);
+            SetText($"{spellCard.Name}\n${cost}\nSpell");
             SetSprite(spellSpriteDatabase != null ? spellSpriteDatabase.GetSprite(spellCard) : null);
-            UpdateTooltip(spellCard.Name, $"{spellCard.Description}\n\nCost: ${spellCard.cost}", string.Empty, string.Empty);
+            UpdateTooltip(spellCard.Name, $"{spellCard.Description}\n\nCost: ${cost}", string.Empty, string.Empty);
             Debug.Log($"Shop consumable tooltip updated: index {offerIndex}, {spellCard.Name}");
         }
         else
@@ -108,6 +133,37 @@ public class ShopOfferView : MonoBehaviour
         }
 
         visualFeedback?.SetHasVisualContent(true);
+        SetInteractable(true);
+    }
+
+    public void BindEdict(
+        EdictShopOffer offer,
+        Action onClicked,
+        EdictSpriteDatabase edictSpriteDatabase)
+    {
+        ResolveReferences();
+        offerIndex = 0;
+        clickedHandler = _ => onClicked?.Invoke();
+
+        if (offer == null || offer.EdictCard == null)
+        {
+            SetTransparentEmpty();
+            return;
+        }
+
+        if (offer.IsSold)
+        {
+            SetSold();
+            return;
+        }
+
+        EdictCard edictCard = offer.EdictCard;
+        SetText($"{edictCard.Name}\n${edictCard.cost}\nEdict");
+        SetSprite(edictSpriteDatabase != null ? edictSpriteDatabase.GetSprite(edictCard) : null);
+        UpdateTooltip(edictCard.Name, $"{edictCard.Description}\n\nCost: ${edictCard.cost}", string.Empty, string.Empty);
+        SetRootImageAlpha(0.01f);
+        visualFeedback?.SetHasVisualContent(cardVisualImage != null && cardVisualImage.enabled && cardVisualImage.sprite != null);
+        Debug.Log($"Shop Edict tooltip updated: {edictCard.Name}");
         SetInteractable(true);
     }
 
@@ -122,12 +178,29 @@ public class ShopOfferView : MonoBehaviour
         SetInteractable(false);
     }
 
+    public void SetTransparentEmpty()
+    {
+        ResolveReferences();
+        SetText(string.Empty);
+        SetSprite(null);
+        UpdateTooltip("Empty", "No offer available.", string.Empty, string.Empty);
+        SetRootImageAlpha(0f);
+        if (tooltipTrigger != null)
+        {
+            tooltipTrigger.enabled = false;
+        }
+        visualFeedback?.SetHasVisualContent(false);
+        Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Transparent Empty");
+        SetInteractable(false);
+    }
+
     public void SetSold()
     {
         ResolveReferences();
         SetText("Sold");
         SetSprite(null);
         UpdateTooltip("Sold", "This offer has already been purchased.", string.Empty, string.Empty);
+        SetRootImageAlpha(0.01f);
         visualFeedback?.SetHasVisualContent(false);
         Debug.Log($"Shop offer tooltip updated: index {offerIndex}, Sold");
         SetInteractable(false);
@@ -342,6 +415,20 @@ public class ShopOfferView : MonoBehaviour
         }
     }
 
+    private void SetRootImageAlpha(float alpha)
+    {
+        Image rootImage = GetComponent<Image>();
+        if (rootImage == null)
+        {
+            return;
+        }
+
+        Color color = rootImage.color;
+        color.a = alpha;
+        rootImage.color = color;
+        rootImage.raycastTarget = alpha > 0f;
+    }
+
     private void UpdateTooltip(string displayName, string effectText)
     {
         UpdateTooltip(displayName, effectText, string.Empty, string.Empty);
@@ -353,6 +440,11 @@ public class ShopOfferView : MonoBehaviour
         string specificCurrentEffectText,
         string specificPlayCardEffectText)
     {
+        if (tooltipTrigger != null)
+        {
+            tooltipTrigger.enabled = true;
+        }
+
         tooltipTrigger?.SetTooltip(displayName, effectText, specificCurrentEffectText, specificPlayCardEffectText);
     }
 }

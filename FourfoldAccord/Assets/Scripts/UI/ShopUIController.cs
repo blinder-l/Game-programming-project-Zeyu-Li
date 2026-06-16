@@ -18,12 +18,15 @@ public class ShopUIController : MonoBehaviour
     private JokerSpriteDatabase jokerSpriteDatabase;
     private PlanetSpriteDatabase planetSpriteDatabase;
     private SpellSpriteDatabase spellSpriteDatabase;
+    private EdictSpriteDatabase edictSpriteDatabase;
     private JokerEffectContext jokerEffectContext = new JokerEffectContext();
+    private int shopPriceDiscount;
     private Func<bool> canUseShopInput;
     private Func<string, string> getBlockedMessage;
 
     public event Action<int> JokerOfferClicked;
     public event Action<int> ConsumableOfferClicked;
+    public event Action EdictOfferClicked;
     public event Action RerollButtonClicked;
     public event Action NextBlindButtonClicked;
 
@@ -39,6 +42,7 @@ public class ShopUIController : MonoBehaviour
         ResolveJokerSpriteDatabase();
         ResolvePlanetSpriteDatabase();
         ResolveSpellSpriteDatabase();
+        ResolveEdictSpriteDatabase();
         BindActionButtons(canvasRoot);
         BindJokerOffers(canvasRoot);
         BindPlaceholders(canvasRoot);
@@ -52,6 +56,14 @@ public class ShopUIController : MonoBehaviour
 
     public void ShowShop(IReadOnlyList<ShopOffer> offers, IReadOnlyList<ConsumableShopOffer> consumableOffers)
     {
+        ShowShop(offers, consumableOffers, null);
+    }
+
+    public void ShowShop(
+        IReadOnlyList<ShopOffer> offers,
+        IReadOnlyList<ConsumableShopOffer> consumableOffers,
+        EdictShopOffer edictOffer)
+    {
         if (shopPanel == null)
         {
             Debug.LogError("Cannot show ShopPanel: ShopPanel is not bound");
@@ -61,6 +73,7 @@ public class ShopUIController : MonoBehaviour
         shopPanel.SetActive(true);
         RefreshOffers(offers);
         RefreshConsumableOffers(consumableOffers);
+        RefreshEdictOffer(edictOffer);
         RefreshRerollText();
         Debug.Log("Shop UI updated.");
     }
@@ -94,7 +107,7 @@ public class ShopUIController : MonoBehaviour
             if (offers != null && i < offers.Count)
             {
                 offerView.SetTooltipController(tooltipController);
-                offerView.Bind(offers[i], i, HandleJokerOfferClicked, jokerSpriteDatabase, jokerEffectContext);
+                offerView.Bind(offers[i], i, HandleJokerOfferClicked, jokerSpriteDatabase, jokerEffectContext, shopPriceDiscount);
             }
             else
             {
@@ -124,7 +137,7 @@ public class ShopUIController : MonoBehaviour
 
             if (consumableOffers != null && i < consumableOffers.Count)
             {
-                offerView.BindConsumable(consumableOffers[i], i, HandleConsumableOfferClicked, planetSpriteDatabase, spellSpriteDatabase);
+                offerView.BindConsumable(consumableOffers[i], i, HandleConsumableOfferClicked, planetSpriteDatabase, spellSpriteDatabase, shopPriceDiscount);
             }
             else
             {
@@ -133,6 +146,20 @@ public class ShopUIController : MonoBehaviour
         }
 
         Debug.Log("Shop consumable UI updated.");
+    }
+
+    public void RefreshEdictOffer(EdictShopOffer edictOffer)
+    {
+        ResolveEdictSpriteDatabase();
+
+        if (voucherOfferView == null)
+        {
+            return;
+        }
+
+        voucherOfferView.SetTooltipController(tooltipController);
+        voucherOfferView.BindEdict(edictOffer, HandleEdictClicked, edictSpriteDatabase);
+        Debug.Log("Shop Edict UI updated.");
     }
 
     public void SetTooltipController(CardTooltipController controller)
@@ -158,6 +185,11 @@ public class ShopUIController : MonoBehaviour
         {
             jokerEffectContext = context;
         }
+    }
+
+    public void SetShopPriceDiscount(int discount)
+    {
+        shopPriceDiscount = Mathf.Max(0, discount);
     }
 
     public void SetInputGuard(Func<bool> canUseInput, Func<string, string> blockedMessageGetter)
@@ -216,15 +248,32 @@ public class ShopUIController : MonoBehaviour
 
     private void BindPlaceholders(Transform canvasRoot)
     {
-        voucherOfferView = BindPlaceholder(
-            canvasRoot,
-            "ShopVoucherOffer",
-            "Voucher",
-            "Future upgrade card. Coming soon.",
-            "Voucher\nComing Soon",
-            HandleVoucherClicked);
+        voucherOfferView = BindVoucherOffer(canvasRoot, "ShopVoucherOffer");
         consumableOfferView1 = BindConsumableOffer(canvasRoot, "ShopConsumableOffer1");
         consumableOfferView2 = BindConsumableOffer(canvasRoot, "ShopConsumableOffer2");
+    }
+
+    private ShopOfferView BindVoucherOffer(Transform canvasRoot, string objectName)
+    {
+        GameObject offerObject = FindObjectIncludingInactive(canvasRoot, objectName);
+
+        if (offerObject == null)
+        {
+            Debug.LogError($"Failed to bind {objectName}");
+            return null;
+        }
+
+        ShopOfferView offerView = offerObject.GetComponent<ShopOfferView>();
+
+        if (offerView == null)
+        {
+            offerView = offerObject.AddComponent<ShopOfferView>();
+        }
+
+        offerView.SetTooltipController(tooltipController);
+        offerView.SetTransparentEmpty();
+        Debug.Log($"Bound {objectName}");
+        return offerView;
     }
 
     private ShopOfferView BindPlaceholder(
@@ -358,14 +407,15 @@ public class ShopUIController : MonoBehaviour
         NextBlindButtonClicked?.Invoke();
     }
 
-    private void HandleVoucherClicked()
+    private void HandleEdictClicked()
     {
         if (!CanUseShopInput("purchase"))
         {
             return;
         }
 
-        Debug.Log("Voucher system not implemented yet.");
+        Debug.Log("UI ShopVoucherOffer clicked");
+        EdictOfferClicked?.Invoke();
     }
 
     private void HandleConsumableOfferClicked(int index)
@@ -468,6 +518,21 @@ public class ShopUIController : MonoBehaviour
         if (spellSpriteDatabase == null)
         {
             spellSpriteDatabase = gameObject.AddComponent<SpellSpriteDatabase>();
+        }
+    }
+
+    private void ResolveEdictSpriteDatabase()
+    {
+        if (edictSpriteDatabase != null)
+        {
+            return;
+        }
+
+        edictSpriteDatabase = FindFirstObjectByType<EdictSpriteDatabase>();
+
+        if (edictSpriteDatabase == null)
+        {
+            edictSpriteDatabase = gameObject.AddComponent<EdictSpriteDatabase>();
         }
     }
 }

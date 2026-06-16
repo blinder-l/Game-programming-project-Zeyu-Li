@@ -9,14 +9,16 @@ public class RunInfoUIController : MonoBehaviour
     private GameObject runInfoPanel;
     private GameObject handTypeInfoContainer;
     private GameObject suitInfoContainer;
+    private GameObject edictInfoContainer;
     private GameObject generatedInfoContainer;
     private Button handTypeButton;
     private Button suitButton;
-    private Button voucherButton;
+    private Button edictButton;
     private Button returnButton;
     private TMP_Text generatedInfoText;
     private readonly List<HandTypeInfoRow> handTypeRows = new List<HandTypeInfoRow>();
     private readonly List<SuitInfoRow> suitRows = new List<SuitInfoRow>();
+    private readonly List<EdictSlotView> edictSlotViews = new List<EdictSlotView>();
     private readonly PokerHandType[] fallbackHandTypeOrder =
     {
         PokerHandType.StraightFlush,
@@ -54,6 +56,9 @@ public class RunInfoUIController : MonoBehaviour
     private HandTypeLevelManager handTypeLevelManager;
     private SuitMasteryManager suitMasteryManager;
     private IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts;
+    private IReadOnlyList<EdictCard> purchasedEdicts;
+    private EdictSpriteDatabase edictSpriteDatabase;
+    private CardTooltipController tooltipController;
     private RunInfoTab currentTab = RunInfoTab.HandTypes;
 
     public void Initialize(Transform canvasRoot)
@@ -74,12 +79,19 @@ public class RunInfoUIController : MonoBehaviour
 
         handTypeInfoContainer = FindObjectIncludingInactive(runInfoPanel.transform, "HandTypeInfoContainer");
         suitInfoContainer = FindObjectIncludingInactive(runInfoPanel.transform, "SuitInfoContainer");
+        edictInfoContainer = FindObjectIncludingInactive(runInfoPanel.transform, "EdictInfoContainer");
         handTypeButton = BindButton(runInfoPanel.transform, "HandTypeButton", ShowHandTypeInfo);
         suitButton = BindButton(runInfoPanel.transform, "Suit", ShowSuitInfo);
-        voucherButton = BindButton(runInfoPanel.transform, "Voucher", ShowVoucherInfo);
+        edictButton = BindOptionalButton(runInfoPanel.transform, "Edict", ShowVoucherInfo);
+        if (edictButton == null)
+        {
+            edictButton = BindButton(runInfoPanel.transform, "Voucher", ShowVoucherInfo);
+        }
         returnButton = BindButton(runInfoPanel.transform, "ReturnButton", Hide);
+        ResolveEdictSpriteDatabase();
         BindHandTypeRows();
         BindSuitRows();
+        BindEdictSlots();
         EnsureGeneratedInfoContainer();
         Hide();
         Debug.Log("Bound RunInfoPanel");
@@ -90,10 +102,30 @@ public class RunInfoUIController : MonoBehaviour
         SuitMasteryManager suitMastery,
         IReadOnlyDictionary<PokerHandType, int> playCounts)
     {
+        SetDataSources(handTypeLevels, suitMastery, playCounts, null);
+    }
+
+    public void SetDataSources(
+        HandTypeLevelManager handTypeLevels,
+        SuitMasteryManager suitMastery,
+        IReadOnlyDictionary<PokerHandType, int> playCounts,
+        IReadOnlyList<EdictCard> purchasedEdicts)
+    {
         handTypeLevelManager = handTypeLevels;
         suitMasteryManager = suitMastery;
         handTypePlayCounts = playCounts;
-        Debug.Log($"RunInfo data sources set. HandTypeLevelManager: {handTypeLevelManager != null}, SuitMasteryManager: {suitMasteryManager != null}, play counts: {handTypePlayCounts != null}");
+        this.purchasedEdicts = purchasedEdicts;
+        Debug.Log($"RunInfo data sources set. HandTypeLevelManager: {handTypeLevelManager != null}, SuitMasteryManager: {suitMasteryManager != null}, play counts: {handTypePlayCounts != null}, edicts: {this.purchasedEdicts != null}");
+    }
+
+    public void SetTooltipController(CardTooltipController controller)
+    {
+        tooltipController = controller;
+
+        for (int i = 0; i < edictSlotViews.Count; i++)
+        {
+            edictSlotViews[i]?.SetTooltipController(tooltipController);
+        }
     }
 
     public void ShowDefault()
@@ -135,6 +167,7 @@ public class RunInfoUIController : MonoBehaviour
         currentTab = RunInfoTab.HandTypes;
         SetHandTypeRowsActive(true);
         SetSuitRowsActive(false);
+        SetEdictInfoActive(false);
         SetGeneratedInfoActive(false);
 
         if (handTypeLevelManager == null)
@@ -230,6 +263,7 @@ public class RunInfoUIController : MonoBehaviour
         currentTab = RunInfoTab.Suits;
         SetHandTypeRowsActive(false);
         SetSuitRowsActive(true);
+        SetEdictInfoActive(false);
         SetGeneratedInfoActive(false);
 
         if (suitMasteryManager == null)
@@ -261,14 +295,19 @@ public class RunInfoUIController : MonoBehaviour
         currentTab = RunInfoTab.Vouchers;
         SetHandTypeRowsActive(false);
         SetSuitRowsActive(false);
-        SetGeneratedInfoActive(true);
+        SetEdictInfoActive(edictInfoContainer != null && edictSlotViews.Count > 0);
+        SetGeneratedInfoActive(edictInfoContainer == null || edictSlotViews.Count == 0);
 
-        if (generatedInfoText != null)
+        if (edictInfoContainer != null && edictSlotViews.Count > 0)
         {
-            generatedInfoText.text = "Vouchers\n\nNo vouchers purchased.\nVoucher system not implemented yet.";
+            RefreshEdictSlots();
+        }
+        else if (generatedInfoText != null)
+        {
+            generatedInfoText.text = "Edicts\n\nNo Edict slots found.";
         }
 
-        Debug.Log("RunInfoPanel showing voucher info");
+        Debug.Log("RunInfoPanel showing Edict info");
     }
 
     private void ShowCurrentTab()
@@ -350,6 +389,55 @@ public class RunInfoUIController : MonoBehaviour
         Debug.Log($"Bound {suitRows.Count} suit info rows");
     }
 
+    private void BindEdictSlots()
+    {
+        edictSlotViews.Clear();
+
+        if (edictInfoContainer == null)
+        {
+            Debug.LogWarning("RunInfo EdictInfoContainer not found.");
+            return;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            string slotName = $"EdictSlot{i + 1}";
+            GameObject slotObject = FindObjectIncludingInactive(edictInfoContainer.transform, slotName);
+
+            if (slotObject == null)
+            {
+                Debug.LogWarning($"RunInfo Edict slot not found: {slotName}");
+                continue;
+            }
+
+            EdictSlotView slotView = slotObject.GetComponent<EdictSlotView>();
+
+            if (slotView == null)
+            {
+                slotView = slotObject.AddComponent<EdictSlotView>();
+            }
+
+            slotView.SetTooltipController(tooltipController);
+            slotView.SetEdict(null, edictSpriteDatabase);
+            edictSlotViews.Add(slotView);
+            Debug.Log($"Bound RunInfo Edict slot: {slotName}");
+        }
+
+        Debug.Log($"Bound {edictSlotViews.Count} Edict slots");
+    }
+
+    private void RefreshEdictSlots()
+    {
+        ResolveEdictSpriteDatabase();
+
+        for (int i = 0; i < edictSlotViews.Count; i++)
+        {
+            EdictCard edictCard = purchasedEdicts != null && i < purchasedEdicts.Count ? purchasedEdicts[i] : null;
+            edictSlotViews[i].SetTooltipController(tooltipController);
+            edictSlotViews[i].SetEdict(edictCard, edictSpriteDatabase);
+        }
+    }
+
     private void BindHandTypeRowsByStructureFallback()
     {
         Debug.LogWarning("RunInfo explicit hand type rows were not found. Falling back to structural row scan.");
@@ -425,6 +513,38 @@ public class RunInfoUIController : MonoBehaviour
         return button;
     }
 
+    private Button BindOptionalButton(Transform root, string objectName, UnityEngine.Events.UnityAction onClicked)
+    {
+        GameObject buttonObject = FindObjectIncludingInactive(root, objectName);
+
+        if (buttonObject == null)
+        {
+            return null;
+        }
+
+        Button button = buttonObject.GetComponent<Button>();
+
+        if (button == null)
+        {
+            button = buttonObject.AddComponent<Button>();
+        }
+
+        Image image = buttonObject.GetComponent<Image>();
+
+        if (image != null)
+        {
+            image.raycastTarget = true;
+            button.targetGraphic = image;
+        }
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(onClicked);
+        button.interactable = true;
+        DisableTextRaycasts(buttonObject);
+        Debug.Log($"Bound {objectName}");
+        return button;
+    }
+
     private void SetHandTypeRowsActive(bool isActive)
     {
         if (handTypeInfoContainer != null)
@@ -438,6 +558,14 @@ public class RunInfoUIController : MonoBehaviour
         if (suitInfoContainer != null)
         {
             suitInfoContainer.SetActive(isActive);
+        }
+    }
+
+    private void SetEdictInfoActive(bool isActive)
+    {
+        if (edictInfoContainer != null)
+        {
+            edictInfoContainer.SetActive(isActive);
         }
     }
 
@@ -475,6 +603,21 @@ public class RunInfoUIController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private void ResolveEdictSpriteDatabase()
+    {
+        if (edictSpriteDatabase != null)
+        {
+            return;
+        }
+
+        edictSpriteDatabase = UnityEngine.Object.FindFirstObjectByType<EdictSpriteDatabase>();
+
+        if (edictSpriteDatabase == null)
+        {
+            edictSpriteDatabase = gameObject.AddComponent<EdictSpriteDatabase>();
+        }
     }
 
     private string GetSuitDisplayName(Suit suit)
