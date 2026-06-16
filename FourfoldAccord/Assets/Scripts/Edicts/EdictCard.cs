@@ -38,15 +38,15 @@ public class EdictCard
         switch (edictType)
         {
             case EdictCardType.Reserve:
-                return "Each Blind starts with +1 hand.";
+                return "Each Battle starts with +1 hand.";
             case EdictCardType.Spare:
-                return "Each Blind starts with +1 discard.";
+                return "Each Battle starts with +1 discard.";
             case EdictCardType.Bargain:
                 return "Joker, Planet, and Spell shop prices are reduced by $1, to a minimum of $1.";
             case EdictCardType.Interest:
                 return "CashOut interest cap is increased by $5.";
             case EdictCardType.Spoils:
-                return "Base Blind reward is increased by $2.";
+                return "Base Battle reward is increased by $2.";
             case EdictCardType.Doctrine:
                 return "All hand types gain +10 base Chips.";
             default:

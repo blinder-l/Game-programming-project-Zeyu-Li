@@ -5,7 +5,7 @@ public class AshenCodexBurnerJoker : JokerBase
     private bool hasCheckedFirstDiscardThisBlind;
 
     public override string Name => "Ashen Codex Burner";
-    public override string Description => "The first discard each Blind upgrades the discarded hand type by 1 level.";
+    public override string Description => "The first discard each Battle upgrades the discarded hand type by 1 level.";
     public override int Cost => 8;
 
     public override void OnBlindStarted(JokerRuntimeContext runtimeContext)

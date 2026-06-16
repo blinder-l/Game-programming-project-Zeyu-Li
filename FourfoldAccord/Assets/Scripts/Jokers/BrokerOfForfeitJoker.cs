@@ -3,7 +3,7 @@ public class BrokerOfForfeitJoker : JokerBase
     private bool hasCheckedFirstDiscardThisBlind;
 
     public override string Name => "Broker of Forfeit";
-    public override string Description => "On the first discard of each Blind, if exactly 1 card is discarded, destroy it and gain $3.";
+    public override string Description => "On the first discard of each Battle, if exactly 1 card is discarded, destroy it and gain $3.";
     public override int Cost => 6;
 
     public override void OnBlindStarted(JokerRuntimeContext runtimeContext)

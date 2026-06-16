@@ -22,6 +22,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private ShopManager shopManager;
     private BossBlindManager bossBlindManager;
     private EdictManager edictManager;
+    private GameAudioController gameAudioController;
     private SuitMasteryManager suitMasteryManager;
     private HandTypeLevelManager handTypeLevelManager;
     private JokerManager jokerManager;
@@ -48,6 +49,7 @@ public class PrototypeBootstrap : MonoBehaviour
     private void Awake()
     {
         EnsureGameUIController();
+        EnsureGameAudioController();
         EnsureCardModifierDebugTester();
     }
 
@@ -110,6 +112,26 @@ public class PrototypeBootstrap : MonoBehaviour
         }
 
         gameUIController.InitializeRuntimeBindings();
+    }
+
+    private void EnsureGameAudioController()
+    {
+        if (gameAudioController == null)
+        {
+            gameAudioController = FindFirstObjectByType<GameAudioController>();
+        }
+
+        if (gameAudioController == null)
+        {
+            gameAudioController = gameObject.GetComponent<GameAudioController>();
+        }
+
+        if (gameAudioController == null)
+        {
+            gameAudioController = gameObject.AddComponent<GameAudioController>();
+        }
+
+        gameAudioController.Initialize();
     }
 
     private void EnsureCardModifierDebugTester()
@@ -1010,6 +1032,7 @@ public class PrototypeBootstrap : MonoBehaviour
             bossBlindManager != null ? bossBlindManager.BuildContext() : null);
         latestHandTypeText = scoreContext.handType.ToString();
         latestHandTypeRankText = GetHandTypeRankText(scoreContext.handType);
+        gameAudioController?.PlayCardsSfx();
         StartCoroutine(PlayScoringSequence(cardsToPlay, scoreContext, playRuntimeContext));
         return true;
     }
@@ -2112,6 +2135,7 @@ public class PrototypeBootstrap : MonoBehaviour
         Debug.Log($"Discard bonus: {discardBonus}");
         Debug.Log($"CashOut total: {lastCashOutTotal}");
 
+        gameAudioController?.PlayCashOutSfx();
         gameUIController?.SetState(GameUIState.CashOut);
         gameUIController?.ShowCashOut(
             roundManager.targetScore,

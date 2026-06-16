@@ -3,7 +3,7 @@ public class OathkeeperOfTheEmberCampJoker : JokerBase
     private float xMult = 1f;
 
     public override string Name => "Oathkeeper of the Ember Camp";
-    public override string Description => "Gains X0.25 Mult when a Joker is sold. Resets after a Boss Blind.";
+    public override string Description => "Gains X0.25 Mult when a Joker is sold. Resets after a Boss Battle.";
     public override int Cost => 9;
     public override string CurrentEffectText => $"X{FormatMultiplier(xMult)} Mult";
 

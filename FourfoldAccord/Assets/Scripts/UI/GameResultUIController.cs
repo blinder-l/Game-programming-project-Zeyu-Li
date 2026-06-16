@@ -12,7 +12,9 @@ public class GameResultUIController : MonoBehaviour
     private TMP_Text cardsDiscardedText;
     private TMP_Text cardsPurchasedText;
     private TMP_Text totalRerollsText;
+    private TMP_Text anteTitleText;
     private TMP_Text anteNumberText;
+    private TMP_Text lastBattleTitleText;
     private TMP_Text lastBlindNameText;
     private Button restartButton;
     private Button mainPageButton;
@@ -37,7 +39,9 @@ public class GameResultUIController : MonoBehaviour
         cardsDiscardedText = BindNumberText(panelRoot, "CardsDiscardedContainer");
         cardsPurchasedText = BindNumberText(panelRoot, "CardsPurchasedContainer");
         totalRerollsText = BindNumberText(panelRoot, "TotalRerollsUsedContainer");
+        anteTitleText = BindLabelText(panelRoot, "AnteNumberContainer");
         anteNumberText = BindNumberText(panelRoot, "AnteNumberContainer");
+        lastBattleTitleText = BindLabelText(panelRoot, "LastBlindNameContainer");
         lastBlindNameText = BindNumberText(panelRoot, "LastBlindNameContainer");
         restartButton = BindOptionalButton(panelRoot, "RestartButton");
         mainPageButton = BindOptionalButton(panelRoot, "MainPageButton");
@@ -53,6 +57,9 @@ public class GameResultUIController : MonoBehaviour
             mainPageButton.onClick.RemoveAllListeners();
             mainPageButton.onClick.AddListener(() => Debug.Log("MainPageButton clicked. Main page scene is not configured yet."));
         }
+
+        SetText(anteTitleText, "Stage");
+        SetText(lastBattleTitleText, "Last Battle");
 
         Hide();
         Debug.Log("Bound GameResultPanel");
@@ -119,6 +126,18 @@ public class GameResultUIController : MonoBehaviour
         }
 
         return FindTextByName(container, "NumberText");
+    }
+
+    private TMP_Text BindLabelText(Transform panelRoot, string containerName)
+    {
+        Transform container = FindChildIncludingInactive(panelRoot, containerName);
+
+        if (container == null)
+        {
+            return null;
+        }
+
+        return FindTextByName(container, "Text");
     }
 
     private TMP_Text BindText(Transform root, string objectName, string label)

@@ -8,7 +8,7 @@ public class SageOfTheShiftingSigilJoker : JokerBase
     private bool hasTargetSuit;
 
     public override string Name => "Sage of the Shifting Sigil";
-    public override string Description => "A target suit changes each Blind. Scoring target-suit cards give X1.5 Mult.";
+    public override string Description => "A target suit changes each Battle. Scoring target-suit cards give X1.5 Mult.";
     public override int Cost => 8;
     public override string CurrentEffectText => hasTargetSuit ? $"Target: {currentTargetSuit}" : "Target: none";
 

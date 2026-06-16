@@ -3,7 +3,7 @@ public class BloodlineScribeJoker : JokerBase
     private bool hasTriggeredThisBlind;
 
     public override string Name => "Bloodline Scribe";
-    public override string Description => "On the first hand of each Blind, if you play exactly 1 card, copy it into your deck and hand.";
+    public override string Description => "On the first hand of each Battle, if you play exactly 1 card, copy it into your deck and hand.";
     public override int Cost => 8;
 
     public override void OnBlindStarted(JokerRuntimeContext runtimeContext)

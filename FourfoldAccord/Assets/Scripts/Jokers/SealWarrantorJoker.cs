@@ -5,7 +5,7 @@ public class SealWarrantorJoker : JokerBase
     private readonly Random random = new Random();
 
     public override string Name => "Seal Warrantor";
-    public override string Description => "At the start of each Blind, add a random playing card with a random Seal to your deck.";
+    public override string Description => "At the start of each Battle, add a random playing card with a random Seal to your deck.";
     public override int Cost => 6;
 
     public override void OnBlindStarted(JokerRuntimeContext runtimeContext)

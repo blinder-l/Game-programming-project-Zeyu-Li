@@ -140,7 +140,7 @@ public class BossBlindManager
             case BossBlindType.Club:
                 return new BossBlindDefinition(type, "The Club", "Clubs are debuffed.", 1, null, null, 0, true, Suit.Clubs);
             case BossBlindType.Eye:
-                return new BossBlindDefinition(type, "The Eye", "No repeated hand types this Blind.");
+                return new BossBlindDefinition(type, "The Eye", "No repeated hand types this Battle.");
             default:
                 return GetNoneDefinition();
         }

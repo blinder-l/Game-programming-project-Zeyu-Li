@@ -214,9 +214,21 @@ public class ShopUIController : MonoBehaviour
     private void BindActionButtons(Transform canvasRoot)
     {
         nextBlindButton = BindButton(canvasRoot, "ShopNextBlindButton", HandleNextBlindButtonClicked);
+        SetButtonText(nextBlindButton, "Next Battle");
         rerollButton = BindButton(canvasRoot, "ShopRerollButton", HandleRerollButtonClicked);
         rerollButtonText = rerollButton != null ? rerollButton.GetComponentInChildren<TMP_Text>(true) : null;
         RefreshRerollText();
+    }
+
+    private void SetButtonText(Button button, string textValue)
+    {
+        TMP_Text text = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
+
+        if (text != null)
+        {
+            text.text = textValue;
+            text.raycastTarget = false;
+        }
     }
 
     private void BindJokerOffers(Transform canvasRoot)

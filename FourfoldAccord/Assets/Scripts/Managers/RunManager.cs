@@ -33,11 +33,11 @@ public class RunManager
         switch (GetBlindInAnte())
         {
             case 1:
-                return "Small Blind";
+                return "Small Battle";
             case 2:
-                return "Big Blind";
+                return "Big Battle";
             default:
-                return "Boss Blind";
+                return "Boss Battle";
         }
     }
 
@@ -63,6 +63,6 @@ public class RunManager
 
     public string GetDebugStatus()
     {
-        return $"Ante: {GetAnteNumber()} | Blind: {CurrentBlindNumber} ({GetBlindDisplayName()}) | Target Score: {GetCurrentTargetScore()} | Fixed Reward: {GetFixedBlindReward()}";
+        return $"Stage: {GetAnteNumber()} | Battle: {CurrentBlindNumber} ({GetBlindDisplayName()}) | Target Score: {GetCurrentTargetScore()} | Fixed Reward: {GetFixedBlindReward()}";
     }
 }

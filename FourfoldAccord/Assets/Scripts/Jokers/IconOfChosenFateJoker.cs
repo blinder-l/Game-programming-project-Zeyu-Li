@@ -7,7 +7,7 @@ public class IconOfChosenFateJoker : JokerBase
     private bool hasTargetCard;
 
     public override string Name => "Icon of Chosen Fate";
-    public override string Description => "A target card changes each Blind. Scoring matching cards give X2 Mult.";
+    public override string Description => "A target card changes each Battle. Scoring matching cards give X2 Mult.";
     public override int Cost => 6;
     public override string CurrentEffectText => hasTargetCard ? $"Target: {FormatRank(targetRank)} of {targetSuit}" : "Target: none";
 

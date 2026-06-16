@@ -268,7 +268,7 @@ public class DeckStatsUIController : MonoBehaviour
     private void UpdateDeckStats(IReadOnlyList<PlayingCard> cards, GameUIState currentState)
     {
         DeckStats stats = BuildStats(cards);
-        SetText(deckStatsTitleText, currentState == GameUIState.Shop ? "Next Blind Deck" : "Remaining Deck");
+        SetText(deckStatsTitleText, currentState == GameUIState.Shop ? "Next Battle Deck" : "Remaining Deck");
         SetText(aFaceNumberSummaryText, $"A: {stats.aceCount}\nFace: {stats.faceCount}\nNumber: {stats.numberCount}\nTotal: {stats.totalCount}");
         SetText(suitSummaryText, BuildSuitSummary(stats));
         SetText(rankCountText, BuildRankCountText(stats));

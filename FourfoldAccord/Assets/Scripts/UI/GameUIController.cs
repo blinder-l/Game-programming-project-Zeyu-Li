@@ -51,6 +51,7 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private TMP_Text handsText;
     [SerializeField] private TMP_Text discardsText;
     [SerializeField] private TMP_Text goldText;
+    [SerializeField] private TMP_Text anteTitleText;
     [SerializeField] private TMP_Text anteNumberText;
     [SerializeField] private TMP_Text scoreCalculationChipsText;
     [SerializeField] private TMP_Text scoreCalculationMultText;
@@ -526,7 +527,7 @@ public class GameUIController : MonoBehaviour
         int anteNumber)
     {
         SetText(blindNameText, CurrentState == GameUIState.RunFailed ? "Run Failed" : blindName);
-        SetText(targetScoreText, targetScore.ToString());
+        SetText(targetScoreText, $"Target: {targetScore}");
         SetText(currentScoreText, currentScore.ToString());
         SetText(handTypeText, latestHandType);
         SetText(handTypeRankText, handTypeRank);
@@ -952,7 +953,9 @@ public class GameUIController : MonoBehaviour
         }
 
         goldText = BindTextInRoot(leftPanelRoot, "GoldNumberText", "GoldNumberText");
+        anteTitleText = BindTextInRoot(leftPanelRoot, "AnteText", "AnteText", false);
         anteNumberText = BindTextInRoot(leftPanelRoot, "AnteNumberText", "AnteNumberText");
+        SetText(anteTitleText, "Stage");
         BindScoreCalculationUI(leftPanelRoot);
         runInfoButton = BindOptionalButtonInRoot(leftPanelRoot, "RunInfoButton", "RunInfoButton");
         exitButton = BindOptionalButtonInRoot(leftPanelRoot, "ExitButton", "ExitButton");

@@ -5,7 +5,7 @@ public class StoredDiscardMultiplierJoker : JokerBase
     private int storedMultiplier = 1;
 
     public override string Name => "Stored Discard Multiplier Joker";
-    public override string Description => $"Mult x{storedMultiplier}; gains remaining discards when a Blind is passed.";
+    public override string Description => $"Mult x{storedMultiplier}; gains remaining discards when a Battle is passed.";
     public override int Cost => 7;
 
     public override void ApplyScoreEffect(ScoreContext scoreContext, int jokerSlotIndex)
