@@ -42,22 +42,22 @@ public class CardModifierDebugTester : MonoBehaviour
             SetEnhancement(CardEnhancement.Lucky, "Set enhancement to Lucky");
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+        if (Input.GetKeyDown(KeyCode.O) || Input.GetKeyDown(KeyCode.Keypad1))
         {
             SetSeal(CardSeal.Gold, "Set seal to Gold");
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+        if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Keypad2))
         {
             SetSeal(CardSeal.Red, "Set seal to Red");
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+        if (Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.Keypad3))
         {
             SetSeal(CardSeal.Blue, "Set seal to Blue");
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+        if (Input.GetKeyDown(KeyCode.U) || Input.GetKeyDown(KeyCode.Keypad4))
         {
             SetSeal(CardSeal.Purple, "Set seal to Purple");
         }
