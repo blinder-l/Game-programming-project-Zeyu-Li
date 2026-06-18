@@ -15,10 +15,10 @@ public class ShopUIController : MonoBehaviour
     private ShopOfferView consumableOfferView1;
     private ShopOfferView consumableOfferView2;
     private CardTooltipController tooltipController;
-    private JokerSpriteDatabase jokerSpriteDatabase;
-    private PlanetSpriteDatabase planetSpriteDatabase;
-    private SpellSpriteDatabase spellSpriteDatabase;
-    private EdictSpriteDatabase edictSpriteDatabase;
+    [SerializeField] private JokerSpriteDatabase jokerSpriteDatabase;
+    [SerializeField] private PlanetSpriteDatabase planetSpriteDatabase;
+    [SerializeField] private SpellSpriteDatabase spellSpriteDatabase;
+    [SerializeField] private EdictSpriteDatabase edictSpriteDatabase;
     private JokerEffectContext jokerEffectContext = new JokerEffectContext();
     private int shopPriceDiscount;
     private Func<bool> canUseShopInput;
@@ -458,7 +458,7 @@ public class ShopUIController : MonoBehaviour
 
         if (planetSpriteDatabase == null)
         {
-            planetSpriteDatabase = gameObject.AddComponent<PlanetSpriteDatabase>();
+            Debug.LogError("PlanetSpriteDatabase not found. Create a SpriteDatabases scene object and add PlanetSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -514,7 +514,7 @@ public class ShopUIController : MonoBehaviour
 
         if (jokerSpriteDatabase == null)
         {
-            jokerSpriteDatabase = gameObject.AddComponent<JokerSpriteDatabase>();
+            Debug.LogError("JokerSpriteDatabase not found. Create a SpriteDatabases scene object and add JokerSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -529,7 +529,7 @@ public class ShopUIController : MonoBehaviour
 
         if (spellSpriteDatabase == null)
         {
-            spellSpriteDatabase = gameObject.AddComponent<SpellSpriteDatabase>();
+            Debug.LogError("SpellSpriteDatabase not found. Create a SpriteDatabases scene object and add SpellSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -544,7 +544,7 @@ public class ShopUIController : MonoBehaviour
 
         if (edictSpriteDatabase == null)
         {
-            edictSpriteDatabase = gameObject.AddComponent<EdictSpriteDatabase>();
+            Debug.LogError("EdictSpriteDatabase not found. Create a SpriteDatabases scene object and add EdictSpriteDatabase with populated sprite entries.");
         }
     }
 }

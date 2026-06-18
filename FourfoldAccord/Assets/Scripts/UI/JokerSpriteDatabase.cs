@@ -5,16 +5,18 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class JokerSpriteDatabase : MonoBehaviour
 {
     [SerializeField] private string editorJokerSpriteFolder = "Assets/Spirites/Joker Cards";
     [SerializeField] private JokerSpriteEntry[] jokerSprites = new JokerSpriteEntry[0];
+    private Dictionary<string, Sprite> spriteLookup;
 
     private void Awake()
     {
-        EnsureJokerSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetSprite(JokerBase joker)
@@ -29,11 +31,37 @@ public class JokerSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(string jokerName)
     {
-        EnsureJokerSpritesPopulated();
+        EnsureLookup();
 
-        if (string.IsNullOrEmpty(jokerName) || jokerSprites == null)
+        if (string.IsNullOrEmpty(jokerName) || spriteLookup == null)
         {
             return null;
+        }
+
+        if (spriteLookup.TryGetValue(jokerName, out Sprite sprite))
+        {
+            return sprite;
+        }
+
+        Debug.LogWarning($"Missing Joker sprite for SpriteKey: {jokerName}");
+        return null;
+    }
+
+    private void EnsureLookup()
+    {
+        if (spriteLookup == null)
+        {
+            BuildLookup();
+        }
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+
+        if (jokerSprites == null)
+        {
+            return;
         }
 
         for (int i = 0; i < jokerSprites.Length; i++)
@@ -45,37 +73,18 @@ public class JokerSpriteDatabase : MonoBehaviour
                 continue;
             }
 
-            if (string.Equals(entry.jokerName, jokerName, StringComparison.OrdinalIgnoreCase))
-            {
-                return entry.sprite;
-            }
+            spriteLookup[entry.jokerName] = entry.sprite;
         }
-
-        Debug.LogWarning($"Missing Joker sprite for SpriteKey: {jokerName}");
-        return null;
-    }
-
-    private void EnsureJokerSpritesPopulated()
-    {
-#if UNITY_EDITOR
-        if (jokerSprites == null || jokerSprites.Length == 0)
-        {
-            AutoPopulateJokerSprites();
-        }
-#endif
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (jokerSprites == null || jokerSprites.Length == 0)
-        {
-            AutoPopulateJokerSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Joker Sprites")]
-    private void AutoPopulateJokerSprites()
+    public void AutoPopulateJokerSprites()
     {
         List<JokerSpriteEntry> entries = new List<JokerSpriteEntry>();
         string[] spriteGuids = AssetDatabase.FindAssets("t:Sprite", new[] { editorJokerSpriteFolder });
@@ -94,6 +103,9 @@ public class JokerSpriteDatabase : MonoBehaviour
         }
 
         jokerSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
     }
 
     private string ExtractEnglishJokerName(string assetPath)

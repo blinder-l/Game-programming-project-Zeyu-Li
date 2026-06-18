@@ -4,16 +4,18 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class CardModifierSpriteDatabase : MonoBehaviour
 {
     [SerializeField] private string editorModifierSpriteFolder = "Assets/Spirites/Cards effect components";
     [SerializeField] private CardModifierSpriteEntry[] modifierSprites = new CardModifierSpriteEntry[0];
+    private Dictionary<string, Sprite> spriteLookup;
 
     private void Awake()
     {
-        EnsureModifierSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetEnhancementSprite(CardEnhancement enhancement)
@@ -55,48 +57,60 @@ public class CardModifierSpriteDatabase : MonoBehaviour
 
     private Sprite GetSprite(string key)
     {
-        EnsureModifierSpritesPopulated();
+        EnsureLookup();
 
-        if (modifierSprites == null || string.IsNullOrEmpty(key))
+        if (spriteLookup == null || string.IsNullOrEmpty(key))
         {
             return null;
         }
 
-        for (int i = 0; i < modifierSprites.Length; i++)
+        if (spriteLookup.TryGetValue(key, out Sprite sprite))
         {
-            CardModifierSpriteEntry entry = modifierSprites[i];
-
-            if (entry != null && string.Equals(entry.key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                return entry.sprite;
-            }
+            return sprite;
         }
 
         Debug.LogWarning($"Missing card modifier sprite: {key}");
         return null;
     }
 
-    private void EnsureModifierSpritesPopulated()
+    private void EnsureLookup()
     {
-#if UNITY_EDITOR
-        if (modifierSprites == null || modifierSprites.Length == 0)
+        if (spriteLookup == null)
         {
-            AutoPopulateModifierSprites();
+            BuildLookup();
         }
-#endif
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+
+        if (modifierSprites == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < modifierSprites.Length; i++)
+        {
+            CardModifierSpriteEntry entry = modifierSprites[i];
+
+            if (entry == null || string.IsNullOrEmpty(entry.key))
+            {
+                continue;
+            }
+
+            spriteLookup[entry.key] = entry.sprite;
+        }
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (modifierSprites == null || modifierSprites.Length == 0)
-        {
-            AutoPopulateModifierSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Card Modifier Sprites")]
-    private void AutoPopulateModifierSprites()
+    public void AutoPopulateModifierSprites()
     {
         List<CardModifierSpriteEntry> entries = new List<CardModifierSpriteEntry>();
         string[] spriteGuids = AssetDatabase.FindAssets("t:Sprite", new[] { editorModifierSpriteFolder });
@@ -116,6 +130,9 @@ public class CardModifierSpriteDatabase : MonoBehaviour
         }
 
         modifierSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
     }
 #endif
 }

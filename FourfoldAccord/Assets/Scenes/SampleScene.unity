@@ -17546,6 +17546,418 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 770096994}
   m_CullTransparentMesh: 1
+--- !u!1 &784622255
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 784622262}
+  - component: {fileID: 784622261}
+  - component: {fileID: 784622260}
+  - component: {fileID: 784622259}
+  - component: {fileID: 784622258}
+  - component: {fileID: 784622257}
+  - component: {fileID: 784622256}
+  m_Layer: 0
+  m_Name: SpriteDatabases
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &784622256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b77e0bd74f8015844ac06239077c3659, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  editorEdictSpriteFolder: Assets/Spirites/Edict
+  edictSprites:
+  - edictType: 0
+    sprite: {fileID: 21300000, guid: d23975d295caaf343bacaa7552a12fe1, type: 3}
+  - edictType: 1
+    sprite: {fileID: 21300000, guid: e2076ccb18880044a9f37a93a9602375, type: 3}
+  - edictType: 2
+    sprite: {fileID: 21300000, guid: 462f8ae5ffa6d4d42a28f62317596021, type: 3}
+  - edictType: 3
+    sprite: {fileID: 21300000, guid: ff998c55f1b91124a965cb59c71a9192, type: 3}
+  - edictType: 4
+    sprite: {fileID: 21300000, guid: bd8382b34e44852449d1cb7551813716, type: 3}
+  - edictType: 5
+    sprite: {fileID: 21300000, guid: 42dd2b33920dbcf45ae6b855d1fe2a2c, type: 3}
+--- !u!114 &784622257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77e6392f79a0ef0498e7c657200e1dc2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  editorSpellSpriteFolder: Assets/Spirites/Spell cards
+  spellSprites:
+  - spellType: 0
+    sprite: {fileID: 21300000, guid: f44e0f48159501a4a90490989e736668, type: 3}
+  - spellType: 1
+    sprite: {fileID: 21300000, guid: 0c8c9981304bebc42bea148c9c298fc8, type: 3}
+  - spellType: 2
+    sprite: {fileID: 21300000, guid: ab3a9c0ae16d56c4c9b19fcfb57355dd, type: 3}
+  - spellType: 3
+    sprite: {fileID: 21300000, guid: 48c4e9277414a314b9d3d7f11606d2b6, type: 3}
+  - spellType: 4
+    sprite: {fileID: 21300000, guid: df163bef699b91f4482a2491b2ea6c6e, type: 3}
+  - spellType: 5
+    sprite: {fileID: 21300000, guid: 692028d59ff14a14eb0f455eb5010910, type: 3}
+  - spellType: 6
+    sprite: {fileID: 21300000, guid: 99354cd9300647441b13e2c2c5e3e5fd, type: 3}
+  - spellType: 7
+    sprite: {fileID: 21300000, guid: a076486c486703747a1b8b4d9504ae75, type: 3}
+--- !u!114 &784622258
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f3c5139f3cf47058b7427f30131aaf1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  editorPlanetSpriteFolder: Assets/Spirites/Planet cards
+  planetSprites:
+  - planetType: 0
+    sprite: {fileID: 21300000, guid: 14c44faa97578b747a13a9f7a1eb03bf, type: 3}
+  - planetType: 1
+    sprite: {fileID: 21300000, guid: 56140b3ed8480be4da73d58f21ca8cc8, type: 3}
+  - planetType: 2
+    sprite: {fileID: 21300000, guid: 5bbcac161433a004e9770b50f7fcf288, type: 3}
+  - planetType: 3
+    sprite: {fileID: 21300000, guid: 29b75edfa46965a4dae1b2dce88a8e61, type: 3}
+  - planetType: 4
+    sprite: {fileID: 21300000, guid: 9dd8648d235ff974eba3f9b8647fff1e, type: 3}
+  - planetType: 5
+    sprite: {fileID: 21300000, guid: 98d7fedad5e659a41a870b8cffdf5437, type: 3}
+  - planetType: 6
+    sprite: {fileID: 21300000, guid: a587726f673c53e418b193e328759268, type: 3}
+  - planetType: 7
+    sprite: {fileID: 21300000, guid: 334d2b620da80dc4c8cf906da33c166e, type: 3}
+  - planetType: 8
+    sprite: {fileID: 21300000, guid: eb4963b4d6121054abb254b88e57670b, type: 3}
+--- !u!114 &784622259
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e6f6df0d3cf46a99549959a4ae4f7e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  editorJokerSpriteFolder: Assets/Spirites/Joker Cards
+  jokerSprites:
+  - jokerName: Oathkeeper of the Ember Camp
+    sprite: {fileID: 21300000, guid: f60e582b89889bb4fa1a64f577bcb408, type: 3}
+  - jokerName: Priest of the Supernova Remnant
+    sprite: {fileID: 21300000, guid: e94227735fec99e4db8685debdf98b4b, type: 3}
+  - jokerName: First Echo Herald
+    sprite: {fileID: 21300000, guid: e20864817246e5546bab66da436523e7, type: 3}
+  - jokerName: Harbinger of Sixfold Omen
+    sprite: {fileID: 21300000, guid: 802df24e4a672934482d42f32839b832, type: 3}
+  - jokerName: War Blueprint Architect
+    sprite: {fileID: 21300000, guid: 5af8b7096b96b2645bfba45e39c42b4c, type: 3}
+  - jokerName: Jester of the Twin Courts
+    sprite: {fileID: 21300000, guid: f7216f58068ae974cb8e0cf2647853dc, type: 3}
+  - jokerName: Captain of the Reserve Line
+    sprite: {fileID: 21300000, guid: ae455d594bc4a534f84d20aa5caf4cb0, type: 3}
+  - jokerName: Icon of Chosen Fate
+    sprite: {fileID: 21300000, guid: 0742cff1b6eec0345a3c3b9e6fcf796e, type: 3}
+  - jokerName: Radiance Vampire
+    sprite: {fileID: 21300000, guid: 7d19bcce767505f428a34a59306af674, type: 3}
+  - jokerName: Arbiter of Four Seals
+    sprite: {fileID: 21300000, guid: 13cf3460094dcf845a06223dbd2bf067, type: 3}
+  - jokerName: Witness of the First Exposure
+    sprite: {fileID: 21300000, guid: 7711919869ef1554c8704bf28deb74e5, type: 3}
+  - jokerName: Seal Warrantor
+    sprite: {fileID: 21300000, guid: 80b03f924ba2b8a46ac001502f63c581, type: 3}
+  - jokerName: Duststep Ripper
+    sprite: {fileID: 21300000, guid: d8061644f3cf662439f8c5d5258e8061, type: 3}
+  - jokerName: Stonebound Effigier
+    sprite: {fileID: 21300000, guid: 48222adea2f6878489c205e984321241, type: 3}
+  - jokerName: Phantasmal Imprinter
+    sprite: {fileID: 21300000, guid: 58bd3a640e6f7b74aa0015261a442b37, type: 3}
+  - jokerName: Watcher of the Divergent Obelisk
+    sprite: {fileID: 21300000, guid: 329f87acf0db4cd46b5267227f4b91f3, type: 3}
+  - jokerName: Little Crown Page
+    sprite: {fileID: 21300000, guid: 1378371da5b73c74cbe5d135e219994a, type: 3}
+  - jokerName: Herald of Tragicomedy
+    sprite: {fileID: 21300000, guid: 9fe632baf79aa594389496e0de55b8ab, type: 3}
+  - jokerName: Fortune Familiar
+    sprite: {fileID: 21300000, guid: 68161bf1b62557d43806843f7e4d7cf0, type: 3}
+  - jokerName: Sigil Smearer
+    sprite: {fileID: 21300000, guid: 583651c5fa47ce44889883b4b2a94175, type: 3}
+  - jokerName: Herald of the Full Tide
+    sprite: {fileID: 21300000, guid: a06daffd366e0f24b88ded49ae833e93, type: 3}
+  - jokerName: Ashen Codex Burner
+    sprite: {fileID: 21300000, guid: 6a613789d98921846acb57b27fc43a9b, type: 3}
+  - jokerName: Baron of Sovereign Grace
+    sprite: {fileID: 21300000, guid: 94469fea82cd69d4b8d2517771a9b429, type: 3}
+  - jokerName: Masquerader of a Hundred Faces
+    sprite: {fileID: 21300000, guid: edc255c599e85a44ebe008288ba7303e, type: 3}
+  - jokerName: Pathfinder of the Hidden Route
+    sprite: {fileID: 21300000, guid: 833c708f7f9f28d4593ef2bf5c052ecc, type: 3}
+  - jokerName: Bloodstone Diviner
+    sprite: {fileID: 21300000, guid: be4db4b460baef04fb6ff59ab396ce11, type: 3}
+  - jokerName: Augur of Constellations
+    sprite: {fileID: 21300000, guid: 8db5f50b571284347887f916bcd82ad5, type: 3}
+  - jokerName: Sovereign of Hollow Copies
+    sprite: {fileID: 21300000, guid: c8de5f34dcf2b8d47b20e7bd88a1508d, type: 3}
+  - jokerName: Bloodline Scribe
+    sprite: {fileID: 21300000, guid: bbdebe36f5e169346ba187364166a9ac, type: 3}
+  - jokerName: Broker of Forfeit
+    sprite: {fileID: 21300000, guid: 9ee4d7017e6fdf24990233ef58f751bd, type: 3}
+  - jokerName: Sage of the Shifting Sigil
+    sprite: {fileID: 21300000, guid: 7dab76918187330478d27e25cbbbc5a2, type: 3}
+  - jokerName: Waymark Pilgrim
+    sprite: {fileID: 21300000, guid: c29a05a90ff7b374490867972cea7f6d, type: 3}
+  - jokerName: Gilded Maskbearer
+    sprite: {fileID: 21300000, guid: b56f17d745d67d744a7fbfa7e8c9ee9d, type: 3}
+  - jokerName: Rider of the Long Route
+    sprite: {fileID: 21300000, guid: f3d977770579f1c4295528e6262e1e42, type: 3}
+  - jokerName: Silent Mimic
+    sprite: {fileID: 21300000, guid: 4d111e326d981fd448c2156a1e130c34, type: 3}
+  - jokerName: Stormmind Strategist
+    sprite: {fileID: 21300000, guid: d9616f410a199ae48bc168f7ded97508, type: 3}
+--- !u!114 &784622260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d50c3dcea7d8c59438afcd40e3c469b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  editorModifierSpriteFolder: Assets/Spirites/Cards effect components
+  modifierSprites:
+  - key: card_stone
+    sprite: {fileID: 21300000, guid: 8a6984d515e64fe4598ab072883bb3c2, type: 3}
+  - key: icon_permanent_bonus_chips
+    sprite: {fileID: 21300000, guid: 5144971f498a902469b5cdd4ef1d8d80, type: 3}
+  - key: overlay_gold
+    sprite: {fileID: 21300000, guid: 12210e523c6938b498d6b2781efba03a, type: 3}
+  - key: overlay_lucky
+    sprite: {fileID: 21300000, guid: 9fad40ecaea968045a4417b415697b9a, type: 3}
+  - key: seal_blue
+    sprite: {fileID: 21300000, guid: 770b19abb4e33da409e64e40f7041adc, type: 3}
+  - key: seal_gold
+    sprite: {fileID: 21300000, guid: d0d7d5d9cfed48440b53f81ca3495965, type: 3}
+  - key: seal_purple
+    sprite: {fileID: 21300000, guid: f80c0e0fcb23f3942a30a684f60bb2af, type: 3}
+  - key: seal_red
+    sprite: {fileID: 21300000, guid: f17faf91180031b4daf5257451fa73ee, type: 3}
+--- !u!114 &784622261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2aa1cffb8d9e4916927104ff3fa995e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cardBackSprite: {fileID: 0}
+  editorCardSpriteFolder: Assets/Spirites/Cards
+  cardSprites:
+  - suit: 0
+    rank: 0
+    sprite: {fileID: 21300000, guid: c0899703d9b4c4a42b19423a2a787976, type: 3}
+  - suit: 0
+    rank: 1
+    sprite: {fileID: 21300000, guid: b7e3a8477fb96f84bacc9e8aa3ec247a, type: 3}
+  - suit: 0
+    rank: 2
+    sprite: {fileID: 21300000, guid: ee30d213ce1dcae439f51ba7540193e3, type: 3}
+  - suit: 0
+    rank: 3
+    sprite: {fileID: 21300000, guid: 8818f6099e22e3d4ca11030d74d2e565, type: 3}
+  - suit: 0
+    rank: 4
+    sprite: {fileID: 21300000, guid: 9621af1755d895544a1dadf6dff25ab3, type: 3}
+  - suit: 0
+    rank: 5
+    sprite: {fileID: 21300000, guid: 28ef2e877a723ff4aae0d1f37fc2e714, type: 3}
+  - suit: 0
+    rank: 6
+    sprite: {fileID: 21300000, guid: 75b83f80818ac894199e2ead01e07770, type: 3}
+  - suit: 0
+    rank: 7
+    sprite: {fileID: 21300000, guid: b1c4a8bc0095135479a008300a8a7d8e, type: 3}
+  - suit: 0
+    rank: 8
+    sprite: {fileID: 21300000, guid: 6d5d3bbf9c7f0724ea360736d5eaf70e, type: 3}
+  - suit: 0
+    rank: 9
+    sprite: {fileID: 21300000, guid: 8ece3a10e5cb68546ae211442123386c, type: 3}
+  - suit: 0
+    rank: 10
+    sprite: {fileID: 21300000, guid: 172814c170262ba40a28b052ca6814a0, type: 3}
+  - suit: 0
+    rank: 11
+    sprite: {fileID: 21300000, guid: a0f14f9ff77907944b9687929d62a204, type: 3}
+  - suit: 0
+    rank: 12
+    sprite: {fileID: 21300000, guid: 397fa7e3eb68c4f42b428d0eba90fc97, type: 3}
+  - suit: 1
+    rank: 0
+    sprite: {fileID: 21300000, guid: c576652931be8284fa4f1a380cca7b0c, type: 3}
+  - suit: 1
+    rank: 1
+    sprite: {fileID: 21300000, guid: c16b8f918f0cd5d4ebfe89db7bee14ef, type: 3}
+  - suit: 1
+    rank: 2
+    sprite: {fileID: 21300000, guid: 3f4b547981f9e1a4e9fda6385620c85d, type: 3}
+  - suit: 1
+    rank: 3
+    sprite: {fileID: 21300000, guid: 8dfcf33ff67536e4bbc3fbd26da4db3c, type: 3}
+  - suit: 1
+    rank: 4
+    sprite: {fileID: 21300000, guid: b512b1a349c0e7d4f964642be4343ae6, type: 3}
+  - suit: 1
+    rank: 5
+    sprite: {fileID: 21300000, guid: fd7984885872c924fa4dec8372568ac9, type: 3}
+  - suit: 1
+    rank: 6
+    sprite: {fileID: 21300000, guid: cad13a87739f7424ea7b74500523596e, type: 3}
+  - suit: 1
+    rank: 7
+    sprite: {fileID: 21300000, guid: 398e3d75f20364342b3e8d8767748d52, type: 3}
+  - suit: 1
+    rank: 8
+    sprite: {fileID: 21300000, guid: 68202dd9b96e6634394616c5a3314f80, type: 3}
+  - suit: 1
+    rank: 9
+    sprite: {fileID: 21300000, guid: a70017d225f82a345afad02967ad6fb3, type: 3}
+  - suit: 1
+    rank: 10
+    sprite: {fileID: 21300000, guid: 86d7f1aaceb66b94885de00851b3b0fd, type: 3}
+  - suit: 1
+    rank: 11
+    sprite: {fileID: 21300000, guid: a392ae4102a63fb4b862705a46baabe3, type: 3}
+  - suit: 1
+    rank: 12
+    sprite: {fileID: 21300000, guid: 72440efadd018ab4083c490f0b128827, type: 3}
+  - suit: 2
+    rank: 0
+    sprite: {fileID: 21300000, guid: 6ead33a44d7c9564db6b3da7f99558e3, type: 3}
+  - suit: 2
+    rank: 1
+    sprite: {fileID: 21300000, guid: 54974d3a144098a46a42ca5bf1f4e01e, type: 3}
+  - suit: 2
+    rank: 2
+    sprite: {fileID: 21300000, guid: 12aab60c25350f04692e14d58fd08a4f, type: 3}
+  - suit: 2
+    rank: 3
+    sprite: {fileID: 21300000, guid: c47f7202e3e3d4441a2068d577fde286, type: 3}
+  - suit: 2
+    rank: 4
+    sprite: {fileID: 21300000, guid: 119927fd4783746499b132fadd323c88, type: 3}
+  - suit: 2
+    rank: 5
+    sprite: {fileID: 21300000, guid: a9740887eecab26429c4f1e17e893389, type: 3}
+  - suit: 2
+    rank: 6
+    sprite: {fileID: 21300000, guid: e14f7f9ee2441f845a4d15579dcfc4a0, type: 3}
+  - suit: 2
+    rank: 7
+    sprite: {fileID: 21300000, guid: e9aa925f6e3e3ad4cb57b5c47438af2e, type: 3}
+  - suit: 2
+    rank: 8
+    sprite: {fileID: 21300000, guid: a47f7aae1fa4eb54585a253d97c6d53b, type: 3}
+  - suit: 2
+    rank: 9
+    sprite: {fileID: 21300000, guid: 08a3302e3d822164a92a1ff5dfceb52c, type: 3}
+  - suit: 2
+    rank: 10
+    sprite: {fileID: 21300000, guid: ce13223041373494ab69223e23bba270, type: 3}
+  - suit: 2
+    rank: 11
+    sprite: {fileID: 21300000, guid: 1c125808b3482894497af653e4c59a04, type: 3}
+  - suit: 2
+    rank: 12
+    sprite: {fileID: 21300000, guid: aec4f25b8ac511d42ae59c7d61f94930, type: 3}
+  - suit: 3
+    rank: 0
+    sprite: {fileID: 21300000, guid: a0afe6aefe3c1d6408e4ac66ceff0a83, type: 3}
+  - suit: 3
+    rank: 1
+    sprite: {fileID: 21300000, guid: 62fc98020823ce546bfcf2b45d152a0d, type: 3}
+  - suit: 3
+    rank: 2
+    sprite: {fileID: 21300000, guid: b7811a92e7050eb4e8965c95d45d3983, type: 3}
+  - suit: 3
+    rank: 3
+    sprite: {fileID: 21300000, guid: eafcb272d2bc3344db1f5e70f4e87013, type: 3}
+  - suit: 3
+    rank: 4
+    sprite: {fileID: 21300000, guid: 73d6f9f5646c3534a817e15d728c2669, type: 3}
+  - suit: 3
+    rank: 5
+    sprite: {fileID: 21300000, guid: eacd96d98a8a33f469e2499a7f8698f4, type: 3}
+  - suit: 3
+    rank: 6
+    sprite: {fileID: 21300000, guid: 2d41264ec617a3543b7fe16e17251f24, type: 3}
+  - suit: 3
+    rank: 7
+    sprite: {fileID: 21300000, guid: a7ab1d57669155d419b1583b86df3863, type: 3}
+  - suit: 3
+    rank: 8
+    sprite: {fileID: 21300000, guid: a9a419b97a2d68c48ba132fa226970e3, type: 3}
+  - suit: 3
+    rank: 9
+    sprite: {fileID: 21300000, guid: 2c79094f02c4a84449e52eb04d334b35, type: 3}
+  - suit: 3
+    rank: 10
+    sprite: {fileID: 21300000, guid: e180a6eaeae9f2642895833f77e2085e, type: 3}
+  - suit: 3
+    rank: 11
+    sprite: {fileID: 21300000, guid: 27ab290092973c341a64a09ce341827f, type: 3}
+  - suit: 3
+    rank: 12
+    sprite: {fileID: 21300000, guid: 8c807dd42f5805247b916c01bef8878d, type: 3}
+--- !u!4 &784622262
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 784622255}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &794526026
 GameObject:
   m_ObjectHideFlags: 0
@@ -49339,3 +49751,4 @@ SceneRoots:
   - {fileID: 971060462}
   - {fileID: 1126768436}
   - {fileID: 1041495586}
+  - {fileID: 784622262}

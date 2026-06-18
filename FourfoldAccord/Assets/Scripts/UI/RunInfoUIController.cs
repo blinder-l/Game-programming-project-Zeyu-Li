@@ -57,7 +57,7 @@ public class RunInfoUIController : MonoBehaviour
     private SuitMasteryManager suitMasteryManager;
     private IReadOnlyDictionary<PokerHandType, int> handTypePlayCounts;
     private IReadOnlyList<EdictCard> purchasedEdicts;
-    private EdictSpriteDatabase edictSpriteDatabase;
+    [SerializeField] private EdictSpriteDatabase edictSpriteDatabase;
     private CardTooltipController tooltipController;
     private RunInfoTab currentTab = RunInfoTab.HandTypes;
 
@@ -616,7 +616,7 @@ public class RunInfoUIController : MonoBehaviour
 
         if (edictSpriteDatabase == null)
         {
-            edictSpriteDatabase = gameObject.AddComponent<EdictSpriteDatabase>();
+            Debug.LogError("EdictSpriteDatabase not found. Create a SpriteDatabases scene object and add EdictSpriteDatabase with populated sprite entries.");
         }
     }
 

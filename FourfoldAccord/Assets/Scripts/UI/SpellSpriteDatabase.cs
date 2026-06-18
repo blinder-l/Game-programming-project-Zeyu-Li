@@ -4,16 +4,18 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class SpellSpriteDatabase : MonoBehaviour
 {
     [SerializeField] private string editorSpellSpriteFolder = "Assets/Spirites/Spell cards";
     [SerializeField] private SpellSpriteEntry[] spellSprites = new SpellSpriteEntry[0];
+    private Dictionary<SpellCardType, Sprite> spriteLookup;
 
     private void Awake()
     {
-        EnsureSpellSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetSprite(SpellCard spellCard)
@@ -28,64 +30,104 @@ public class SpellSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(SpellCardType spellType)
     {
-        EnsureSpellSpritesPopulated();
+        EnsureLookup();
 
-        if (spellSprites == null)
+        if (spriteLookup == null)
         {
             return null;
         }
 
-        for (int i = 0; i < spellSprites.Length; i++)
+        if (spriteLookup.TryGetValue(spellType, out Sprite sprite))
         {
-            SpellSpriteEntry entry = spellSprites[i];
-
-            if (entry.spellType == spellType)
+            if (sprite == null)
             {
-                if (entry.sprite == null)
-                {
-                    Debug.LogWarning($"Missing Spell sprite for {SpellCard.GetName(spellType)}");
-                }
-
-                return entry.sprite;
+                Debug.LogWarning($"Missing Spell sprite for {SpellCard.GetName(spellType)}");
             }
+
+            return sprite;
         }
 
         Debug.LogWarning($"Missing Spell sprite entry for {SpellCard.GetName(spellType)}");
         return null;
     }
 
-    private void EnsureSpellSpritesPopulated()
+    private void EnsureLookup()
     {
-#if UNITY_EDITOR
-        if (spellSprites == null || spellSprites.Length == 0)
+        if (spriteLookup == null)
         {
-            AutoPopulateSpellSprites();
+            BuildLookup();
         }
-#endif
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<SpellCardType, Sprite>();
+
+        if (spellSprites == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < spellSprites.Length; i++)
+        {
+            SpellSpriteEntry entry = spellSprites[i];
+
+            if (entry == null)
+            {
+                continue;
+            }
+
+            spriteLookup[entry.spellType] = entry.sprite;
+        }
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (spellSprites == null || spellSprites.Length == 0)
-        {
-            AutoPopulateSpellSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Spell Sprites")]
-    private void AutoPopulateSpellSprites()
+    public void AutoPopulateSpellSprites()
     {
         List<SpellSpriteEntry> entries = new List<SpellSpriteEntry>();
 
         foreach (SpellCardType spellType in Enum.GetValues(typeof(SpellCardType)))
         {
-            string path = $"{editorSpellSpriteFolder}/{SpellCard.GetName(spellType)}.png";
+            string path = $"{editorSpellSpriteFolder}/{GetSpriteFileName(spellType)}.png";
             Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
             entries.Add(new SpellSpriteEntry(spellType, sprite));
         }
 
         spellSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
+    }
+
+    private string GetSpriteFileName(SpellCardType spellType)
+    {
+        switch (spellType)
+        {
+            case SpellCardType.AuricCovenant:
+                return "Auric Covenant";
+            case SpellCardType.StoneboundOath:
+                return "Stonebound Oath";
+            case SpellCardType.FortuneInscription:
+                return "Fortune Inscription";
+            case SpellCardType.CrimsonSealRite:
+                return "Crimson Seal Rite";
+            case SpellCardType.GildedSealRite:
+                return "Gilded Seal Rite";
+            case SpellCardType.HermitsVault:
+                return "Hermit’s Vault";
+            case SpellCardType.GallowsOffering:
+                return "Gallows Offering";
+            case SpellCardType.AscendantBlessing:
+                return "Ascendant Blessing";
+            default:
+                return SpellCard.GetName(spellType);
+        }
     }
 #endif
 }

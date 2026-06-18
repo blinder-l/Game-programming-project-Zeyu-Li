@@ -886,7 +886,7 @@ public class GameUIController : MonoBehaviour
 
         if (cardSpriteDatabase == null)
         {
-            cardSpriteDatabase = gameObject.AddComponent<CardSpriteDatabase>();
+            Debug.LogError("CardSpriteDatabase not found. Create a SpriteDatabases scene object and add CardSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -901,7 +901,7 @@ public class GameUIController : MonoBehaviour
 
         if (cardModifierSpriteDatabase == null)
         {
-            cardModifierSpriteDatabase = gameObject.AddComponent<CardModifierSpriteDatabase>();
+            Debug.LogError("CardModifierSpriteDatabase not found. Create a SpriteDatabases scene object and add CardModifierSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -998,7 +998,7 @@ public class GameUIController : MonoBehaviour
 
         if (jokerSpriteDatabase == null)
         {
-            jokerSpriteDatabase = gameObject.AddComponent<JokerSpriteDatabase>();
+            Debug.LogError("JokerSpriteDatabase not found. Create a SpriteDatabases scene object and add JokerSpriteDatabase with populated sprite entries.");
         }
     }
 
@@ -1013,7 +1013,7 @@ public class GameUIController : MonoBehaviour
 
         if (spellSpriteDatabase == null)
         {
-            spellSpriteDatabase = gameObject.AddComponent<SpellSpriteDatabase>();
+            Debug.LogError("SpellSpriteDatabase not found. Create a SpriteDatabases scene object and add SpellSpriteDatabase with populated sprite entries.");
         }
     }
 

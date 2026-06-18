@@ -4,16 +4,18 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class EdictSpriteDatabase : MonoBehaviour
 {
     [SerializeField] private string editorEdictSpriteFolder = "Assets/Spirites/Edict";
     [SerializeField] private EdictSpriteEntry[] edictSprites = new EdictSpriteEntry[0];
+    private Dictionary<EdictCardType, Sprite> spriteLookup;
 
     private void Awake()
     {
-        EnsureEdictSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetSprite(EdictCard edictCard)
@@ -28,53 +30,65 @@ public class EdictSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(EdictCardType edictType)
     {
-        EnsureEdictSpritesPopulated();
+        EnsureLookup();
 
-        if (edictSprites == null)
+        if (spriteLookup == null)
         {
             return null;
         }
 
-        for (int i = 0; i < edictSprites.Length; i++)
+        if (spriteLookup.TryGetValue(edictType, out Sprite sprite))
         {
-            EdictSpriteEntry entry = edictSprites[i];
-
-            if (entry.edictType == edictType)
+            if (sprite == null)
             {
-                if (entry.sprite == null)
-                {
-                    Debug.LogWarning($"Missing Edict sprite for {EdictCard.GetName(edictType)}");
-                }
-
-                return entry.sprite;
+                Debug.LogWarning($"Missing Edict sprite for {EdictCard.GetName(edictType)}");
             }
+
+            return sprite;
         }
 
         Debug.LogWarning($"Missing Edict sprite entry for {EdictCard.GetName(edictType)}");
         return null;
     }
 
-    private void EnsureEdictSpritesPopulated()
+    private void EnsureLookup()
     {
-#if UNITY_EDITOR
-        if (edictSprites == null || edictSprites.Length == 0)
+        if (spriteLookup == null)
         {
-            AutoPopulateEdictSprites();
+            BuildLookup();
         }
-#endif
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<EdictCardType, Sprite>();
+
+        if (edictSprites == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < edictSprites.Length; i++)
+        {
+            EdictSpriteEntry entry = edictSprites[i];
+
+            if (entry == null)
+            {
+                continue;
+            }
+
+            spriteLookup[entry.edictType] = entry.sprite;
+        }
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (edictSprites == null || edictSprites.Length == 0)
-        {
-            AutoPopulateEdictSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Edict Sprites")]
-    private void AutoPopulateEdictSprites()
+    public void AutoPopulateEdictSprites()
     {
         List<EdictSpriteEntry> entries = new List<EdictSpriteEntry>();
 
@@ -86,6 +100,9 @@ public class EdictSpriteDatabase : MonoBehaviour
         }
 
         edictSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
     }
 #endif
 }

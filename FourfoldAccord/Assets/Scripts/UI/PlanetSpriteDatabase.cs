@@ -4,16 +4,18 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class PlanetSpriteDatabase : MonoBehaviour
 {
     [SerializeField] private string editorPlanetSpriteFolder = "Assets/Spirites/Planet cards";
     [SerializeField] private PlanetSpriteEntry[] planetSprites = new PlanetSpriteEntry[0];
+    private Dictionary<PlanetCardType, Sprite> spriteLookup;
 
     private void Awake()
     {
-        EnsurePlanetSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetSprite(PlanetCard planetCard)
@@ -28,47 +30,60 @@ public class PlanetSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(PlanetCardType planetType)
     {
-        EnsurePlanetSpritesPopulated();
+        EnsureLookup();
+
+        if (spriteLookup == null)
+        {
+            return null;
+        }
+
+        if (spriteLookup.TryGetValue(planetType, out Sprite sprite))
+        {
+            return sprite;
+        }
+
+        Debug.LogWarning($"Missing Planet sprite for {planetType}");
+        return null;
+    }
+
+    private void EnsureLookup()
+    {
+        if (spriteLookup == null)
+        {
+            BuildLookup();
+        }
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<PlanetCardType, Sprite>();
 
         if (planetSprites == null)
         {
-            return null;
+            return;
         }
 
         for (int i = 0; i < planetSprites.Length; i++)
         {
             PlanetSpriteEntry entry = planetSprites[i];
 
-            if (entry.planetType == planetType)
+            if (entry == null)
             {
-                return entry.sprite;
+                continue;
             }
-        }
 
-        return null;
-    }
-
-    private void EnsurePlanetSpritesPopulated()
-    {
-#if UNITY_EDITOR
-        if (planetSprites == null || planetSprites.Length == 0)
-        {
-            AutoPopulatePlanetSprites();
+            spriteLookup[entry.planetType] = entry.sprite;
         }
-#endif
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (planetSprites == null || planetSprites.Length == 0)
-        {
-            AutoPopulatePlanetSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Planet Sprites")]
-    private void AutoPopulatePlanetSprites()
+    public void AutoPopulatePlanetSprites()
     {
         List<PlanetSpriteEntry> entries = new List<PlanetSpriteEntry>();
 
@@ -80,6 +95,9 @@ public class PlanetSpriteDatabase : MonoBehaviour
         }
 
         planetSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
     }
 #endif
 }

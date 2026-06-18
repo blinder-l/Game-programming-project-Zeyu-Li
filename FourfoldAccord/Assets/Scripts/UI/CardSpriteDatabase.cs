@@ -4,6 +4,7 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public class CardSpriteDatabase : MonoBehaviour
@@ -11,12 +12,13 @@ public class CardSpriteDatabase : MonoBehaviour
     [SerializeField] private Sprite cardBackSprite;
     [SerializeField] private string editorCardSpriteFolder = "Assets/Spirites/Cards";
     [SerializeField] private CardSpriteEntry[] cardSprites = new CardSpriteEntry[0];
+    private Dictionary<string, Sprite> spriteLookup;
 
     public Sprite CardBackSprite => cardBackSprite;
 
     private void Awake()
     {
-        EnsureCardSpritesPopulated();
+        BuildLookup();
     }
 
     public Sprite GetSprite(PlayingCard card)
@@ -31,47 +33,67 @@ public class CardSpriteDatabase : MonoBehaviour
 
     public Sprite GetSprite(Suit suit, Rank rank)
     {
-        EnsureCardSpritesPopulated();
+        EnsureLookup();
+
+        if (spriteLookup == null)
+        {
+            return cardBackSprite;
+        }
+
+        string key = GetLookupKey(suit, rank);
+
+        if (spriteLookup.TryGetValue(key, out Sprite sprite))
+        {
+            return sprite != null ? sprite : cardBackSprite;
+        }
+
+        Debug.LogWarning($"Missing card sprite for {rank} of {suit}");
+        return cardBackSprite;
+    }
+
+    private void EnsureLookup()
+    {
+        if (spriteLookup == null)
+        {
+            BuildLookup();
+        }
+    }
+
+    private void BuildLookup()
+    {
+        spriteLookup = new Dictionary<string, Sprite>();
 
         if (cardSprites == null)
         {
-            return cardBackSprite;
+            return;
         }
 
         for (int i = 0; i < cardSprites.Length; i++)
         {
             CardSpriteEntry entry = cardSprites[i];
 
-            if (entry.suit == suit && entry.rank == rank)
+            if (entry == null)
             {
-                return entry.sprite;
+                continue;
             }
-        }
 
-        return cardBackSprite;
+            spriteLookup[GetLookupKey(entry.suit, entry.rank)] = entry.sprite;
+        }
     }
 
-    private void EnsureCardSpritesPopulated()
+    private string GetLookupKey(Suit suit, Rank rank)
     {
-#if UNITY_EDITOR
-        if (cardSprites == null || cardSprites.Length == 0)
-        {
-            AutoPopulateCardSprites();
-        }
-#endif
+        return $"{suit}:{rank}";
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (cardSprites == null || cardSprites.Length == 0)
-        {
-            AutoPopulateCardSprites();
-        }
+        BuildLookup();
     }
 
     [ContextMenu("Auto Populate Card Sprites")]
-    private void AutoPopulateCardSprites()
+    public void AutoPopulateCardSprites()
     {
         List<CardSpriteEntry> entries = new List<CardSpriteEntry>();
 
@@ -87,6 +109,9 @@ public class CardSpriteDatabase : MonoBehaviour
         }
 
         cardSprites = entries.ToArray();
+        BuildLookup();
+        EditorUtility.SetDirty(this);
+        EditorSceneManager.MarkSceneDirty(gameObject.scene);
     }
 #endif
 
