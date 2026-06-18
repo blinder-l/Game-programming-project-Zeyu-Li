@@ -285,7 +285,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81e2a7975f84ec74381fa5037862c0b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameSceneName: SampleScene
+  gameSceneName: GameScene
   guidancePanel: {fileID: 1360533991}
 --- !u!4 &123847412
 Transform:
